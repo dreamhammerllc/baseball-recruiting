@@ -6,9 +6,9 @@ import { useClerk, useUser } from '@clerk/nextjs';
 import { useState } from 'react';
 
 const NAV_ITEMS = [
-  { href: '/dashboard/college',         label: 'Dashboard',        icon: HomeIcon },
-  { href: '/dashboard/college/search',  label: 'Prospect Search',  icon: SearchIcon },
-  { href: '/dashboard/college/saved',   label: 'Saved Prospects',  icon: BookmarkIcon },
+  { href: '/dashboard/college',          label: 'Dashboard',       icon: HomeIcon },
+  { href: '/dashboard/college/search',   label: 'Prospect Search', icon: SearchIcon },
+  { href: '/dashboard/college/saved',    label: 'Saved Prospects', icon: BookmarkIcon },
   { href: '/dashboard/college/settings', label: 'Settings',        icon: GearIcon },
 ];
 
@@ -22,21 +22,31 @@ export default function CollegeSidebar() {
 
   return (
     <>
-      {/* Mobile top bar */}
-      <header style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '0 1rem', height: '56px', backgroundColor: '#0a0e14',
-        borderBottom: '1px solid #1e2530', position: 'sticky', top: 0, zIndex: 40,
-      }} className="sidebar-mobile-header">
+      {/* Mobile top bar — fixed at viewport top on mobile, hidden on desktop */}
+      <header
+        className="sidebar-mobile-header"
+        style={{
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '0 1rem',
+          height: '56px',
+          backgroundColor: '#0a0e14',
+          borderBottom: '1px solid #1e2530',
+        }}
+      >
         <span style={{ color: '#e8a020', fontWeight: 700, fontSize: '1.1rem', letterSpacing: '-0.02em' }}>
           ◆ Diamond Verified
         </span>
-        <button onClick={() => setMobileOpen(!mobileOpen)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0.25rem', color: '#9ca3af' }}>
+        <button
+          type="button"
+          onClick={() => setMobileOpen(o => !o)}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0.25rem', color: '#9ca3af' }}
+        >
           {mobileOpen ? <CloseIcon /> : <MenuIcon />}
         </button>
       </header>
 
-      {/* Mobile overlay */}
+      {/* Overlay — dims main content when sidebar is open on mobile */}
       {mobileOpen && (
         <div
           onClick={() => setMobileOpen(false)}
@@ -44,28 +54,17 @@ export default function CollegeSidebar() {
         />
       )}
 
-      {/* Sidebar */}
-      <aside style={{
-        width: '240px',
-        flexShrink: 0,
-        backgroundColor: '#0a0e14',
-        borderRight: '1px solid #1e2530',
-        display: 'flex',
-        flexDirection: 'column',
-        height: '100vh',
-        position: 'sticky',
-        top: 0,
-        overflowY: 'auto',
-        ...(typeof window !== 'undefined' && window.innerWidth < 768
-          ? {
-              position: 'fixed' as const,
-              left: mobileOpen ? '0' : '-260px',
-              top: 0,
-              zIndex: 50,
-              transition: 'left 0.2s ease',
-            }
-          : {}),
-      }}>
+      {/* Sidebar panel */}
+      <aside
+        className={`college-sidebar${mobileOpen ? ' sidebar-open' : ''}`}
+        style={{
+          backgroundColor: '#0a0e14',
+          borderRight: '1px solid #1e2530',
+          display: 'flex',
+          flexDirection: 'column',
+          overflowY: 'auto',
+        }}
+      >
         {/* Logo */}
         <div style={{ padding: '1.5rem 1.25rem 1rem', borderBottom: '1px solid #1e2530' }}>
           <Link href="/dashboard/college" style={{ textDecoration: 'none' }}>
@@ -78,8 +77,8 @@ export default function CollegeSidebar() {
           </Link>
         </div>
 
-        {/* Nav links */}
-        <nav style={{ flex: 1, padding: '0.75rem 0.75rem' }}>
+        {/* Nav */}
+        <nav style={{ flex: 1, padding: '0.75rem' }}>
           {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
             const active = pathname === href;
             return (
@@ -109,12 +108,13 @@ export default function CollegeSidebar() {
           })}
         </nav>
 
-        {/* Footer: email + sign out */}
+        {/* Footer */}
         <div style={{ padding: '1rem 1.25rem', borderTop: '1px solid #1e2530' }}>
           <p style={{ color: '#4b5563', fontSize: '0.75rem', margin: '0 0 0.75rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {email}
           </p>
           <button
+            type="button"
             onClick={() => signOut({ redirectUrl: '/sign-in' })}
             style={{
               width: '100%',
@@ -129,7 +129,6 @@ export default function CollegeSidebar() {
               cursor: 'pointer',
               fontSize: '0.85rem',
               fontWeight: 500,
-              transition: 'color 0.15s, border-color 0.15s',
             }}
           >
             <SignOutIcon />
@@ -139,9 +138,50 @@ export default function CollegeSidebar() {
       </aside>
 
       <style>{`
-        .sidebar-mobile-header { display: none; }
+        /* Mobile header: hidden on desktop */
+        .sidebar-mobile-header {
+          display: none;
+        }
+
+        /* Sidebar: desktop — sticky left column */
+        .college-sidebar {
+          width: 240px;
+          flex-shrink: 0;
+          height: 100vh;
+          position: sticky;
+          top: 0;
+        }
+
         @media (max-width: 767px) {
-          .sidebar-mobile-header { display: flex; }
+          /* Show mobile header as fixed top bar */
+          .sidebar-mobile-header {
+            display: flex;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            width: 100%;
+            z-index: 60;
+          }
+
+          /* Sidebar: slides in from left as overlay */
+          .college-sidebar {
+            position: fixed;
+            top: 0;
+            left: -260px;
+            width: 240px;
+            height: 100vh;
+            z-index: 55;
+            transition: left 0.25s ease;
+          }
+          .college-sidebar.sidebar-open {
+            left: 0;
+          }
+
+          /* Push main content below the 56px fixed header */
+          .college-sidebar ~ main {
+            padding-top: 72px !important;
+          }
         }
       `}</style>
     </>
