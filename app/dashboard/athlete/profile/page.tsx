@@ -12,27 +12,26 @@ const US_STATES = [
   'SD','TN','TX','UT','VT','VA','WA','WV','WI','WY',
 ];
 
-const POSITIONS = ['P','C','1B','2B','3B','SS','LF','CF','RF','DH'];
-const DIVISIONS  = ['D1','D2','D3','NAIA','JUCO'];
+const POSITIONS  = ['P','C','1B','2B','3B','SS','LF','CF','RF','DH'];
 const GRAD_YEARS = ['2025','2026','2027','2028','2029','2030','2031'];
 
 interface Profile {
   full_name:           string;
   grad_year:           string;
   position:            string;
+  secondary_position:  string;
   gpa_weighted:        string;
   gpa_unweighted:      string;
   home_state:          string;
   highlight_video_url: string;
-  division_pref:       string;
   photo_url:           string;
   bio:                 string;
 }
 
 const EMPTY: Profile = {
-  full_name: '', grad_year: '', position: '', gpa_weighted: '',
-  gpa_unweighted: '', home_state: '', highlight_video_url: '',
-  division_pref: '', photo_url: '', bio: '',
+  full_name: '', grad_year: '', position: '', secondary_position: '',
+  gpa_weighted: '', gpa_unweighted: '', home_state: '',
+  highlight_video_url: '', photo_url: '', bio: '',
 };
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
@@ -91,11 +90,11 @@ export default function AthleteProfilePage() {
             full_name:           p.full_name           ?? '',
             grad_year:           p.grad_year           ?? '',
             position:            p.position            ?? '',
+            secondary_position:  p.secondary_position  ?? '',
             gpa_weighted:        p.gpa_weighted        != null ? String(p.gpa_weighted)   : '',
             gpa_unweighted:      p.gpa_unweighted      != null ? String(p.gpa_unweighted) : '',
             home_state:          p.home_state          ?? '',
             highlight_video_url: p.highlight_video_url ?? '',
-            division_pref:       p.division_pref       ?? '',
             photo_url:           p.photo_url           ?? '',
             bio:                 p.bio                 ?? '',
           });
@@ -142,11 +141,11 @@ export default function AthleteProfilePage() {
         full_name:           profile.full_name           || null,
         grad_year:           profile.grad_year           || null,
         position:            profile.position            || null,
+        secondary_position:  profile.secondary_position  || null,
         gpa_weighted:        profile.gpa_weighted        ? parseFloat(profile.gpa_weighted)   : null,
         gpa_unweighted:      profile.gpa_unweighted      ? parseFloat(profile.gpa_unweighted) : null,
         home_state:          profile.home_state          || null,
         highlight_video_url: profile.highlight_video_url || null,
-        division_pref:       profile.division_pref       || null,
         bio:                 profile.bio                 || null,
       };
       const res  = await fetch('/api/athlete/profile', {
@@ -275,6 +274,16 @@ export default function AthleteProfilePage() {
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+              <Field label="Secondary Position">
+                <select value={profile.secondary_position} onChange={e => set('secondary_position', e.target.value)} style={selectStyle}>
+                  <option value="">None</option>
+                  {POSITIONS.map(p => <option key={p} value={p}>{p}</option>)}
+                </select>
+              </Field>
+              <div /> {/* spacer */}
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
               <Field label="GPA Weighted">
                 <input
                   type="number"
@@ -302,21 +311,12 @@ export default function AthleteProfilePage() {
               </Field>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-              <Field label="Home State">
-                <select value={profile.home_state} onChange={e => set('home_state', e.target.value)} style={selectStyle}>
-                  <option value="">Select state</option>
-                  {US_STATES.map(s => <option key={s} value={s}>{s}</option>)}
-                </select>
-              </Field>
-
-              <Field label="Division Preference">
-                <select value={profile.division_pref} onChange={e => set('division_pref', e.target.value)} style={selectStyle}>
-                  <option value="">Select division</option>
-                  {DIVISIONS.map(d => <option key={d} value={d}>{d}</option>)}
-                </select>
-              </Field>
-            </div>
+            <Field label="Home State">
+              <select value={profile.home_state} onChange={e => set('home_state', e.target.value)} style={{ ...selectStyle, maxWidth: '50%' }}>
+                <option value="">Select state</option>
+                {US_STATES.map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </Field>
 
             <Field label="Bio">
               <textarea

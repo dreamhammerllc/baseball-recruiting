@@ -79,7 +79,7 @@ export default function AthleteSidebar() {
         </div>
 
         {/* Nav */}
-        <nav style={{ flex: 1, padding: '0.75rem' }}>
+        <nav style={{ padding: '0.75rem' }}>
           {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
             const active = pathname === href;
             return (
@@ -107,34 +107,38 @@ export default function AthleteSidebar() {
               </Link>
             );
           })}
+
+          {/* Sign Out — placed directly below nav links so it is always visible */}
+          <div style={{ marginTop: '0.5rem', paddingTop: '0.5rem', borderTop: '1px solid #1e2530' }}>
+            <button
+              type="button"
+              onClick={() => signOut({ redirectUrl: '/' })}
+              style={{
+                width: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                padding: '0.6rem 0.75rem',
+                borderRadius: '0.5rem',
+                border: 'none',
+                backgroundColor: 'transparent',
+                color: '#6b7280',
+                cursor: 'pointer',
+                fontSize: '0.9rem',
+                fontWeight: 400,
+              }}
+            >
+              <SignOutIcon />
+              Sign Out
+            </button>
+          </div>
         </nav>
 
-        {/* Footer */}
-        <div style={{ padding: '1rem 1.25rem', borderTop: '1px solid #1e2530' }}>
-          <p style={{ color: '#4b5563', fontSize: '0.75rem', margin: '0 0 0.75rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        {/* Footer — email only */}
+        <div style={{ marginTop: 'auto', padding: '0.75rem 1.25rem', borderTop: '1px solid #1e2530' }}>
+          <p style={{ color: '#4b5563', fontSize: '0.72rem', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {email}
           </p>
-          <button
-            type="button"
-            onClick={() => signOut({ redirectUrl: '/sign-in' })}
-            style={{
-              width: '100%',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem',
-              padding: '0.5rem 0.75rem',
-              borderRadius: '0.5rem',
-              border: '1px solid #1e2530',
-              backgroundColor: 'transparent',
-              color: '#6b7280',
-              cursor: 'pointer',
-              fontSize: '0.85rem',
-              fontWeight: 500,
-            }}
-          >
-            <SignOutIcon />
-            Sign Out
-          </button>
         </div>
       </aside>
 

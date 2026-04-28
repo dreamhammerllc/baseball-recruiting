@@ -37,6 +37,7 @@ const PROFILE_FIELDS = [
   'full_name',
   'grad_year',
   'position',
+  'secondary_position',
   'gpa_weighted',
   'gpa_unweighted',
   'home_state',
@@ -45,6 +46,7 @@ const PROFILE_FIELDS = [
   'photo_url',
   'bio',
   'subscription_tier',
+  'notification_preferences',
 ] as const;
 
 // ── GET ───────────────────────────────────────────────────────────────────────
@@ -74,11 +76,11 @@ const ALLOWED_PATCH_FIELDS = new Set([
   'full_name',
   'grad_year',
   'position',
+  'secondary_position',
   'gpa_weighted',
   'gpa_unweighted',
   'home_state',
   'highlight_video_url',
-  'division_pref',
   'photo_url',
   'bio',
 ]);
