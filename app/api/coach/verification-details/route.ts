@@ -89,7 +89,7 @@ export async function GET(req: NextRequest) {
   const details: VerificationDetails[] = data
     .filter(row => row.coaches != null)
     .map(row => {
-      const coach = row.coaches as CoachRow;
+      const coach = row.coaches as unknown as CoachRow;
       return {
         fullName:        coach.full_name,
         organization:    coach.organization,
