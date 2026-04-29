@@ -48,7 +48,8 @@ export default function MyAthletesPage() {
       setAthletes(data.athletes ?? []);
       setGroups(data.groups ?? []);
       setCount(data.count ?? 0);
-      setLimit(data.limit ?? null);
+      // If not paid, always show the free limit (15) even if API returns null
+      setLimit(data.is_paid ? null : (data.limit ?? FREE_LIMIT));
       setIsPaid(data.is_paid ?? false);
     } finally { setLoading(false); }
   }, []);
@@ -167,12 +168,9 @@ export default function MyAthletesPage() {
           {athletes.length === 0 && (
             <div style={{ backgroundColor: '#111827', border: '1px dashed #1e2530', borderRadius: '0.75rem', padding: '3rem 2rem', textAlign: 'center' }}>
               <p style={{ color: '#f0f6fc', fontWeight: 600, margin: '0 0 0.5rem' }}>No athletes saved yet</p>
-              <p style={{ color: '#6b7280', fontSize: '0.85rem', margin: '0 0 1.25rem' }}>
-                Search for athletes from the Dashboard and save them to your roster.
+              <p style={{ color: '#6b7280', fontSize: '0.85rem', margin: 0, lineHeight: 1.5 }}>
+                Search for athletes from the Dashboard and tap <strong style={{ color: '#e8a020' }}>+ Save</strong> to add them here.
               </p>
-              <a href="/dashboard/coach" style={{ backgroundColor: '#e8a020', color: '#000', fontWeight: 700, padding: '0.6rem 1.5rem', borderRadius: '0.5rem', textDecoration: 'none', fontSize: '0.875rem' }}>
-                Find Athletes →
-              </a>
             </div>
           )}
 

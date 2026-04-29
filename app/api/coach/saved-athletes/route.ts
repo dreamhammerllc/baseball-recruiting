@@ -20,40 +20,63 @@ async function getAuthenticatedUserId(req: NextRequest): Promise<string | null> 
   } catch { return null; }
 }
 
+/** Safely fetch the coach row and their subscription tier, resilient to missing columns. */
+async function getCoach(userId: string) {
+  const db = createAdminClient();
+
+  // First get the coach ID (always exists if profile is set up)
+  const { data: coach } = await db
+    .from('coaches')
+    .select('id')
+    .eq('clerk_user_id', userId)
+    .maybeSingle();
+
+  if (!coach) return null;
+
+  // Try to get tier — if subscription_tier column doesn't exist yet, default to free
+  let isPaid = false;
+  try {
+    const { data: tierRow } = await db
+      .from('coaches')
+      .select('subscription_tier')
+      .eq('id', coach.id)
+      .maybeSingle();
+    isPaid = (tierRow?.subscription_tier ?? 'free') !== 'free';
+  } catch { isPaid = false; }
+
+  return { id: coach.id, isPaid };
+}
+
 // GET /api/coach/saved-athletes — list all saved athletes + groups
 export async function GET(req: NextRequest) {
   const userId = await getAuthenticatedUserId(req);
   if (!userId) return NextResponse.json({ error: 'Unauthorized.' }, { status: 401 });
 
-  const db = createAdminClient();
-
-  const { data: coach } = await db
-    .from('coaches')
-    .select('id, subscription_tier')
-    .eq('clerk_user_id', userId)
-    .maybeSingle();
-
+  const coach = await getCoach(userId);
   if (!coach) return NextResponse.json({ error: 'Coach not found.' }, { status: 404 });
 
-  const [{ data: athletes }, { data: groups }] = await Promise.all([
-    db.from('saved_athletes')
-      .select('*')
-      .eq('coach_id', coach.id)
-      .order('saved_at', { ascending: false }),
-    db.from('athlete_groups')
-      .select('*')
-      .eq('coach_id', coach.id)
-      .order('created_at'),
-  ]);
+  const db = createAdminClient();
 
-  const isPaid = coach.subscription_tier !== 'free';
+  // Try to fetch saved athletes — table may not exist yet
+  let athletes: unknown[] = [];
+  let groups: unknown[] = [];
+  try {
+    const [aRes, gRes] = await Promise.all([
+      db.from('saved_athletes').select('*').eq('coach_id', coach.id).order('saved_at', { ascending: false }),
+      db.from('athlete_groups').select('*').eq('coach_id', coach.id).order('created_at'),
+    ]);
+    athletes = aRes.data ?? [];
+    groups   = gRes.data ?? [];
+  } catch { /* tables not yet created — return empty */ }
+
+  const count = athletes.length;
 
   return NextResponse.json({
-    athletes:  athletes  ?? [],
-    groups:    isPaid ? (groups ?? []) : [],
-    count:     athletes?.length ?? 0,
-    limit:     isPaid ? null : FREE_LIMIT,
-    is_paid:   isPaid,
+    athletes,
+    groups:  coach.isPaid ? groups : [],
+    count,
+    limit:   coach.isPaid ? null : FREE_LIMIT,
+    is_paid: coach.isPaid,
   });
 }
 
@@ -72,30 +95,25 @@ export async function POST(req: NextRequest) {
 
   if (!athlete_clerk_id) return NextResponse.json({ error: 'athlete_clerk_id required.' }, { status: 400 });
 
+  const coach = await getCoach(userId);
+  if (!coach) return NextResponse.json({ error: 'Coach profile not found. Please complete your profile setup first.' }, { status: 404 });
+
   const db = createAdminClient();
 
-  const { data: coach } = await db
-    .from('coaches')
-    .select('id, subscription_tier')
-    .eq('clerk_user_id', userId)
-    .maybeSingle();
+  if (!coach.isPaid) {
+    try {
+      const { count } = await db
+        .from('saved_athletes')
+        .select('*', { count: 'exact', head: true })
+        .eq('coach_id', coach.id);
 
-  if (!coach) return NextResponse.json({ error: 'Coach not found.' }, { status: 404 });
-
-  const isPaid = coach.subscription_tier !== 'free';
-
-  if (!isPaid) {
-    const { count } = await db
-      .from('saved_athletes')
-      .select('*', { count: 'exact', head: true })
-      .eq('coach_id', coach.id);
-
-    if ((count ?? 0) >= FREE_LIMIT) {
-      return NextResponse.json({
-        error: `Free accounts can save up to ${FREE_LIMIT} athletes. Remove an athlete or upgrade to add more.`,
-        limit_reached: true,
-      }, { status: 403 });
-    }
+      if ((count ?? 0) >= FREE_LIMIT) {
+        return NextResponse.json({
+          error: `Free accounts can save up to ${FREE_LIMIT} athletes. Remove an athlete or upgrade to add more.`,
+          limit_reached: true,
+        }, { status: 403 });
+      }
+    } catch { /* table not yet created, allow save */ }
   }
 
   const { data, error } = await db
@@ -110,7 +128,10 @@ export async function POST(req: NextRequest) {
     .select()
     .single();
 
-  if (error) return NextResponse.json({ error: 'Failed to save athlete.' }, { status: 500 });
+  if (error) {
+    console.error('[saved-athletes POST]', error.message);
+    return NextResponse.json({ error: 'Failed to save athlete. The athlete roster table may not be set up yet — please contact support.' }, { status: 500 });
+  }
   return NextResponse.json({ success: true, athlete: data });
 }
 
@@ -122,16 +143,10 @@ export async function DELETE(req: NextRequest) {
   const athleteClerkId = new URL(req.url).searchParams.get('athlete_clerk_id');
   if (!athleteClerkId) return NextResponse.json({ error: 'athlete_clerk_id required.' }, { status: 400 });
 
-  const db = createAdminClient();
-
-  const { data: coach } = await db
-    .from('coaches')
-    .select('id')
-    .eq('clerk_user_id', userId)
-    .maybeSingle();
-
+  const coach = await getCoach(userId);
   if (!coach) return NextResponse.json({ error: 'Coach not found.' }, { status: 404 });
 
+  const db = createAdminClient();
   await db
     .from('saved_athletes')
     .delete()
@@ -151,19 +166,13 @@ export async function PATCH(req: NextRequest) {
     group_id: string | null;
   };
 
-  const db = createAdminClient();
-
-  const { data: coach } = await db
-    .from('coaches')
-    .select('id, subscription_tier')
-    .eq('clerk_user_id', userId)
-    .maybeSingle();
-
+  const coach = await getCoach(userId);
   if (!coach) return NextResponse.json({ error: 'Coach not found.' }, { status: 404 });
-  if (coach.subscription_tier === 'free') {
+  if (!coach.isPaid) {
     return NextResponse.json({ error: 'Groups are a paid feature.' }, { status: 403 });
   }
 
+  const db = createAdminClient();
   await db
     .from('saved_athletes')
     .update({ group_id: group_id ?? null })
