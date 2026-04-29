@@ -51,7 +51,12 @@ export default function PushNotificationToggle() {
           setLoading(false);
           return;
         }
-        const reg = await navigator.serviceWorker.ready;
+        // Register service worker if not already registered
+        let reg = await navigator.serviceWorker.getRegistration('/sw.js');
+        if (!reg) {
+          reg = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
+          await navigator.serviceWorker.ready;
+        }
         const sub = await reg.pushManager.subscribe({
           userVisibleOnly: true,
           applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
