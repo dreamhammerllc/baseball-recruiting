@@ -6,12 +6,13 @@ import { useClerk, useUser } from '@clerk/nextjs';
 import { useState } from 'react';
 
 const NAV_ITEMS = [
-  { href: '/dashboard/athlete',                label: 'Dashboard',      icon: HomeIcon },
-  { href: '/dashboard/athlete/profile',        label: 'My Profile',     icon: UserIcon },
-  { href: '/dashboard/athlete/metrics',        label: 'My Metrics',     icon: ChartIcon },
-  { href: '/dashboard/athlete/school-matches', label: 'School Matches', icon: SearchIcon },
-  { href: '/dashboard/athlete/calculator',     label: 'Calculator',     icon: CalcIcon },
-  { href: '/dashboard/athlete/settings',       label: 'Settings',       icon: GearIcon },
+  { href: '/dashboard/athlete',                label: 'Dashboard',     icon: HomeIcon },
+  { href: '/dashboard/athlete/profile',        label: 'My Profile',    icon: UserIcon },
+  { href: '/dashboard/athlete/metrics',        label: 'My Metrics',    icon: ChartIcon },
+  { href: '/dashboard/athlete/find-coaches',   label: 'Find Coaches',  icon: PinIcon },
+  { href: '/dashboard/athlete/school-matches', label: 'School Matches',icon: SearchIcon },
+  { href: '/dashboard/athlete/calculator',     label: 'Calculator',    icon: CalcIcon },
+  { href: '/dashboard/athlete/settings',       label: 'Settings',      icon: GearIcon },
 ];
 
 export default function AthleteSidebar() {
@@ -220,6 +221,15 @@ function ChartIcon({ active }: { active: boolean }) {
       <line x1="18" y1="20" x2="18" y2="10" />
       <line x1="12" y1="20" x2="12" y2="4" />
       <line x1="6" y1="20" x2="6" y2="14" />
+    </svg>
+  );
+}
+
+function PinIcon({ active }: { active: boolean }) {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={active ? '#e8a020' : '#6b7280'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0118 0z" />
+      <circle cx="12" cy="10" r="3" />
     </svg>
   );
 }
