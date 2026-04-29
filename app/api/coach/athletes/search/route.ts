@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClerkClient } from '@clerk/backend';
+import { createAdminClient } from '@/lib/supabase';
 
 const clerk = createClerkClient({
   secretKey:      process.env.CLERK_SECRET_KEY,
@@ -26,6 +27,7 @@ export interface AthleteSearchResult {
   lastName: string | null;
   username: string | null;
   fullName: string;
+  photoUrl: string | null;
 }
 
 // ─── GET /api/coach/athletes/search?q=... ────────────────────────────────────
@@ -42,6 +44,7 @@ export async function GET(req: NextRequest) {
   }
 
   try {
+    // Fetch matching users from Clerk
     const result = await clerk.users.getUserList({ query: q.trim(), limit: 10 });
     const users: AthleteSearchResult[] = result.data
       .filter(u => u.id !== userId)
@@ -51,8 +54,29 @@ export async function GET(req: NextRequest) {
         lastName:  u.lastName,
         username:  u.username,
         fullName:  [u.firstName, u.lastName].filter(Boolean).join(' ') || u.username || u.id,
+        photoUrl:  u.imageUrl ?? null,
       }));
-    return NextResponse.json({ users });
+
+    // Also fetch which of these are already saved by this coach
+    const db = createAdminClient();
+    const { data: coach } = await db
+      .from('coaches')
+      .select('id')
+      .eq('clerk_user_id', userId)
+      .maybeSingle();
+
+    let savedIds: Set<string> = new Set();
+    if (coach) {
+      const { data: saved } = await db
+        .from('saved_athletes')
+        .select('athlete_clerk_id')
+        .eq('coach_id', coach.id);
+      savedIds = new Set((saved ?? []).map(s => s.athlete_clerk_id));
+    }
+
+    return NextResponse.json({
+      users: users.map(u => ({ ...u, isSaved: savedIds.has(u.clerkId) })),
+    });
   } catch (err) {
     console.error('[GET /api/coach/athletes/search] error:', err);
     return NextResponse.json({ error: 'Search failed.' }, { status: 500 });

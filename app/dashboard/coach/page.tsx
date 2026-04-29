@@ -23,6 +23,11 @@ export default function CoachDashboard() {
   const [searchResults, setSearchResults] = useState<AthleteSearchResult[] | null>(null);
   const [selectedAthlete, setSelectedAthlete] = useState<AthleteSearchResult | null>(null);
 
+  // Save athlete state
+  const [savedIds, setSavedIds]         = useState<Set<string>>(new Set());
+  const [savingId, setSavingId]         = useState<string | null>(null);
+  const [saveError, setSaveError]       = useState<string | null>(null);
+
   // Metric form state
   const [metricKey, setMetricKey]         = useState<MetricKey>(METRIC_KEYS[0]);
   const [value, setValue]                 = useState('');
@@ -58,15 +63,41 @@ export default function CoachDashboard() {
     setSearching(true);
     setSearchResults(null);
     setSelectedAthlete(null);
+    setSaveError(null);
     try {
       const res = await fetch(`/api/coach/athletes/search?q=${encodeURIComponent(searchQuery.trim())}`);
       const data = await res.json();
-      setSearchResults(data.users ?? []);
+      const users = data.users ?? [];
+      setSearchResults(users);
+      // Seed already-saved IDs from search results
+      const alreadySaved = new Set<string>(users.filter((u: AthleteSearchResult & { isSaved?: boolean }) => u.isSaved).map((u: AthleteSearchResult) => u.clerkId));
+      setSavedIds(prev => new Set([...prev, ...alreadySaved]));
     } catch {
       setSearchResults([]);
     } finally {
       setSearching(false);
     }
+  }
+
+  async function handleSaveAthlete(athlete: AthleteSearchResult & { isSaved?: boolean }) {
+    setSavingId(athlete.clerkId);
+    setSaveError(null);
+    try {
+      const res = await fetch('/api/coach/saved-athletes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          athlete_clerk_id: athlete.clerkId,
+          athlete_name:     athlete.fullName,
+          athlete_photo:    athlete.photoUrl ?? null,
+          athlete_username: athlete.username ?? null,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setSaveError(data.error ?? 'Failed to save.'); return; }
+      setSavedIds(prev => new Set([...prev, athlete.clerkId]));
+    } catch { setSaveError('Failed to save athlete.'); }
+    finally { setSavingId(null); }
   }
 
   function handleSelectAthlete(athlete: AthleteSearchResult) {
@@ -279,38 +310,64 @@ export default function CoachDashboard() {
                 <p style={{ color: '#6b7280', fontSize: '0.875rem', margin: 0 }}>No athletes found.</p>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                  {searchResults.map(athlete => (
-                    <button
-                      key={athlete.clerkId}
-                      onClick={() => handleSelectAthlete(athlete)}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        backgroundColor: selectedAthlete?.clerkId === athlete.clerkId
-                          ? 'rgba(232,160,32,0.08)'
-                          : '#0d1117',
-                        border: selectedAthlete?.clerkId === athlete.clerkId
-                          ? '1px solid rgba(232,160,32,0.3)'
-                          : '1px solid #1e2530',
-                        borderRadius: '0.5rem',
-                        padding: '0.75rem 1rem',
-                        cursor: 'pointer',
-                        textAlign: 'left',
-                        width: '100%',
-                        transition: 'border-color 0.15s, background-color 0.15s',
-                      }}
-                    >
-                      <span style={{ color: '#f0f6fc', fontSize: '0.875rem', fontWeight: 600 }}>
-                        {athlete.fullName}
-                      </span>
-                      {athlete.username && (
-                        <span style={{ color: '#4b5563', fontSize: '0.78rem' }}>
-                          @{athlete.username}
-                        </span>
-                      )}
-                    </button>
-                  ))}
+                  {saveError && (
+                    <p style={{ color: '#f87171', fontSize: '0.8rem', margin: '0 0 0.25rem' }}>{saveError}</p>
+                  )}
+                  {searchResults.map(athlete => {
+                    const isSaved = savedIds.has(athlete.clerkId);
+                    const isSaving = savingId === athlete.clerkId;
+                    return (
+                      <div
+                        key={athlete.clerkId}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: '0.75rem',
+                          backgroundColor: selectedAthlete?.clerkId === athlete.clerkId ? 'rgba(232,160,32,0.08)' : '#0d1117',
+                          border: selectedAthlete?.clerkId === athlete.clerkId ? '1px solid rgba(232,160,32,0.3)' : '1px solid #1e2530',
+                          borderRadius: '0.5rem', padding: '0.65rem 0.85rem',
+                          transition: 'border-color 0.15s, background-color 0.15s',
+                        }}
+                      >
+                        {/* Avatar */}
+                        <div style={{ width: '36px', height: '36px', borderRadius: '50%', flexShrink: 0, overflow: 'hidden', backgroundColor: 'rgba(232,160,32,0.1)', border: '1px solid rgba(232,160,32,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          {athlete.photoUrl
+                            ? <img src={athlete.photoUrl} alt={athlete.fullName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            : <span style={{ color: '#e8a020', fontWeight: 700, fontSize: '0.85rem' }}>{athlete.fullName.charAt(0)}</span>
+                          }
+                        </div>
+                        {/* Name — clickable to select for verification */}
+                        <button
+                          type="button"
+                          onClick={() => handleSelectAthlete(athlete)}
+                          style={{ flex: 1, background: 'none', border: 'none', textAlign: 'left', cursor: 'pointer', padding: 0 }}
+                        >
+                          <span style={{ color: '#f0f6fc', fontSize: '0.875rem', fontWeight: 600, display: 'block' }}>{athlete.fullName}</span>
+                          {athlete.username && (
+                            <span style={{ color: '#4b5563', fontSize: '0.75rem' }}>@{athlete.username}</span>
+                          )}
+                        </button>
+                        {/* Save button */}
+                        <button
+                          type="button"
+                          onClick={() => !isSaved && handleSaveAthlete(athlete)}
+                          disabled={isSaving || isSaved}
+                          style={{
+                            flexShrink: 0,
+                            backgroundColor: isSaved ? 'rgba(52,211,153,0.1)' : 'rgba(232,160,32,0.1)',
+                            border: `1px solid ${isSaved ? 'rgba(52,211,153,0.3)' : 'rgba(232,160,32,0.3)'}`,
+                            borderRadius: '0.4rem',
+                            color: isSaved ? '#34d399' : '#e8a020',
+                            cursor: isSaved ? 'default' : 'pointer',
+                            fontSize: '0.75rem', fontWeight: 700,
+                            padding: '0.3rem 0.75rem',
+                            transition: 'all 0.15s',
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          {isSaving ? 'Saving...' : isSaved ? '✓ Saved' : '+ Save'}
+                        </button>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>
