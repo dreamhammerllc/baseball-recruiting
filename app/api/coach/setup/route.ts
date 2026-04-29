@@ -110,6 +110,21 @@ interface SetupBody {
   certifications?: string | null;
   bio?: string | null;
   photo_url?: string | null;
+  zip_code?: string | null;
+}
+
+// Geocode a US zip code using OpenStreetMap Nominatim (free, no API key)
+async function geocodeZip(zip: string): Promise<{ lat: number; lng: number } | null> {
+  try {
+    const url = `https://nominatim.openstreetmap.org/search?postalcode=${encodeURIComponent(zip)}&country=US&format=json&limit=1`;
+    const res = await fetch(url, { headers: { 'User-Agent': 'DiamondVerified/1.0' } });
+    if (!res.ok) return null;
+    const data = await res.json() as Array<{ lat: string; lon: string }>;
+    if (!data.length) return null;
+    return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
+  } catch {
+    return null;
+  }
 }
 
 export async function POST(req: NextRequest) {
@@ -125,7 +140,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid JSON body.' }, { status: 400 });
   }
 
-  const { full_name, email, organization, title, sport_focus, years_experience, certifications, bio, photo_url } = body;
+  const { full_name, email, organization, title, sport_focus, years_experience, certifications, bio, photo_url, zip_code } = body;
+
+  // Geocode zip code if provided
+  let latitude: number | null = null;
+  let longitude: number | null = null;
+  if (zip_code && /^\d{5}$/.test(zip_code)) {
+    const coords = await geocodeZip(zip_code);
+    if (coords) { latitude = coords.lat; longitude = coords.lng; }
+  }
 
   if (!full_name?.trim()) return NextResponse.json({ error: 'Full name is required.' }, { status: 400 });
   if (!email?.trim())     return NextResponse.json({ error: 'Email is required.' }, { status: 400 });
@@ -147,6 +170,9 @@ export async function POST(req: NextRequest) {
         certifications:   certifications?.trim() || null,
         bio:              bio?.trim()            || null,
         photo_url:        photo_url             ?? null,
+        zip_code:         zip_code?.trim()      || null,
+        latitude:         latitude,
+        longitude:        longitude,
         updated_at:       new Date().toISOString(),
       },
       { onConflict: 'clerk_user_id' },

@@ -171,34 +171,64 @@ export default function AthleteDashboardMetrics({ initialMetrics }: Props) {
                   onEnterValue={() => openModal(key)}
                   showUploadControls={false}
                 />
-                {/* Update button overlaid at bottom of card */}
-                <button
-                  type="button"
-                  onClick={() => openModal(key)}
-                  style={{
+                {/* Self-reported notice */}
+                {pb && pb.verification_type === 'self_reported' && (
+                  <div style={{
                     position: 'absolute',
-                    bottom: '1.25rem',
-                    right: '1.25rem',
-                    background: 'transparent',
-                    border: '1px solid #374151',
-                    color: '#9ca3af',
-                    borderRadius: '0.4rem',
-                    padding: '0.25rem 0.6rem',
-                    fontSize: '0.72rem',
-                    cursor: 'pointer',
-                    fontWeight: 500,
-                  }}
-                  onMouseEnter={e => {
-                    (e.currentTarget as HTMLButtonElement).style.borderColor = '#6b7280';
-                    (e.currentTarget as HTMLButtonElement).style.color = '#f0f6fc';
-                  }}
-                  onMouseLeave={e => {
-                    (e.currentTarget as HTMLButtonElement).style.borderColor = '#374151';
-                    (e.currentTarget as HTMLButtonElement).style.color = '#9ca3af';
-                  }}
-                >
-                  Update
-                </button>
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    backgroundColor: 'rgba(13,17,23,0.92)',
+                    borderTop: '1px solid #1e2530',
+                    borderBottomLeftRadius: '0.75rem',
+                    borderBottomRightRadius: '0.75rem',
+                    padding: '0.4rem 0.75rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: '0.5rem',
+                  }}>
+                    <span style={{ color: '#4b5563', fontSize: '0.68rem', fontWeight: 500 }}>
+                      🔒 Not visible to coaches
+                    </span>
+                    <a
+                      href="/dashboard/athlete/find-coaches"
+                      style={{ color: '#e8a020', fontSize: '0.68rem', fontWeight: 600, textDecoration: 'none' }}
+                    >
+                      Get Verified →
+                    </a>
+                  </div>
+                )}
+                {/* Update button for verified metrics */}
+                {(!pb || pb.verification_type !== 'self_reported') && (
+                  <button
+                    type="button"
+                    onClick={() => openModal(key)}
+                    style={{
+                      position: 'absolute',
+                      bottom: '1.25rem',
+                      right: '1.25rem',
+                      background: 'transparent',
+                      border: '1px solid #374151',
+                      color: '#9ca3af',
+                      borderRadius: '0.4rem',
+                      padding: '0.25rem 0.6rem',
+                      fontSize: '0.72rem',
+                      cursor: 'pointer',
+                      fontWeight: 500,
+                    }}
+                    onMouseEnter={e => {
+                      (e.currentTarget as HTMLButtonElement).style.borderColor = '#6b7280';
+                      (e.currentTarget as HTMLButtonElement).style.color = '#f0f6fc';
+                    }}
+                    onMouseLeave={e => {
+                      (e.currentTarget as HTMLButtonElement).style.borderColor = '#374151';
+                      (e.currentTarget as HTMLButtonElement).style.color = '#9ca3af';
+                    }}
+                  >
+                    Update
+                  </button>
+                )}
               </div>
             );
           })}

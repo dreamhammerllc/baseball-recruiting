@@ -168,14 +168,15 @@ export default async function AthleteProfilePage({
     // table may not exist yet — ignore
   }
 
-  // 4. Fetch personal-best metrics
+  // 4. Fetch personal-best metrics — OPTION B: only verified (not self_reported)
   let personalBestMetrics: AthleteMetric[] = [];
   try {
     const { data: metricsRows } = await db
       .from('athlete_metrics')
       .select('*')
       .eq('athlete_clerk_id', username)
-      .eq('is_personal_best', true);
+      .eq('is_personal_best', true)
+      .neq('verification_type', 'self_reported'); // Option B: hide self-reported from public profile
     if (metricsRows) {
       personalBestMetrics = metricsRows as AthleteMetric[];
     }

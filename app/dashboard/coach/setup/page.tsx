@@ -16,6 +16,7 @@ export default function CoachSetupPage() {
   const [yearsExp, setYearsExp]           = useState('');
   const [certifications, setCertifications] = useState('');
   const [bio, setBio]                     = useState('');
+  const [zipCode, setZipCode]             = useState('');
   const [photoUrl, setPhotoUrl]           = useState<string | null>(null);
   const [photoUploading, setPhotoUploading] = useState(false);
   const [photoError, setPhotoError]       = useState<string | null>(null);
@@ -79,6 +80,7 @@ export default function CoachSetupPage() {
           certifications:   certifications.trim() || null,
           bio:              bio.trim()             || null,
           photo_url:        photoUrl,
+          zip_code:         zipCode.trim()         || null,
         }),
       });
       const data = await res.json();
@@ -254,6 +256,22 @@ export default function CoachSetupPage() {
                 placeholder="ABCA Certified, CPR..."
                 style={inputStyle}
               />
+            </div>
+
+            {/* Zip Code */}
+            <div>
+              <label style={labelStyle}>Zip Code (for athlete discovery)</label>
+              <input
+                type="text"
+                value={zipCode}
+                onChange={e => setZipCode(e.target.value.replace(/\D/g, '').slice(0, 5))}
+                placeholder="90210"
+                maxLength={5}
+                style={inputStyle}
+              />
+              <p style={{ color: '#4b5563', fontSize: '0.73rem', margin: '0.35rem 0 0' }}>
+                Used so athletes can find you by mile radius. Never shared publicly.
+              </p>
             </div>
 
             {/* Bio */}

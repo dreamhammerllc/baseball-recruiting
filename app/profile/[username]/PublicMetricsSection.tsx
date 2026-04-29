@@ -46,16 +46,20 @@ export default function PublicMetricsSection({ personalBestMetrics, athleteClerk
 
   if (personalBestMetrics.length === 0) {
     return (
-      <p
-        style={{
-          fontFamily: 'monospace',
-          fontSize: '0.8rem',
-          color: '#6b7280',
-          margin: 0,
-        }}
-      >
-        No verified metrics yet.
-      </p>
+      <div style={{
+        backgroundColor: '#111827',
+        border: '1px dashed #1e2530',
+        borderRadius: '0.75rem',
+        padding: '1.5rem',
+      }}>
+        <p style={{ fontFamily: 'monospace', fontSize: '0.8rem', color: '#6b7280', margin: '0 0 0.5rem' }}>
+          No verified metrics on file.
+        </p>
+        <p style={{ fontFamily: 'monospace', fontSize: '0.75rem', color: '#4b5563', margin: 0, lineHeight: 1.6 }}>
+          Only coach-verified and third-party measurements appear on public profiles.
+          Athletes can book a testing session with a Diamond Verified coach to get their metrics officially recorded.
+        </p>
+      </div>
     );
   }
 
