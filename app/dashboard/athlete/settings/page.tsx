@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useUser, useClerk } from '@clerk/nextjs';
 import AthleteSidebar from '@/components/layout/AthleteSidebar';
+import PushNotificationToggle from '@/components/PushNotificationToggle';
 
 export const dynamic = 'force-dynamic';
 
@@ -262,6 +263,11 @@ export default function AthleteSettingsPage() {
                 </button>
               </div>
             ))}
+
+            {/* Push notifications toggle */}
+            <div style={{ borderTop: '1px solid #1e2530', paddingTop: '1.25rem' }}>
+              <PushNotificationToggle />
+            </div>
           </div>
 
           {/* ── Contact Support ── */}

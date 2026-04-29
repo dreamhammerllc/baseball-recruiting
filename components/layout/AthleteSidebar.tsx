@@ -10,6 +10,7 @@ const NAV_ITEMS = [
   { href: '/dashboard/athlete/profile',        label: 'My Profile',    icon: UserIcon },
   { href: '/dashboard/athlete/metrics',        label: 'My Metrics',    icon: ChartIcon },
   { href: '/dashboard/athlete/find-coaches',   label: 'Find Coaches',  icon: PinIcon },
+  { href: '/dashboard/athlete/bookings',       label: 'My Bookings',   icon: BookmarkIcon },
   { href: '/dashboard/athlete/school-matches', label: 'School Matches',icon: SearchIcon },
   { href: '/dashboard/athlete/calculator',     label: 'Calculator',    icon: CalcIcon },
   { href: '/dashboard/athlete/settings',       label: 'Settings',      icon: GearIcon },
@@ -230,6 +231,14 @@ function PinIcon({ active }: { active: boolean }) {
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={active ? '#e8a020' : '#6b7280'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0118 0z" />
       <circle cx="12" cy="10" r="3" />
+    </svg>
+  );
+}
+
+function BookmarkIcon({ active }: { active: boolean }) {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill={active ? '#e8a020' : 'none'} stroke={active ? '#e8a020' : '#6b7280'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z" />
     </svg>
   );
 }
