@@ -87,7 +87,7 @@ export default function PushNotificationToggle() {
             Push Notifications
           </p>
           <p style={{ color: '#6b7280', fontSize: '0.78rem', margin: 0, lineHeight: 1.4 }}>
-            Get an instant alert when a session is booked or updated.
+            Get an instant alert when your session booking is confirmed or cancelled.
           </p>
         </div>
         <button
