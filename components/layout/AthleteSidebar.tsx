@@ -8,6 +8,7 @@ import { useState } from 'react';
 const NAV_ITEMS = [
   { href: '/dashboard/athlete',                label: 'Dashboard',      icon: HomeIcon },
   { href: '/dashboard/athlete/profile',        label: 'My Profile',     icon: UserIcon },
+  { href: '/dashboard/athlete/metrics',        label: 'My Metrics',     icon: ChartIcon },
   { href: '/dashboard/athlete/school-matches', label: 'School Matches', icon: SearchIcon },
   { href: '/dashboard/athlete/calculator',     label: 'Calculator',     icon: CalcIcon },
   { href: '/dashboard/athlete/settings',       label: 'Settings',       icon: GearIcon },
@@ -209,6 +210,16 @@ function UserIcon({ active }: { active: boolean }) {
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={active ? '#e8a020' : '#6b7280'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <circle cx="12" cy="8" r="4" />
       <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" />
+    </svg>
+  );
+}
+
+function ChartIcon({ active }: { active: boolean }) {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={active ? '#e8a020' : '#6b7280'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="18" y1="20" x2="18" y2="10" />
+      <line x1="12" y1="20" x2="12" y2="4" />
+      <line x1="6" y1="20" x2="6" y2="14" />
     </svg>
   );
 }

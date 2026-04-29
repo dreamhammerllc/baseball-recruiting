@@ -178,7 +178,7 @@ export default function HomePage() {
         </Link>
         <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
           {isSignedIn ? (
-            <GoldBtn href="/dashboard/athlete">Go to Dashboard</GoldBtn>
+            <GoldBtn href="/dashboard">Go to Dashboard</GoldBtn>
           ) : (
             <>
               <OutlineBtn href="/sign-in">Sign In</OutlineBtn>

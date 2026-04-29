@@ -3,6 +3,8 @@ import { redirect } from 'next/navigation';
 import { createClient } from '@supabase/supabase-js';
 import AthleteSidebar from '@/components/layout/AthleteSidebar';
 import VerificationDocuments from './VerificationDocuments';
+import AthleteDashboardMetrics from '@/components/AthleteDashboardMetrics';
+import type { AthleteMetric } from '@/lib/metrics';
 
 function UpgradePrompt({ title, description, tier }: { title: string; description: string; tier: 'athlete' | 'athlete_pro' }) {
   const tierLabel = tier === 'athlete' ? 'Athlete ($29.99/mo)' : 'Athlete Pro ($59.99/mo)';
@@ -35,15 +37,50 @@ export default async function AthleteDashboard() {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   );
 
+  // Fetch athlete record (profile + subscription)
   const { data: athlete } = await supabase
     .from('athletes')
-    .select('subscription_tier')
+    .select('subscription_tier, full_name, grad_year, position, gpa_weighted, home_state, bio, photo_url, highlight_video_url')
     .eq('clerk_user_id', user.id)
     .single();
+
+  // Fetch athlete metrics (personal bests only for dashboard summary)
+  const { data: metricsData } = await supabase
+    .from('athlete_metrics')
+    .select('*')
+    .eq('athlete_clerk_id', user.id)
+    .order('recorded_at', { ascending: false });
+
+  const allMetrics: AthleteMetric[] = (metricsData ?? []) as AthleteMetric[];
+
+  // Fetch school matches count
+  const { count: schoolMatchCount } = await supabase
+    .from('school_matches')
+    .select('*', { count: 'exact', head: true })
+    .eq('athlete_clerk_id', user.id);
 
   const tier = athlete?.subscription_tier ?? 'free';
   const isAthlete = tier === 'athlete' || tier === 'athlete_pro';
   const isAthletePro = tier === 'athlete_pro';
+
+  // Profile completion scoring
+  const completionFields = [
+    !!athlete?.full_name,
+    !!athlete?.grad_year,
+    !!athlete?.position,
+    !!athlete?.gpa_weighted,
+    !!athlete?.home_state,
+    !!athlete?.bio,
+    !!athlete?.photo_url,
+    allMetrics.length > 0,
+  ];
+  const completionPct = Math.round(
+    (completionFields.filter(Boolean).length / completionFields.length) * 100
+  );
+
+  const hasProfile  = !!athlete?.full_name && !!athlete?.position;
+  const hasMatches  = (schoolMatchCount ?? 0) > 0;
+  const hasMetrics  = allMetrics.length > 0;
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#0d1117' }}>
@@ -63,16 +100,41 @@ export default async function AthleteDashboard() {
         {/* Stat cards */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '1rem', marginBottom: '2rem' }}>
           {[
-            { label: 'Profile Completion', value: '0%',   sub: 'Fill out your profile' },
-            { label: 'School Matches',      value: '—',    sub: 'Add your stats first' },
-            { label: 'Coaches Contacted',   value: '0',    sub: 'Start reaching out' },
-            { label: 'Profile Views',       value: '0',    sub: 'This month' },
+            {
+              label: 'Profile Completion',
+              value: `${completionPct}%`,
+              sub: completionPct === 100 ? 'Profile complete!' : 'Keep filling it out',
+              highlight: completionPct === 100,
+            },
+            {
+              label: 'School Matches',
+              value: schoolMatchCount != null ? String(schoolMatchCount) : '—',
+              sub: hasMatches ? 'View your matches' : 'Add stats to see matches',
+              highlight: false,
+            },
+            {
+              label: 'Verified Metrics',
+              value: String(allMetrics.filter(m => m.verification_type === 'coach_verified').length),
+              sub: 'Coach verified stats',
+              highlight: false,
+            },
+            {
+              label: 'Total Metrics',
+              value: String(allMetrics.filter(m => m.is_personal_best).length),
+              sub: 'Personal bests on file',
+              highlight: false,
+            },
           ].map((card) => (
-            <div key={card.label} style={{ backgroundColor: '#111827', border: '1px solid #1e2530', borderRadius: '0.75rem', padding: '1.25rem' }}>
+            <div key={card.label} style={{
+              backgroundColor: '#111827',
+              border: `1px solid ${card.highlight ? 'rgba(232,160,32,0.4)' : '#1e2530'}`,
+              borderRadius: '0.75rem',
+              padding: '1.25rem',
+            }}>
               <p style={{ color: '#6b7280', fontSize: '0.75rem', margin: '0 0 0.4rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                 {card.label}
               </p>
-              <p style={{ color: '#ffffff', fontSize: '1.6rem', fontWeight: 700, margin: '0 0 0.2rem' }}>
+              <p style={{ color: card.highlight ? '#e8a020' : '#ffffff', fontSize: '1.6rem', fontWeight: 700, margin: '0 0 0.2rem' }}>
                 {card.value}
               </p>
               <p style={{ color: '#4b5563', fontSize: '0.78rem', margin: 0 }}>
@@ -82,18 +144,22 @@ export default async function AthleteDashboard() {
           ))}
         </div>
 
-        {/* Get started */}
+        {/* Get started checklist */}
         <div style={{ backgroundColor: '#111827', border: '1px solid #1e2530', borderRadius: '0.75rem', padding: '1.5rem', marginBottom: '2rem' }}>
           <h2 style={{ color: '#ffffff', fontSize: '1rem', fontWeight: 600, margin: '0 0 1rem' }}>
             Get started
           </h2>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
             {[
-              { step: '1', text: 'Complete your athlete profile with stats and academics', done: false },
-              { step: '2', text: 'Browse school matches based on your profile',           done: false },
-              { step: '3', text: 'Use the calculator to estimate your fit score',         done: false },
+              { step: '1', text: 'Complete your athlete profile with stats and academics', done: hasProfile, href: '/dashboard/athlete/profile' },
+              { step: '2', text: 'Browse school matches based on your profile',           done: hasMatches, href: '/dashboard/athlete/school-matches' },
+              { step: '3', text: 'Add or verify your first metric',                       done: hasMetrics, href: '/dashboard/athlete/metrics' },
             ].map((item) => (
-              <div key={item.step} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <a
+                key={item.step}
+                href={item.href}
+                style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', textDecoration: 'none' }}
+              >
                 <div style={{
                   width: '24px', height: '24px', borderRadius: '50%', flexShrink: 0,
                   backgroundColor: item.done ? '#e8a020' : 'transparent',
@@ -105,12 +171,22 @@ export default async function AthleteDashboard() {
                     : <span style={{ color: '#4b5563', fontSize: '0.7rem', fontWeight: 600 }}>{item.step}</span>
                   }
                 </div>
-                <p style={{ color: item.done ? '#4b5563' : '#d1d5db', fontSize: '0.875rem', margin: 0, textDecoration: item.done ? 'line-through' : 'none' }}>
+                <p style={{
+                  color: item.done ? '#4b5563' : '#d1d5db',
+                  fontSize: '0.875rem',
+                  margin: 0,
+                  textDecoration: item.done ? 'line-through' : 'none',
+                }}>
                   {item.text}
                 </p>
-              </div>
+              </a>
             ))}
           </div>
+        </div>
+
+        {/* My Metrics — client component with Add/Update modal */}
+        <div style={{ backgroundColor: '#111827', border: '1px solid #1e2530', borderRadius: '0.75rem', padding: '1.5rem', marginBottom: '1.25rem' }}>
+          <AthleteDashboardMetrics initialMetrics={allMetrics} />
         </div>
 
         {/* AI Scout Report */}
