@@ -7,6 +7,7 @@ import { useState } from 'react';
 
 const NAV_ITEMS = [
   { href: '/dashboard/coach',              label: 'Dashboard',    icon: HomeIcon },
+  { href: '/dashboard/coach/profile',      label: 'My Profile',   icon: ProfileIcon },
   { href: '/dashboard/coach/athletes',     label: 'My Athletes',  icon: UsersIcon },
   { href: '/dashboard/coach/evaluations',  label: 'Evaluations',  icon: ClipboardIcon },
   { href: '/dashboard/coach/availability', label: 'Availability', icon: CalendarIcon },
@@ -236,6 +237,15 @@ function CalendarIcon({ active }: { active: boolean }) {
       <line x1="16" y1="2" x2="16" y2="6" />
       <line x1="8" y1="2" x2="8" y2="6" />
       <line x1="3" y1="10" x2="21" y2="10" />
+    </svg>
+  );
+}
+
+function ProfileIcon({ active }: { active: boolean }) {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={active ? '#e8a020' : '#6b7280'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
+      <circle cx="12" cy="7" r="4" />
     </svg>
   );
 }

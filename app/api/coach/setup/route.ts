@@ -71,6 +71,13 @@ export interface CoachProfile {
   certifications: string | null;
   bio: string | null;
   photo_url: string | null;
+  phone: string | null;
+  website: string | null;
+  instagram: string | null;
+  twitter: string | null;
+  age_groups: string | null;
+  coaching_style: string | null;
+  achievements: string | null;
   updated_at: string;
   created_at: string;
 }
@@ -111,6 +118,13 @@ interface SetupBody {
   bio?: string | null;
   photo_url?: string | null;
   zip_code?: string | null;
+  phone?: string | null;
+  website?: string | null;
+  instagram?: string | null;
+  twitter?: string | null;
+  age_groups?: string | null;
+  coaching_style?: string | null;
+  achievements?: string | null;
 }
 
 // Geocode a US zip code using OpenStreetMap Nominatim (free, no API key)
@@ -140,7 +154,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid JSON body.' }, { status: 400 });
   }
 
-  const { full_name, email, organization, title, sport_focus, years_experience, certifications, bio, photo_url, zip_code } = body;
+  const { full_name, email, organization, title, sport_focus, years_experience, certifications, bio, photo_url, zip_code, phone, website, instagram, twitter, age_groups, coaching_style, achievements } = body;
 
   // Geocode zip code if provided
   let latitude: number | null = null;
@@ -173,6 +187,13 @@ export async function POST(req: NextRequest) {
         zip_code:         zip_code?.trim()      || null,
         latitude:         latitude,
         longitude:        longitude,
+        phone:            phone?.trim()          || null,
+        website:          website?.trim()        || null,
+        instagram:        instagram?.trim()      || null,
+        twitter:          twitter?.trim()        || null,
+        age_groups:       age_groups?.trim()     || null,
+        coaching_style:   coaching_style?.trim() || null,
+        achievements:     achievements?.trim()   || null,
         updated_at:       new Date().toISOString(),
       },
       { onConflict: 'clerk_user_id' },
