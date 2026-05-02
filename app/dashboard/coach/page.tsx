@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import CoachSidebar from '@/components/layout/CoachSidebar';
 import { METRIC_KEYS, METRIC_INFO, type MetricKey } from '@/lib/metrics';
 import type { CoachProfile } from '@/app/api/coach/setup/route';
@@ -10,8 +10,10 @@ import type { AthleteSearchResult } from '@/app/api/coach/athletes/search/route'
 // ─── Coach Dashboard ──────────────────────────────────────────────────────────
 
 export default function CoachDashboard() {
-  const router = useRouter();
-  const today  = new Date().toISOString().split('T')[0];
+  const router       = useRouter();
+  const searchParams = useSearchParams();
+  const today        = new Date().toISOString().split('T')[0];
+  const verifyRef    = useRef<HTMLDivElement>(null);
 
   // Coach profile state
   const [coach, setCoach]                 = useState<CoachProfile | null>(null);
@@ -56,6 +58,31 @@ export default function CoachDashboard() {
       })
       .catch(() => setProfileLoading(false));
   }, []);
+
+  // Auto-select athlete from URL params (e.g. coming from My Athletes page)
+  useEffect(() => {
+    const athleteId   = searchParams.get('athleteId');
+    const athleteName = searchParams.get('athleteName');
+    const athletePhoto = searchParams.get('athletePhoto');
+    const athleteUsername = searchParams.get('athleteUsername');
+    if (athleteId && athleteName) {
+      const preSelected: AthleteSearchResult = {
+        clerkId:   athleteId,
+        fullName:  athleteName,
+        firstName: null,
+        lastName:  null,
+        username:  athleteUsername ?? null,
+        photoUrl:  athletePhoto ?? null,
+      };
+      setSelectedAthlete(preSelected);
+      setResult(null);
+      setSubmitError(null);
+      // Scroll verify form into view after a short delay
+      setTimeout(() => {
+        verifyRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 300);
+    }
+  }, [searchParams]);
 
   async function handleSearch(e: React.FormEvent) {
     e.preventDefault();
