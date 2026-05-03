@@ -1,6 +1,6 @@
-import dynamic from 'next/dynamic';
+'use client';
 
-const CoachDashboardClient = dynamic(() => import('./CoachDashboardClient'), { ssr: false });
+import CoachDashboardClient from './CoachDashboardClient';
 
 export default function CoachDashboard() {
   return <CoachDashboardClient />;
