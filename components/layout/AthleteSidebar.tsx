@@ -11,7 +11,6 @@ const NAV_ITEMS = [
   { href: '/dashboard/athlete/metrics',        label: 'My Metrics',    icon: ChartIcon },
   { href: '/dashboard/athlete/find-coaches',   label: 'Find Coaches',  icon: PinIcon },
   { href: '/dashboard/athlete/school-matches', label: 'School Matches',icon: SearchIcon },
-  { href: '/dashboard/athlete/calculator',     label: 'Calculator',    icon: CalcIcon },
   { href: '/dashboard/athlete/settings',       label: 'Settings',      icon: GearIcon },
 ];
 
