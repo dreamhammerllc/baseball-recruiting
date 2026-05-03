@@ -312,36 +312,35 @@ export default function AddAthleteModal({ onClose, onConnected }: Props) {
                 <p style={{ color: '#6b7280', fontSize: '0.82rem', margin: '0 0 1rem' }}>
                   Ask the athlete to open their dashboard and share their 6-character invite code.
                 </p>
-                <div style={{ display: 'flex', gap: '0.5rem' }}>
-                  <input
-                    type="text"
-                    value={inviteCode}
-                    onChange={e => setInviteCode(e.target.value.toUpperCase().slice(0, 6))}
-                    onKeyDown={e => { if (e.key === 'Enter') handleCodeLookup(); }}
-                    placeholder="ABC123"
-                    maxLength={6}
-                    style={{
-                      flex: 1, backgroundColor: '#0d1117', border: '1px solid #1e2530',
-                      borderRadius: '0.5rem', color: '#f0f6fc', padding: '0.65rem 0.75rem',
-                      fontSize: '1.1rem', fontWeight: 700, letterSpacing: '0.2em',
-                      outline: 'none', textAlign: 'center',
-                    }}
-                  />
-                  <button
-                    onClick={handleCodeLookup}
-                    disabled={inviteCode.trim().length !== 6 || lookingUp}
-                    style={{
-                      backgroundColor: inviteCode.trim().length === 6 && !lookingUp ? '#e8a020' : '#374151',
-                      color: inviteCode.trim().length === 6 && !lookingUp ? '#000000' : '#6b7280',
-                      border: 'none', borderRadius: '0.5rem', padding: '0.65rem 1rem',
-                      fontSize: '0.875rem', fontWeight: 700,
-                      cursor: inviteCode.trim().length === 6 && !lookingUp ? 'pointer' : 'not-allowed',
-                      whiteSpace: 'nowrap',
-                    }}
-                  >
-                    {lookingUp ? '...' : 'Find'}
-                  </button>
-                </div>
+                <input
+                  type="text"
+                  value={inviteCode}
+                  onChange={e => setInviteCode(e.target.value.toUpperCase().slice(0, 6))}
+                  onKeyDown={e => { if (e.key === 'Enter') handleCodeLookup(); }}
+                  placeholder="ABC123"
+                  maxLength={6}
+                  style={{
+                    width: '100%', boxSizing: 'border-box',
+                    backgroundColor: '#0d1117', border: '1px solid #1e2530',
+                    borderRadius: '0.5rem', color: '#f0f6fc', padding: '0.75rem',
+                    fontSize: '1.4rem', fontWeight: 700, letterSpacing: '0.3em',
+                    outline: 'none', textAlign: 'center', marginBottom: '0.65rem',
+                  }}
+                />
+                <button
+                  onClick={handleCodeLookup}
+                  disabled={inviteCode.trim().length !== 6 || lookingUp}
+                  style={{
+                    width: '100%',
+                    backgroundColor: inviteCode.trim().length === 6 && !lookingUp ? '#e8a020' : '#374151',
+                    color: inviteCode.trim().length === 6 && !lookingUp ? '#000000' : '#6b7280',
+                    border: 'none', borderRadius: '0.5rem', padding: '0.7rem',
+                    fontSize: '0.9rem', fontWeight: 700,
+                    cursor: inviteCode.trim().length === 6 && !lookingUp ? 'pointer' : 'not-allowed',
+                  }}
+                >
+                  {lookingUp ? 'Looking up...' : 'Find Athlete'}
+                </button>
                 {lookupError && (
                   <p style={{ color: '#ef4444', fontSize: '0.82rem', marginTop: '0.6rem' }}>{lookupError}</p>
                 )}

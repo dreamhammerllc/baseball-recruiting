@@ -18,37 +18,59 @@ export async function GET(req: NextRequest) {
   const fullId = req.nextUrl.searchParams.get('id')?.trim();
   const code   = req.nextUrl.searchParams.get('code')?.toUpperCase().trim();
 
-  let query = supabase
-    .from('athletes')
-    .select('clerk_user_id, full_name, photo_url, position, grad_year');
-
+  // ── Direct lookup by full Clerk user ID (from QR scan) ───────────────────
   if (fullId) {
-    // Direct lookup by full Clerk user ID (from QR scan)
-    query = query.eq('clerk_user_id', fullId);
-  } else if (code && code.length === 6) {
-    // Lookup by 6-char suffix (manual invite code entry)
-    query = query.ilike('clerk_user_id', `%${code}`);
-  } else {
+    const { data: athlete, error } = await supabase
+      .from('athletes')
+      .select('clerk_user_id, full_name, photo_url, position, grad_year')
+      .eq('clerk_user_id', fullId)
+      .maybeSingle();
+
+    if (error) {
+      console.error('Lookup error (by id):', error.message);
+      return NextResponse.json({ error: 'Lookup failed' }, { status: 500 });
+    }
+    if (!athlete) {
+      return NextResponse.json({ error: 'No athlete found with that ID' }, { status: 404 });
+    }
+    return NextResponse.json({
+      athleteId: athlete.clerk_user_id,
+      name:      athlete.full_name     ?? 'Unknown Athlete',
+      photo:     athlete.photo_url     ?? null,
+      position:  athlete.position      ?? null,
+      gradYear:  athlete.grad_year     ?? null,
+    });
+  }
+
+  // ── Lookup by 6-char invite code (suffix of Clerk user ID) ───────────────
+  if (!code || code.length !== 6) {
     return NextResponse.json({ error: 'Provide a 6-character invite code or full athlete ID' }, { status: 400 });
   }
 
-  const { data: athletes, error } = await query;
+  // Fetch all athletes and filter in JS — avoids PostgREST ilike edge cases
+  // Athletes table is small so this is fine
+  const { data: athletes, error } = await supabase
+    .from('athletes')
+    .select('clerk_user_id, full_name, photo_url, position, grad_year');
 
   if (error) {
-    console.error('Lookup error:', error);
+    console.error('Lookup error (by code):', error.message);
     return NextResponse.json({ error: 'Lookup failed' }, { status: 500 });
   }
 
-  if (!athletes || athletes.length === 0) {
+  const match = (athletes ?? []).find(
+    a => a.clerk_user_id?.toUpperCase().slice(-6) === code
+  );
+
+  if (!match) {
     return NextResponse.json({ error: 'No athlete found with that code' }, { status: 404 });
   }
 
-  const a = athletes[0];
   return NextResponse.json({
-    athleteId: a.clerk_user_id,
-    name: a.full_name ?? 'Unknown Athlete',
-    photo: a.photo_url ?? null,
-    position: a.position ?? null,
-    gradYear: a.grad_year ?? null,
+    athleteId: match.clerk_user_id,
+    name:      match.full_name  ?? 'Unknown Athlete',
+    photo:     match.photo_url  ?? null,
+    position:  match.position   ?? null,
+    gradYear:  match.grad_year  ?? null,
   });
 }
