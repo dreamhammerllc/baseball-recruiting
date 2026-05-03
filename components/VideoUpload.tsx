@@ -87,6 +87,7 @@ export default function VideoUpload({
       const blob = await upload(pathname, selectedFile, {
         access: 'public',
         handleUploadUrl: '/api/upload-video/blob-token',
+        addRandomSuffix: true,
         onUploadProgress: (progress) => {
           console.log('Upload progress:', progress.percentage);
         },
