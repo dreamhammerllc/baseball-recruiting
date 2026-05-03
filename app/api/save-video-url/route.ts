@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthenticatedUserId } from '@/lib/auth';
 import { createAdminClient } from '@/lib/supabase';
+import { METRIC_INFO } from '@/lib/metrics';
+import type { MetricKey } from '@/lib/metrics';
 
 export const runtime = 'nodejs';
 
@@ -14,6 +16,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
   if (!metricKey || !videoUrl || !athleteClerkId) {
     return NextResponse.json({ error: 'metricKey, videoUrl, and athleteClerkId are required.' }, { status: 400 });
+  }
+
+  if (!(metricKey in METRIC_INFO)) {
+    return NextResponse.json({ error: `Invalid metricKey: ${metricKey}` }, { status: 400 });
   }
 
   if (athleteClerkId !== userId) {
@@ -42,17 +48,17 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   } else {
     const { error } = await db
       .from('athlete_metrics')
-      .upsert({
+      .insert({
         athlete_clerk_id:  athleteClerkId,
         metric_key:        metricKey,
         value:             0,
-        unit:              '',
+        unit:              METRIC_INFO[metricKey as MetricKey].unit,
         verification_type: 'self_reported',
         is_personal_best:  true,
         video_url:         videoUrl,
-      }, { onConflict: 'athlete_clerk_id,metric_key,is_personal_best' });
+      });
     if (error) {
-      console.error('[save-video-url] Failed to upsert metric row:', error.message);
+      console.error('[save-video-url] Failed to insert metric row:', error.message);
       return NextResponse.json({ error: 'Failed to save video URL.' }, { status: 500 });
     }
   }
