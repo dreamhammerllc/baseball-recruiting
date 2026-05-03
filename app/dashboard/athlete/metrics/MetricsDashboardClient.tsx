@@ -390,6 +390,16 @@ export default function MetricsDashboardClient({
       };
       return [...prev, placeholder];
     });
+
+    // Persist video URL to Supabase in the background
+    fetch('/api/save-video-url', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ metricKey, videoUrl, athleteClerkId }),
+    }).then(res => {
+      if (!res.ok) res.json().then(d => console.error('[save-video-url] Error:', d)).catch(() => {});
+    }).catch(err => console.error('[save-video-url] Fetch failed:', err));
+
     if (hadPB) {
       closeMetricUploadModal();
     } else {
