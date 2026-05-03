@@ -10,7 +10,6 @@ const NAV_ITEMS = [
   { href: '/dashboard/coach/profile',      label: 'My Profile',   icon: ProfileIcon },
   { href: '/dashboard/coach/athletes',     label: 'My Athletes',  icon: UsersIcon },
   { href: '/dashboard/coach/evaluations',  label: 'Evaluations',  icon: ClipboardIcon },
-  { href: '/dashboard/coach/availability', label: 'Availability', icon: CalendarIcon },
   { href: '/dashboard/coach/settings',     label: 'Settings',     icon: GearIcon },
 ];
 

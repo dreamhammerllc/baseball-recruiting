@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useUser, useClerk } from '@clerk/nextjs';
 import CoachSidebar from '@/components/layout/CoachSidebar';
 import PushNotificationToggle from '@/components/PushNotificationToggle';
@@ -73,6 +73,17 @@ export default function CoachSettingsPage() {
   const [icalSecret, setIcalSecret]   = useState<string | null>(null);
   const [icalCopied, setIcalCopied]   = useState(false);
 
+  // Location state
+  const [hasLocation, setHasLocation]       = useState(false);
+  const [locationLabel, setLocationLabel]   = useState<string | null>(null);
+  const [locationZip, setLocationZip]       = useState<string | null>(null);
+  const [gpsStatus, setGpsStatus]           = useState<'idle'|'requesting'|'saved'>('idle');
+  const [locationSaving, setLocationSaving] = useState(false);
+  const [locationError, setLocationError]   = useState<string | null>(null);
+  const [showZipInput, setShowZipInput]     = useState(false);
+  const [zipInput, setZipInput]             = useState('');
+  const [locationSaved, setLocationSaved]   = useState(false);
+
   const [prefs, setPrefs]             = useState<CoachNotifPrefs>(DEFAULT_PREFS);
   const [notifSaving, setNotifSaving] = useState(false);
   const [notifMsg, setNotifMsg]       = useState<string | null>(null);
@@ -89,6 +100,19 @@ export default function CoachSettingsPage() {
   const email    = user?.emailAddresses[0]?.emailAddress ?? '';
   const hasPassword = user?.passwordEnabled ?? false;
 
+  const loadLocation = useCallback(async () => {
+    try {
+      const res = await fetch('/api/coach/location');
+      if (res.ok) {
+        const loc = await res.json();
+        setHasLocation(loc.has_location ?? false);
+        setLocationLabel(loc.location_label ?? null);
+        setLocationZip(loc.zip_code ?? null);
+        if (loc.has_location) setGpsStatus('saved');
+      }
+    } catch { /* ignore */ }
+  }, []);
+
   useEffect(() => {
     // Load coach profile for tier + ical secret
     fetch('/api/coach/setup')
@@ -101,7 +125,51 @@ export default function CoachSettingsPage() {
         }
       })
       .catch(() => {});
-  }, []);
+    loadLocation();
+  }, [loadLocation]);
+
+  async function saveLocation(body: { lat?: number; lng?: number; zip?: string }) {
+    setLocationSaving(true); setLocationError(null); setLocationSaved(false);
+    try {
+      const res = await fetch('/api/coach/location', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? 'Failed to save.');
+      setHasLocation(true);
+      setGpsStatus('saved');
+      setLocationLabel(data.location_label ?? null);
+      setLocationZip(data.zip_code ?? null);
+      setShowZipInput(false);
+      setLocationSaved(true);
+      setTimeout(() => setLocationSaved(false), 3000);
+    } catch (e) {
+      setLocationError(e instanceof Error ? e.message : 'Error saving location.');
+    } finally { setLocationSaving(false); }
+  }
+
+  function requestGps() {
+    if (!navigator.geolocation) { setShowZipInput(true); return; }
+    setGpsStatus('requesting'); setLocationError(null);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => saveLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+      (err) => {
+        console.warn('GPS denied:', err.message);
+        setGpsStatus('idle');
+        setLocationError('Location access denied. Enter your zip code instead.');
+        setShowZipInput(true);
+      },
+      { timeout: 10000, enableHighAccuracy: false }
+    );
+  }
+
+  function handleZipSave(e: React.FormEvent) {
+    e.preventDefault();
+    if (!/^\d{5}$/.test(zipInput)) { setLocationError('Enter a valid 5-digit zip code.'); return; }
+    saveLocation({ zip: zipInput });
+  }
 
   // ── Notifications save ────────────────────────────────────────────────────
   async function saveNotifs(updated: CoachNotifPrefs) {
@@ -242,6 +310,76 @@ export default function CoachSettingsPage() {
             </div>
           </Section>
 
+          {/* ── Discovery Location ────────────────────────────────────────── */}
+          <Section title="Discovery Location">
+            <p style={{ color: '#6b7280', fontSize: '0.85rem', margin: 0, lineHeight: 1.6 }}>
+              Your location is used so athletes can find you by mile radius. Only your approximate area is shown — your exact coordinates are never shared.
+            </p>
+
+            {hasLocation && gpsStatus === 'saved' && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', backgroundColor: 'rgba(52,211,153,0.08)', border: '1px solid rgba(52,211,153,0.2)', borderRadius: '0.5rem', padding: '0.45rem 0.9rem' }}>
+                  <span style={{ color: '#34d399' }}>📍</span>
+                  <span style={{ color: '#34d399', fontSize: '0.85rem', fontWeight: 600 }}>
+                    {locationLabel ?? locationZip ?? 'Location saved'}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => { setGpsStatus('idle'); setHasLocation(false); setShowZipInput(false); setLocationLabel(null); setLocationZip(null); }}
+                  style={{ background: 'none', border: 'none', color: '#6b7280', fontSize: '0.78rem', cursor: 'pointer', textDecoration: 'underline' }}
+                >
+                  Update
+                </button>
+              </div>
+            )}
+
+            {(!hasLocation || gpsStatus === 'idle') && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                <button
+                  type="button"
+                  onClick={requestGps}
+                  disabled={locationSaving || gpsStatus === 'requesting'}
+                  style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.6rem',
+                    backgroundColor: (locationSaving || gpsStatus === 'requesting') ? '#374151' : '#e8a020',
+                    color: (locationSaving || gpsStatus === 'requesting') ? '#6b7280' : '#000',
+                    border: 'none', borderRadius: '0.5rem', padding: '0.65rem 1.25rem',
+                    fontSize: '0.875rem', fontWeight: 700, cursor: 'pointer', width: 'fit-content',
+                  }}
+                >
+                  {gpsStatus === 'requesting' || locationSaving ? 'Detecting location...' : '📍 Use My Location'}
+                </button>
+
+                {!showZipInput && gpsStatus !== 'requesting' && (
+                  <button type="button" onClick={() => setShowZipInput(true)} style={{ background: 'none', border: 'none', color: '#6b7280', fontSize: '0.78rem', cursor: 'pointer', textDecoration: 'underline', textAlign: 'left', width: 'fit-content', padding: 0 }}>
+                    Set by zip code instead
+                  </button>
+                )}
+
+                {showZipInput && (
+                  <form onSubmit={handleZipSave} style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                    <input
+                      type="text"
+                      value={zipInput}
+                      onChange={e => setZipInput(e.target.value.replace(/\D/g,'').slice(0,5))}
+                      placeholder="Zip code"
+                      maxLength={5}
+                      style={{ backgroundColor: '#0d1117', border: '1px solid #1e2530', borderRadius: '0.4rem', color: '#f0f6fc', padding: '0.45rem 0.6rem', fontSize: '0.85rem', outline: 'none', width: '120px' }}
+                    />
+                    <button type="submit" disabled={locationSaving} style={{ backgroundColor: '#374151', color: '#f0f6fc', border: 'none', borderRadius: '0.4rem', padding: '0.45rem 1rem', fontSize: '0.82rem', fontWeight: 600, cursor: 'pointer' }}>
+                      {locationSaving ? 'Saving...' : 'Save'}
+                    </button>
+                    <button type="button" onClick={() => { setShowZipInput(false); setLocationError(null); }} style={{ background: 'none', border: 'none', color: '#6b7280', fontSize: '0.78rem', cursor: 'pointer' }}>Cancel</button>
+                  </form>
+                )}
+              </div>
+            )}
+
+            {locationError && <p style={{ color: '#f87171', fontSize: '0.8rem', margin: 0 }}>{locationError}</p>}
+            {locationSaved && <p style={{ color: '#34d399', fontSize: '0.8rem', margin: 0 }}>Location saved. Athletes can now find you.</p>}
+          </Section>
+
           {/* ── Subscription ──────────────────────────────────────────────── */}
           <Section title="Subscription">
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem' }}>
@@ -306,19 +444,12 @@ export default function CoachSettingsPage() {
                   </div>
                 </div>
 
-                <p style={{ color: '#4b5563', fontSize: '0.72rem', margin: 0 }}>
-                  You can also set availability hours from the <a href="/dashboard/coach/availability" style={{ color: '#6b7280', textDecoration: 'underline' }}>Availability page</a>.
-                </p>
               </>
             ) : (
               <div style={{ backgroundColor: '#0d1117', border: '1px dashed #1e2530', borderRadius: '0.5rem', padding: '1rem', textAlign: 'center' }}>
-                <p style={{ color: '#6b7280', fontSize: '0.85rem', margin: '0 0 0.75rem' }}>
-                  Set up your availability schedule to generate your iCal link.
+                <p style={{ color: '#6b7280', fontSize: '0.85rem', margin: 0 }}>
+                  Your iCal link will appear here once your first booking is confirmed.
                 </p>
-                <a href="/dashboard/coach/availability"
-                  style={{ color: '#e8a020', fontWeight: 700, fontSize: '0.85rem', textDecoration: 'none' }}>
-                  Go to Availability →
-                </a>
               </div>
             )}
           </Section>
@@ -370,9 +501,6 @@ export default function CoachSettingsPage() {
                 </div>
               ))}
             </div>
-            <p style={{ color: '#4b5563', fontSize: '0.75rem', margin: 0, lineHeight: 1.5 }}>
-              To toggle your availability off entirely, visit the <a href="/dashboard/coach/availability" style={{ color: '#6b7280', textDecoration: 'underline' }}>Availability page</a> and disable "Accepting Bookings".
-            </p>
           </Section>
 
           {/* ── Verification Settings ─────────────────────────────────────── */}
