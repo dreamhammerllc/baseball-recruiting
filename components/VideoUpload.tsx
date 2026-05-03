@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef } from 'react';
+import { upload } from '@vercel/blob/client';
 import type { MetricKey } from '@/lib/metrics';
 
 interface VideoUploadProps {
@@ -71,16 +72,21 @@ export default function VideoUpload({
     if (!selectedFile) return;
     setUploading(true);
     try {
-      const formData = new FormData();
-      formData.append('file', selectedFile);
-      formData.append('uploadType', uploadType);
-      if (metricKey) formData.append('metricKey', metricKey);
-      if (slotNumber !== undefined) formData.append('slotNumber', String(slotNumber));
-      const res = await fetch('/api/upload-video', { method: 'POST', body: formData });
-      const json = await res.json();
-      if (!res.ok || json.error) throw new Error(json.error ?? 'Upload failed');
+      // Build a path that encodes upload context so the server can route/store correctly
+      const suffix = uploadType === 'metric' && metricKey
+        ? `${uploadType}/${metricKey}`
+        : uploadType === 'highlight' && slotNumber !== undefined
+        ? `${uploadType}/${slotNumber}`
+        : uploadType;
+      const pathname = `videos/${suffix}/${selectedFile.name}`;
+
+      const blob = await upload(pathname, selectedFile, {
+        access: 'public',
+        handleUploadUrl: '/api/upload-video/blob-token',
+      });
+
       setUploadComplete(true);
-      onUploadComplete(json.videoUrl);
+      onUploadComplete(blob.url);
     } catch (err) {
       onError(err instanceof Error ? err.message : 'Upload failed');
     } finally {
