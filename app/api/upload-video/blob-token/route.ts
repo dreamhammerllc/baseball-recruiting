@@ -35,8 +35,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       body,
       request,
       onBeforeGenerateToken: async (_pathname) => ({
-        allowedContentTypes: ['video/mp4', 'video/quicktime', 'video/webm'],
-        tokenPayload: userId,
+        allowedContentTypes: ['video/mp4', 'video/mov', 'video/quicktime', 'video/avi', 'video/webm'],
+        addRandomSuffix: true,
       }),
       onUploadCompleted: async ({ blob, tokenPayload }) => {
         console.log('[blob-token] Upload completed:', blob.url, tokenPayload);
