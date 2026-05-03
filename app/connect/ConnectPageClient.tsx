@@ -1,59 +1,52 @@
 'use client';
 
-import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 
+type Status = 'connected' | 'already_connected' | 'invalid' | 'error';
+
 interface Props {
-  coachId: string;
-  athleteId: string;
+  status: Status;
   athleteName: string;
-  athletePhoto: string | null;
-  athletePosition: string | null;
-  athleteGradYear: number | null;
-  alreadyConnected: boolean;
 }
 
-export default function ConnectPageClient({
-  coachId,
-  athleteId,
-  athleteName,
-  athletePhoto,
-  athletePosition,
-  athleteGradYear,
-  alreadyConnected,
-}: Props) {
+export default function ConnectPageClient({ status, athleteName }: Props) {
   const router = useRouter();
-  const [loading, setLoading] = useState(false);
-  const [done, setDone] = useState(alreadyConnected);
-  const [error, setError] = useState('');
 
-  async function handleConnect() {
-    setLoading(true);
-    setError('');
-    try {
-      const res = await fetch('/api/connections/connect', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ athleteId }),
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error ?? 'Something went wrong');
-      }
-      setDone(true);
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Something went wrong');
-    } finally {
-      setLoading(false);
-    }
-  }
+  const config: Record<Status, { icon: string; iconColor: string; heading: string; body: string; cta: string }> = {
+    connected: {
+      icon: '✓',
+      iconColor: '#22c55e',
+      heading: 'Athlete Added',
+      body: `${athleteName} has been added to your roster. You can now verify their metrics.`,
+      cta: 'View My Athletes',
+    },
+    already_connected: {
+      icon: '✓',
+      iconColor: '#58a6ff',
+      heading: 'Already Connected',
+      body: `${athleteName} is already on your roster.`,
+      cta: 'View My Athletes',
+    },
+    invalid: {
+      icon: '✕',
+      iconColor: '#ef4444',
+      heading: 'Invalid Link',
+      body: 'This connection link is invalid or the athlete no longer exists. Ask the athlete to share their link again.',
+      cta: 'Go to Dashboard',
+    },
+    error: {
+      icon: '!',
+      iconColor: '#f59e0b',
+      heading: 'Something Went Wrong',
+      body: 'We could not complete the connection. Please try again or use the Add Athlete button on your dashboard.',
+      cta: 'Go to Dashboard',
+    },
+  };
 
-  const initials = athleteName
-    .split(' ')
-    .map((n) => n[0])
-    .join('')
-    .toUpperCase()
-    .slice(0, 2);
+  const c = config[status];
+  const destination = status === 'connected' || status === 'already_connected'
+    ? '/dashboard/coach/athletes'
+    : '/dashboard/coach';
 
   return (
     <div style={{
@@ -69,116 +62,48 @@ export default function ConnectPageClient({
         border: '1px solid #1e2530',
         borderRadius: '1rem',
         padding: '2.5rem',
-        maxWidth: '420px',
+        maxWidth: '380px',
         width: '100%',
         textAlign: 'center',
       }}>
-        {/* Logo */}
-        <p style={{ color: '#e8a020', fontWeight: 800, fontSize: '1.1rem', margin: '0 0 2rem', letterSpacing: '-0.01em' }}>
+        <p style={{ color: '#e8a020', fontWeight: 800, fontSize: '1rem', margin: '0 0 2rem', letterSpacing: '-0.01em' }}>
           Diamond Verified
         </p>
 
-        {/* Athlete avatar */}
         <div style={{
-          width: '80px',
-          height: '80px',
-          borderRadius: '50%',
-          backgroundColor: '#1e2530',
-          border: '3px solid #e8a020',
-          margin: '0 auto 1rem',
-          overflow: 'hidden',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
+          width: '64px', height: '64px', borderRadius: '50%',
+          backgroundColor: `${c.iconColor}18`,
+          border: `2px solid ${c.iconColor}`,
+          margin: '0 auto 1.25rem',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: '1.6rem', color: c.iconColor, fontWeight: 700,
         }}>
-          {athletePhoto ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={athletePhoto} alt={athleteName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-          ) : (
-            <span style={{ color: '#e8a020', fontWeight: 700, fontSize: '1.4rem' }}>{initials}</span>
-          )}
+          {c.icon}
         </div>
 
-        <h1 style={{ color: '#ffffff', fontSize: '1.3rem', fontWeight: 700, margin: '0 0 0.35rem' }}>
-          {athleteName}
+        <h1 style={{ color: '#ffffff', fontSize: '1.2rem', fontWeight: 700, margin: '0 0 0.6rem' }}>
+          {c.heading}
         </h1>
-        {(athletePosition || athleteGradYear) && (
-          <p style={{ color: '#6b7280', fontSize: '0.875rem', margin: '0 0 2rem' }}>
-            {[athletePosition, athleteGradYear ? `Class of ${athleteGradYear}` : null]
-              .filter(Boolean)
-              .join(' · ')}
-          </p>
-        )}
+        <p style={{ color: '#6b7280', fontSize: '0.875rem', margin: '0 0 2rem', lineHeight: 1.6 }}>
+          {c.body}
+        </p>
 
-        {done ? (
-          <>
-            <div style={{ color: '#22c55e', fontSize: '2.5rem', margin: '0 0 0.75rem' }}>✓</div>
-            <p style={{ color: '#ffffff', fontWeight: 600, fontSize: '1rem', margin: '0 0 0.5rem' }}>
-              {alreadyConnected && !loading ? 'Already Connected' : 'Connected!'}
-            </p>
-            <p style={{ color: '#6b7280', fontSize: '0.875rem', margin: '0 0 1.5rem' }}>
-              {athleteName} is now on your roster.
-            </p>
-            <button
-              onClick={() => router.push('/dashboard/coach/athletes')}
-              style={{
-                backgroundColor: '#e8a020',
-                color: '#000000',
-                fontWeight: 700,
-                fontSize: '0.9rem',
-                padding: '0.75rem 1.5rem',
-                borderRadius: '0.5rem',
-                border: 'none',
-                cursor: 'pointer',
-                width: '100%',
-              }}
-            >
-              View My Athletes
-            </button>
-          </>
-        ) : (
-          <>
-            <p style={{ color: '#9ca3af', fontSize: '0.875rem', margin: '0 0 1.5rem' }}>
-              Add this athlete to your roster so you can track their metrics and submit coach-verified stats.
-            </p>
-            {error && (
-              <p style={{ color: '#ef4444', fontSize: '0.85rem', margin: '0 0 1rem' }}>{error}</p>
-            )}
-            <button
-              onClick={handleConnect}
-              disabled={loading}
-              style={{
-                backgroundColor: loading ? '#92400e' : '#e8a020',
-                color: '#000000',
-                fontWeight: 700,
-                fontSize: '0.9rem',
-                padding: '0.75rem 1.5rem',
-                borderRadius: '0.5rem',
-                border: 'none',
-                cursor: loading ? 'not-allowed' : 'pointer',
-                width: '100%',
-                marginBottom: '0.75rem',
-              }}
-            >
-              {loading ? 'Connecting...' : 'Add to My Roster'}
-            </button>
-            <button
-              onClick={() => router.push('/dashboard/coach')}
-              style={{
-                backgroundColor: 'transparent',
-                color: '#6b7280',
-                fontWeight: 500,
-                fontSize: '0.85rem',
-                padding: '0.5rem',
-                border: 'none',
-                cursor: 'pointer',
-                width: '100%',
-              }}
-            >
-              Cancel
-            </button>
-          </>
-        )}
+        <button
+          onClick={() => router.push(destination)}
+          style={{
+            backgroundColor: '#e8a020',
+            color: '#000000',
+            fontWeight: 700,
+            fontSize: '0.9rem',
+            padding: '0.75rem',
+            borderRadius: '0.5rem',
+            border: 'none',
+            cursor: 'pointer',
+            width: '100%',
+          }}
+        >
+          {c.cta}
+        </button>
       </div>
     </div>
   );

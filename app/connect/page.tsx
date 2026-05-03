@@ -10,10 +10,10 @@ interface Props {
 }
 
 export default async function ConnectPage({ searchParams }: Props) {
-  const params = await searchParams;
+  const params    = await searchParams;
   const athleteId = params.athlete;
 
-  // Must be signed in
+  // Must be signed in — redirect back here after sign-in
   const user = await currentUser();
   if (!user) {
     redirect(`/sign-in?redirect_url=/connect?athlete=${athleteId ?? ''}`);
@@ -21,48 +21,37 @@ export default async function ConnectPage({ searchParams }: Props) {
 
   // Must have an athlete ID in the URL
   if (!athleteId) {
-    return (
-      <div style={{ minHeight: '100vh', backgroundColor: '#0d1117', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <div style={{ textAlign: 'center', padding: '2rem' }}>
-          <p style={{ color: '#ef4444', fontSize: '1rem' }}>Invalid connection link. Please ask the athlete to share their link again.</p>
-        </div>
-      </div>
-    );
+    return <ConnectPageClient status="invalid" athleteName="" />;
   }
 
-  // Coaches only — check subscription_tier
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   );
 
+  // Must be a coach — athletes landing here get sent to their own dashboard
   const { data: coach } = await supabase
     .from('coaches')
-    .select('id, full_name, subscription_tier')
+    .select('id')
     .eq('clerk_user_id', user.id)
-    .single();
+    .maybeSingle();
 
   if (!coach) {
-    // Not a coach — redirect athletes back to their dashboard
     redirect('/dashboard/athlete');
   }
 
-  // Fetch the athlete's profile so we can show their name on the confirm screen
+  // Look up athlete name for the confirmation message
   const { data: athlete } = await supabase
     .from('athletes')
-    .select('full_name, photo_url, position, grad_year')
+    .select('full_name')
     .eq('clerk_user_id', athleteId)
-    .single();
+    .maybeSingle();
 
   if (!athlete) {
-    return (
-      <div style={{ minHeight: '100vh', backgroundColor: '#0d1117', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <div style={{ textAlign: 'center', padding: '2rem' }}>
-          <p style={{ color: '#ef4444', fontSize: '1rem' }}>Athlete not found. The link may be invalid or the athlete may have deleted their account.</p>
-        </div>
-      </div>
-    );
+    return <ConnectPageClient status="invalid" athleteName="" />;
   }
+
+  const athleteName = athlete.full_name ?? 'This athlete';
 
   // Check if already connected
   const { data: existing } = await supabase
@@ -70,17 +59,24 @@ export default async function ConnectPage({ searchParams }: Props) {
     .select('id')
     .eq('coach_id', user.id)
     .eq('athlete_id', athleteId)
-    .single();
+    .maybeSingle();
 
-  return (
-    <ConnectPageClient
-      coachId={user.id}
-      athleteId={athleteId}
-      athleteName={athlete.full_name ?? 'Unknown Athlete'}
-      athletePhoto={athlete.photo_url ?? null}
-      athletePosition={athlete.position ?? null}
-      athleteGradYear={athlete.grad_year ?? null}
-      alreadyConnected={!!existing}
-    />
-  );
+  if (existing) {
+    return <ConnectPageClient status="already_connected" athleteName={athleteName} />;
+  }
+
+  // Auto-connect immediately — no confirmation step needed
+  const { error: connectError } = await supabase
+    .from('coach_athlete_connections')
+    .upsert(
+      { coach_id: user.id, athlete_id: athleteId },
+      { onConflict: 'coach_id,athlete_id' }
+    );
+
+  if (connectError) {
+    console.error('[connect page] upsert error:', connectError.message);
+    return <ConnectPageClient status="error" athleteName={athleteName} />;
+  }
+
+  return <ConnectPageClient status="connected" athleteName={athleteName} />;
 }

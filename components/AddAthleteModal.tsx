@@ -1,7 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect, useCallback } from 'react';
-import type { Html5Qrcode as Html5QrcodeType } from 'html5-qrcode';
+import { useState, useRef, useEffect } from 'react';
 
 type FoundAthlete = {
   athleteId: string;
@@ -17,36 +16,25 @@ interface Props {
 }
 
 export default function AddAthleteModal({ onClose, onConnected }: Props) {
-  const [tab, setTab]               = useState<'code' | 'scan'>('code');
-  const [inviteCode, setInviteCode] = useState('');
-  const [lookingUp, setLookingUp]   = useState(false);
+  const [tab, setTab]                 = useState<'code' | 'scan'>('code');
+  const [inviteCode, setInviteCode]   = useState('');
+  const [lookingUp, setLookingUp]     = useState(false);
   const [lookupError, setLookupError] = useState('');
-  const [found, setFound]           = useState<FoundAthlete | null>(null);
-  const [connecting, setConnecting] = useState(false);
-  const [connected, setConnected]   = useState(false);
+  const [found, setFound]             = useState<FoundAthlete | null>(null);
+  const [connecting, setConnecting]   = useState(false);
+  const [connected, setConnected]     = useState(false);
   const [connectError, setConnectError] = useState('');
-  const [scanning, setScanning]     = useState(false);
-  const [scanError, setScanError]   = useState('');
+  const [scanning, setScanning]       = useState(false);
+  const [scanError, setScanError]     = useState('');
 
-  const scannerRef = useRef<Html5QrcodeType | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const stopScanner = useCallback(async () => {
-    if (scannerRef.current) {
-      try {
-        await scannerRef.current.stop();
-        scannerRef.current.clear();
-      } catch {
-        // already stopped or never started
-      }
-      scannerRef.current = null;
-    }
-    setScanning(false);
-  }, []);
-
-  // Stop scanner on unmount
+  // Reset file input value so the same photo can be retried
   useEffect(() => {
-    return () => { stopScanner(); };
-  }, [stopScanner]);
+    if (!scanning && fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  }, [scanning]);
 
   async function lookupById(athleteId: string) {
     setLookingUp(true);
@@ -63,56 +51,56 @@ export default function AddAthleteModal({ onClose, onConnected }: Props) {
     }
   }
 
-  async function startScan() {
+  async function handleFileCapture(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setScanning(true);
     setScanError('');
-    setFound(null);
-
-    // Dynamic import keeps this SSR-safe and off the initial bundle
-    let Html5Qrcode: typeof Html5QrcodeType;
-    try {
-      const mod = await import('html5-qrcode');
-      Html5Qrcode = mod.Html5Qrcode;
-    } catch {
-      setScanError('QR scanner failed to load. Please use the invite code instead.');
-      return;
-    }
 
     try {
-      const scanner = new Html5Qrcode('dv-qr-reader');
-      scannerRef.current = scanner;
-      setScanning(true);
+      // Draw captured photo onto a canvas to extract pixel data
+      const bitmap = await createImageBitmap(file);
+      const canvas = document.createElement('canvas');
+      canvas.width  = bitmap.width;
+      canvas.height = bitmap.height;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) throw new Error('Canvas not supported');
+      ctx.drawImage(bitmap, 0, 0);
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
 
-      await scanner.start(
-        { facingMode: 'environment' },
-        { fps: 10, qrbox: { width: 200, height: 200 } },
-        async (decodedText: string) => {
-          await stopScanner();
-          try {
-            const url = new URL(decodedText);
-            const athleteId = url.searchParams.get('athlete');
-            if (athleteId) {
-              await lookupById(athleteId);
-              return;
-            }
-          } catch {
-            // not a URL
-          }
-          setScanError('Invalid QR code. Please scan an athlete\'s Diamond Verified QR code.');
-        },
-        () => { /* frame failed — keep scanning, library retries automatically */ }
-      );
-    } catch {
-      scannerRef.current = null;
+      // Dynamically import jsQR (keeps it off the initial bundle, SSR-safe)
+      const { default: jsQR } = await import('jsqr');
+      const result = jsQR(imageData.data, imageData.width, imageData.height);
+
+      if (!result) {
+        setScanError('No QR code found in that photo. Make sure the QR code is clearly visible and try again.');
+        setScanning(false);
+        return;
+      }
+
+      // Parse the decoded URL to extract the athlete ID
+      try {
+        const url = new URL(result.data);
+        const athleteId = url.searchParams.get('athlete');
+        if (athleteId) {
+          setScanning(false);
+          await lookupById(athleteId);
+          return;
+        }
+      } catch {
+        // result.data was not a URL
+      }
+
+      setScanError('Invalid QR code. Please scan an athlete\'s Diamond Verified QR code.');
       setScanning(false);
-      setScanError('Camera access denied. Allow camera permissions and try again.');
+    } catch (e: unknown) {
+      setScanError(e instanceof Error ? e.message : 'Failed to read the photo. Please try again.');
+      setScanning(false);
     }
-  }
 
-  async function handleTabSwitch(t: 'code' | 'scan') {
-    await stopScanner();
-    setScanError('');
-    setLookupError('');
-    setTab(t);
+    // Clear input so the same file triggers onChange again if retried
+    e.target.value = '';
   }
 
   async function handleCodeLookup() {
@@ -156,6 +144,13 @@ export default function AddAthleteModal({ onClose, onConnected }: Props) {
     }
   }
 
+  function switchTab(t: 'code' | 'scan') {
+    setTab(t);
+    setScanError('');
+    setLookupError('');
+    setScanning(false);
+  }
+
   const initials = found
     ? found.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
     : '';
@@ -193,7 +188,7 @@ export default function AddAthleteModal({ onClose, onConnected }: Props) {
           </button>
         </div>
 
-        {/* Success state */}
+        {/* ── Success ── */}
         {connected && found ? (
           <div style={{ textAlign: 'center', padding: '1rem 0' }}>
             <div style={{ color: '#22c55e', fontSize: '2.5rem', marginBottom: '0.5rem' }}>✓</div>
@@ -216,7 +211,7 @@ export default function AddAthleteModal({ onClose, onConnected }: Props) {
           </div>
 
         ) : found ? (
-          /* Athlete preview + confirm */
+          /* ── Athlete preview + confirm ── */
           <div>
             <div style={{
               display: 'flex', alignItems: 'center', gap: '1rem',
@@ -278,9 +273,8 @@ export default function AddAthleteModal({ onClose, onConnected }: Props) {
           </div>
 
         ) : (
-          /* Lookup tabs */
+          /* ── Lookup tabs ── */
           <>
-            {/* Tab switcher */}
             <div style={{
               display: 'flex', backgroundColor: '#0d1117',
               borderRadius: '0.5rem', padding: '3px', marginBottom: '1.25rem',
@@ -288,7 +282,7 @@ export default function AddAthleteModal({ onClose, onConnected }: Props) {
               {(['code', 'scan'] as const).map(t => (
                 <button
                   key={t}
-                  onClick={() => handleTabSwitch(t)}
+                  onClick={() => switchTab(t)}
                   style={{
                     flex: 1, backgroundColor: tab === t ? '#1e2530' : 'transparent',
                     color: tab === t ? '#ffffff' : '#6b7280',
@@ -346,32 +340,32 @@ export default function AddAthleteModal({ onClose, onConnected }: Props) {
             {/* ── Scan QR tab ── */}
             {tab === 'scan' && (
               <div>
-                <p style={{ color: '#6b7280', fontSize: '0.82rem', margin: '0 0 1rem' }}>
-                  Ask the athlete to show their QR code, then tap the button to scan it.
-                </p>
-
-                {/* html5-qrcode mounts the camera feed into this div */}
-                <div
-                  id="dv-qr-reader"
-                  style={{
-                    width: '100%',
-                    borderRadius: '0.65rem',
-                    overflow: 'hidden',
-                    border: scanning ? '2px solid #e8a020' : 'none',
-                    marginBottom: scanning ? '0.75rem' : 0,
-                    backgroundColor: '#0d1117',
-                  }}
+                {/* Hidden native file input — opens camera on mobile */}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  style={{ display: 'none' }}
+                  onChange={handleFileCapture}
                 />
 
-                {lookingUp && (
-                  <p style={{ color: '#6b7280', fontSize: '0.875rem', textAlign: 'center', margin: '0 0 0.75rem' }}>
-                    Looking up athlete...
-                  </p>
-                )}
+                <p style={{ color: '#6b7280', fontSize: '0.82rem', margin: '0 0 1rem' }}>
+                  Ask the athlete to show their QR code, then tap the button to take a photo of it.
+                </p>
 
-                {!scanning && !lookingUp && (
+                {scanning || lookingUp ? (
+                  <div style={{
+                    backgroundColor: '#0d1117', borderRadius: '0.65rem',
+                    padding: '2rem', textAlign: 'center',
+                  }}>
+                    <p style={{ color: '#6b7280', fontSize: '0.875rem', margin: 0 }}>
+                      {scanning ? 'Reading QR code...' : 'Looking up athlete...'}
+                    </p>
+                  </div>
+                ) : (
                   <button
-                    onClick={startScan}
+                    onClick={() => fileInputRef.current?.click()}
                     style={{
                       width: '100%', backgroundColor: '#e8a020', color: '#000000',
                       fontWeight: 700, fontSize: '0.9rem', padding: '0.7rem',
@@ -379,20 +373,6 @@ export default function AddAthleteModal({ onClose, onConnected }: Props) {
                     }}
                   >
                     Open Camera
-                  </button>
-                )}
-
-                {scanning && (
-                  <button
-                    onClick={stopScanner}
-                    style={{
-                      width: '100%', backgroundColor: 'transparent',
-                      border: '1px solid #1e2530', color: '#6b7280',
-                      fontSize: '0.82rem', padding: '0.5rem',
-                      borderRadius: '0.4rem', cursor: 'pointer',
-                    }}
-                  >
-                    Cancel
                   </button>
                 )}
 
