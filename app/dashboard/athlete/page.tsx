@@ -4,6 +4,7 @@ import { createClient } from '@supabase/supabase-js';
 import AthleteSidebar from '@/components/layout/AthleteSidebar';
 import VerificationDocuments from './VerificationDocuments';
 import AthleteDashboardMetrics from '@/components/AthleteDashboardMetrics';
+import AthleteConnectCard from '@/components/AthleteConnectCard';
 import type { AthleteMetric } from '@/lib/metrics';
 
 function UpgradePrompt({ title, description, tier }: { title: string; description: string; tier: 'athlete' | 'athlete_pro' }) {
@@ -236,6 +237,8 @@ export default async function AthleteDashboard() {
             />
           )}
         </div>
+
+        <AthleteConnectCard athleteId={user.id} />
 
         <VerificationDocuments clerkUserId={user.id} />
       </main>

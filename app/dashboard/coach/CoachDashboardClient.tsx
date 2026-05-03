@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import CoachSidebar from '@/components/layout/CoachSidebar';
+import AddAthleteModal from '@/components/AddAthleteModal';
 import { METRIC_KEYS, METRIC_INFO, type MetricKey } from '@/lib/metrics';
 import type { CoachProfile } from '@/app/api/coach/setup/route';
 import type { AthleteSearchResult } from '@/app/api/coach/athletes/search/route';
@@ -45,6 +46,9 @@ export default function CoachDashboardClient() {
   const [submitting, setSubmitting]       = useState(false);
   const [result, setResult]               = useState<{ approved: boolean; message: string } | null>(null);
   const [submitError, setSubmitError]     = useState<string | null>(null);
+
+  // Add Athlete modal
+  const [showAddModal, setShowAddModal]   = useState(false);
 
   // Load coach profile
   useEffect(() => {
@@ -283,14 +287,36 @@ export default function CoachDashboardClient() {
       <main style={{ flex: 1, padding: '2rem 2.5rem', overflowY: 'auto', maxWidth: '860px' }}>
 
         {/* Header */}
-        <div style={{ marginBottom: '2rem' }}>
-          <h1 style={{ color: '#ffffff', fontSize: '1.6rem', fontWeight: 700, margin: '0 0 0.2rem', letterSpacing: '-0.02em' }}>
-            Coach Dashboard
-          </h1>
-          <p style={{ color: '#6b7280', fontSize: '0.875rem', margin: 0 }}>
-            {coach.title} &mdash; {coach.organization}
-          </p>
+        <div style={{ marginBottom: '2rem', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
+          <div>
+            <h1 style={{ color: '#ffffff', fontSize: '1.6rem', fontWeight: 700, margin: '0 0 0.2rem', letterSpacing: '-0.02em' }}>
+              Coach Dashboard
+            </h1>
+            <p style={{ color: '#6b7280', fontSize: '0.875rem', margin: 0 }}>
+              {coach.title} &mdash; {coach.organization}
+            </p>
+          </div>
+          <button
+            onClick={() => setShowAddModal(true)}
+            style={{
+              backgroundColor: '#e8a020', color: '#000000', fontWeight: 700,
+              fontSize: '0.875rem', padding: '0.6rem 1.25rem', borderRadius: '0.5rem',
+              border: 'none', cursor: 'pointer', whiteSpace: 'nowrap',
+            }}
+          >
+            + Add Athlete
+          </button>
         </div>
+
+        {showAddModal && (
+          <AddAthleteModal
+            onClose={() => setShowAddModal(false)}
+            onConnected={() => {
+              setShowAddModal(false);
+              router.push('/dashboard/coach/athletes');
+            }}
+          />
+        )}
 
         {/* Athlete Search */}
         <div style={cardStyle}>
