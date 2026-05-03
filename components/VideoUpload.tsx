@@ -29,8 +29,9 @@ export default function VideoUpload({
 }: VideoUploadProps) {
   const [dragOver, setDragOver] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [uploading, setUploading] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const [uploadComplete, setUploadComplete] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   function handleFile(file: File) {
@@ -44,6 +45,7 @@ export default function VideoUpload({
     }
     setSelectedFile(file);
     setUploadComplete(false);
+    setError(null);
   }
 
   function handleDragOver(e: React.DragEvent<HTMLDivElement>) {
@@ -70,27 +72,32 @@ export default function VideoUpload({
 
   async function handleUpload() {
     if (!selectedFile) return;
-    setUploading(true);
-    try {
-      // Build a path that encodes upload context so the server can route/store correctly
-      const suffix = uploadType === 'metric' && metricKey
-        ? `${uploadType}/${metricKey}`
-        : uploadType === 'highlight' && slotNumber !== undefined
-        ? `${uploadType}/${slotNumber}`
-        : uploadType;
-      const pathname = `videos/${suffix}/${selectedFile.name}`;
+    setIsUploading(true);
+    setError(null);
 
+    const suffix = uploadType === 'metric' && metricKey
+      ? `${uploadType}/${metricKey}`
+      : uploadType === 'highlight' && slotNumber !== undefined
+      ? `${uploadType}/${slotNumber}`
+      : uploadType;
+    const pathname = `videos/${suffix}/${selectedFile.name}`;
+
+    try {
+      console.log('Starting upload for file:', selectedFile.name, selectedFile.size);
       const blob = await upload(pathname, selectedFile, {
         access: 'public',
         handleUploadUrl: '/api/upload-video/blob-token',
+        onUploadProgress: (progress) => {
+          console.log('Upload progress:', progress.percentage);
+        },
       });
-
+      console.log('Upload complete, blob URL:', blob.url);
       setUploadComplete(true);
       onUploadComplete(blob.url);
     } catch (err) {
-      onError(err instanceof Error ? err.message : 'Upload failed');
-    } finally {
-      setUploading(false);
+      console.error('Upload failed:', err);
+      setError('Upload failed: ' + (err instanceof Error ? err.message : String(err)));
+      setIsUploading(false);
     }
   }
 
@@ -112,7 +119,7 @@ export default function VideoUpload({
     );
   }
 
-  if (uploading) {
+  if (isUploading) {
     return (
       <div
         style={{
@@ -236,6 +243,8 @@ export default function VideoUpload({
           </button>
         </div>
       )}
+
+      {error && <div style={{ color: 'red', marginTop: '8px' }}>{error}</div>}
     </div>
   );
 }
