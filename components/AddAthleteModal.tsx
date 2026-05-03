@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
+import type { Html5Qrcode as Html5QrcodeType } from 'html5-qrcode';
 
 type FoundAthlete = {
   athleteId: string;
@@ -16,39 +17,39 @@ interface Props {
 }
 
 export default function AddAthleteModal({ onClose, onConnected }: Props) {
-  const [tab, setTab]             = useState<'code' | 'scan'>('code');
+  const [tab, setTab]               = useState<'code' | 'scan'>('code');
   const [inviteCode, setInviteCode] = useState('');
-  const [lookingUp, setLookingUp] = useState(false);
+  const [lookingUp, setLookingUp]   = useState(false);
   const [lookupError, setLookupError] = useState('');
-  const [found, setFound]         = useState<FoundAthlete | null>(null);
+  const [found, setFound]           = useState<FoundAthlete | null>(null);
   const [connecting, setConnecting] = useState(false);
-  const [connected, setConnected] = useState(false);
+  const [connected, setConnected]   = useState(false);
   const [connectError, setConnectError] = useState('');
+  const [scanning, setScanning]     = useState(false);
+  const [scanError, setScanError]   = useState('');
 
-  // Camera scan state
-  const videoRef     = useRef<HTMLVideoElement>(null);
-  const [scanning, setScanning]   = useState(false);
-  const [scanError, setScanError] = useState('');
-  const streamRef    = useRef<MediaStream | null>(null);
-  const animFrameRef = useRef<number | null>(null);
-  const detectorRef  = useRef<unknown>(null);
+  const scannerRef = useRef<Html5QrcodeType | null>(null);
 
-  const stopCamera = useCallback(() => {
-    setScanning(false);
-    if (animFrameRef.current) {
-      cancelAnimationFrame(animFrameRef.current);
-      animFrameRef.current = null;
+  const stopScanner = useCallback(async () => {
+    if (scannerRef.current) {
+      try {
+        await scannerRef.current.stop();
+        scannerRef.current.clear();
+      } catch {
+        // already stopped or never started
+      }
+      scannerRef.current = null;
     }
-    streamRef.current?.getTracks().forEach(t => t.stop());
-    streamRef.current = null;
+    setScanning(false);
   }, []);
 
-  // Clean up camera on unmount
-  useEffect(() => { return () => stopCamera(); }, [stopCamera]);
+  // Stop scanner on unmount
+  useEffect(() => {
+    return () => { stopScanner(); };
+  }, [stopScanner]);
 
   async function lookupById(athleteId: string) {
     setLookingUp(true);
-    setLookupError('');
     setScanError('');
     try {
       const res = await fetch(`/api/connections/lookup?id=${encodeURIComponent(athleteId)}`);
@@ -66,58 +67,52 @@ export default function AddAthleteModal({ onClose, onConnected }: Props) {
     setScanError('');
     setFound(null);
 
-    if (!('BarcodeDetector' in window)) {
-      setScanError('QR scanning is not supported in this browser. Please enter the invite code manually.');
-      setTab('code');
+    // Dynamic import keeps this SSR-safe and off the initial bundle
+    let Html5Qrcode: typeof Html5QrcodeType;
+    try {
+      const mod = await import('html5-qrcode');
+      Html5Qrcode = mod.Html5Qrcode;
+    } catch {
+      setScanError('QR scanner failed to load. Please use the invite code instead.');
       return;
     }
 
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment' },
-      });
-      streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play();
-      }
-
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      detectorRef.current = new (window as any).BarcodeDetector({ formats: ['qr_code'] });
+      const scanner = new Html5Qrcode('dv-qr-reader');
+      scannerRef.current = scanner;
       setScanning(true);
 
-      const detect = async () => {
-        if (!videoRef.current || !streamRef.current) return;
-        try {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const barcodes = await (detectorRef.current as any).detect(videoRef.current);
-          if (barcodes.length > 0) {
-            const raw = barcodes[0].rawValue as string;
-            stopCamera();
-            // Parse the URL to extract athlete ID
-            try {
-              const url = new URL(raw);
-              const athleteId = url.searchParams.get('athlete');
-              if (athleteId) {
-                await lookupById(athleteId);
-                return;
-              }
-            } catch {
-              // not a URL
+      await scanner.start(
+        { facingMode: 'environment' },
+        { fps: 10, qrbox: { width: 200, height: 200 } },
+        async (decodedText: string) => {
+          await stopScanner();
+          try {
+            const url = new URL(decodedText);
+            const athleteId = url.searchParams.get('athlete');
+            if (athleteId) {
+              await lookupById(athleteId);
+              return;
             }
-            setScanError('Invalid QR code. Please scan an athlete\'s Diamond Verified QR code.');
-            return;
+          } catch {
+            // not a URL
           }
-        } catch {
-          // frame not ready yet — keep scanning
-        }
-        animFrameRef.current = requestAnimationFrame(detect);
-      };
-
-      animFrameRef.current = requestAnimationFrame(detect);
+          setScanError('Invalid QR code. Please scan an athlete\'s Diamond Verified QR code.');
+        },
+        () => { /* frame failed — keep scanning, library retries automatically */ }
+      );
     } catch {
+      scannerRef.current = null;
+      setScanning(false);
       setScanError('Camera access denied. Allow camera permissions and try again.');
     }
+  }
+
+  async function handleTabSwitch(t: 'code' | 'scan') {
+    await stopScanner();
+    setScanError('');
+    setLookupError('');
+    setTab(t);
   }
 
   async function handleCodeLookup() {
@@ -166,7 +161,6 @@ export default function AddAthleteModal({ onClose, onConnected }: Props) {
     : '';
 
   return (
-    // Backdrop
     <div
       onClick={onClose}
       style={{
@@ -175,7 +169,6 @@ export default function AddAthleteModal({ onClose, onConnected }: Props) {
         zIndex: 1000, padding: '1rem',
       }}
     >
-      {/* Modal panel — stop clicks from closing */}
       <div
         onClick={e => e.stopPropagation()}
         style={{
@@ -200,8 +193,8 @@ export default function AddAthleteModal({ onClose, onConnected }: Props) {
           </button>
         </div>
 
+        {/* Success state */}
         {connected && found ? (
-          // Success state
           <div style={{ textAlign: 'center', padding: '1rem 0' }}>
             <div style={{ color: '#22c55e', fontSize: '2.5rem', marginBottom: '0.5rem' }}>✓</div>
             <p style={{ color: '#ffffff', fontWeight: 600, fontSize: '1rem', margin: '0 0 0.35rem' }}>
@@ -214,15 +207,16 @@ export default function AddAthleteModal({ onClose, onConnected }: Props) {
               onClick={onClose}
               style={{
                 backgroundColor: '#e8a020', color: '#000000', fontWeight: 700,
-                fontSize: '0.875rem', padding: '0.65rem 1.5rem', borderRadius: '0.5rem',
+                fontSize: '0.875rem', padding: '0.65rem', borderRadius: '0.5rem',
                 border: 'none', cursor: 'pointer', width: '100%',
               }}
             >
               Done
             </button>
           </div>
+
         ) : found ? (
-          // Athlete preview + confirm
+          /* Athlete preview + confirm */
           <div>
             <div style={{
               display: 'flex', alignItems: 'center', gap: '1rem',
@@ -246,7 +240,8 @@ export default function AddAthleteModal({ onClose, onConnected }: Props) {
                 </p>
                 {(found.position || found.gradYear) && (
                   <p style={{ color: '#6b7280', fontSize: '0.78rem', margin: '0.1rem 0 0' }}>
-                    {[found.position, found.gradYear ? `Class of ${found.gradYear}` : null].filter(Boolean).join(' · ')}
+                    {[found.position, found.gradYear ? `Class of ${found.gradYear}` : null]
+                      .filter(Boolean).join(' · ')}
                   </p>
                 )}
               </div>
@@ -270,7 +265,7 @@ export default function AddAthleteModal({ onClose, onConnected }: Props) {
                 {connecting ? 'Adding...' : 'Add to Roster'}
               </button>
               <button
-                onClick={() => { setFound(null); setInviteCode(''); }}
+                onClick={() => { setFound(null); setInviteCode(''); setScanError(''); }}
                 style={{
                   backgroundColor: 'transparent', border: '1px solid #1e2530',
                   color: '#6b7280', fontSize: '0.875rem', padding: '0.65rem 1rem',
@@ -281,8 +276,9 @@ export default function AddAthleteModal({ onClose, onConnected }: Props) {
               </button>
             </div>
           </div>
+
         ) : (
-          // Lookup UI — tabs
+          /* Lookup tabs */
           <>
             {/* Tab switcher */}
             <div style={{
@@ -292,13 +288,13 @@ export default function AddAthleteModal({ onClose, onConnected }: Props) {
               {(['code', 'scan'] as const).map(t => (
                 <button
                   key={t}
-                  onClick={() => { setTab(t); setScanError(''); setLookupError(''); stopCamera(); }}
+                  onClick={() => handleTabSwitch(t)}
                   style={{
                     flex: 1, backgroundColor: tab === t ? '#1e2530' : 'transparent',
                     color: tab === t ? '#ffffff' : '#6b7280',
                     border: 'none', borderRadius: '0.35rem',
                     padding: '0.45rem', fontSize: '0.85rem', fontWeight: tab === t ? 600 : 400,
-                    cursor: 'pointer', transition: 'all 0.15s',
+                    cursor: 'pointer',
                   }}
                 >
                   {t === 'code' ? 'Enter Code' : 'Scan QR'}
@@ -306,7 +302,7 @@ export default function AddAthleteModal({ onClose, onConnected }: Props) {
               ))}
             </div>
 
-            {/* Manual code entry */}
+            {/* ── Enter Code tab ── */}
             {tab === 'code' && (
               <div>
                 <p style={{ color: '#6b7280', fontSize: '0.82rem', margin: '0 0 1rem' }}>
@@ -347,78 +343,61 @@ export default function AddAthleteModal({ onClose, onConnected }: Props) {
               </div>
             )}
 
-            {/* QR camera scan */}
+            {/* ── Scan QR tab ── */}
             {tab === 'scan' && (
               <div>
-                {!scanning && !lookingUp && (
-                  <>
-                    <p style={{ color: '#6b7280', fontSize: '0.82rem', margin: '0 0 1rem' }}>
-                      Ask the athlete to show their QR code, then tap the button to scan it.
-                    </p>
-                    <button
-                      onClick={startScan}
-                      style={{
-                        backgroundColor: '#e8a020', color: '#000000', fontWeight: 700,
-                        fontSize: '0.9rem', padding: '0.7rem', borderRadius: '0.5rem',
-                        border: 'none', cursor: 'pointer', width: '100%',
-                      }}
-                    >
-                      Open Camera
-                    </button>
-                    {scanError && (
-                      <p style={{ color: '#ef4444', fontSize: '0.82rem', marginTop: '0.75rem' }}>{scanError}</p>
-                    )}
-                  </>
+                <p style={{ color: '#6b7280', fontSize: '0.82rem', margin: '0 0 1rem' }}>
+                  Ask the athlete to show their QR code, then tap the button to scan it.
+                </p>
+
+                {/* html5-qrcode mounts the camera feed into this div */}
+                <div
+                  id="dv-qr-reader"
+                  style={{
+                    width: '100%',
+                    borderRadius: '0.65rem',
+                    overflow: 'hidden',
+                    border: scanning ? '2px solid #e8a020' : 'none',
+                    marginBottom: scanning ? '0.75rem' : 0,
+                    backgroundColor: '#0d1117',
+                  }}
+                />
+
+                {lookingUp && (
+                  <p style={{ color: '#6b7280', fontSize: '0.875rem', textAlign: 'center', margin: '0 0 0.75rem' }}>
+                    Looking up athlete...
+                  </p>
                 )}
 
-                {(scanning || lookingUp) && (
-                  <div>
-                    {scanning && (
-                      <>
-                        <div style={{
-                          borderRadius: '0.65rem', overflow: 'hidden',
-                          border: '2px solid #e8a020', marginBottom: '0.75rem', position: 'relative',
-                        }}>
-                          <video
-                            ref={videoRef}
-                            playsInline
-                            muted
-                            style={{ width: '100%', display: 'block', maxHeight: '260px', objectFit: 'cover' }}
-                          />
-                          {/* Aim reticle */}
-                          <div style={{
-                            position: 'absolute', inset: 0, display: 'flex',
-                            alignItems: 'center', justifyContent: 'center', pointerEvents: 'none',
-                          }}>
-                            <div style={{
-                              width: '120px', height: '120px',
-                              border: '2px solid rgba(232,160,32,0.8)',
-                              borderRadius: '0.5rem',
-                              boxShadow: '0 0 0 9999px rgba(0,0,0,0.35)',
-                            }} />
-                          </div>
-                        </div>
-                        <p style={{ color: '#6b7280', fontSize: '0.8rem', textAlign: 'center', margin: '0 0 0.75rem' }}>
-                          Hold the QR code in front of the camera
-                        </p>
-                        <button
-                          onClick={stopCamera}
-                          style={{
-                            backgroundColor: 'transparent', border: '1px solid #1e2530',
-                            color: '#6b7280', fontSize: '0.82rem', padding: '0.5rem',
-                            borderRadius: '0.4rem', cursor: 'pointer', width: '100%',
-                          }}
-                        >
-                          Cancel
-                        </button>
-                      </>
-                    )}
-                    {lookingUp && !scanning && (
-                      <p style={{ color: '#6b7280', fontSize: '0.875rem', textAlign: 'center' }}>
-                        Looking up athlete...
-                      </p>
-                    )}
-                  </div>
+                {!scanning && !lookingUp && (
+                  <button
+                    onClick={startScan}
+                    style={{
+                      width: '100%', backgroundColor: '#e8a020', color: '#000000',
+                      fontWeight: 700, fontSize: '0.9rem', padding: '0.7rem',
+                      borderRadius: '0.5rem', border: 'none', cursor: 'pointer',
+                    }}
+                  >
+                    Open Camera
+                  </button>
+                )}
+
+                {scanning && (
+                  <button
+                    onClick={stopScanner}
+                    style={{
+                      width: '100%', backgroundColor: 'transparent',
+                      border: '1px solid #1e2530', color: '#6b7280',
+                      fontSize: '0.82rem', padding: '0.5rem',
+                      borderRadius: '0.4rem', cursor: 'pointer',
+                    }}
+                  >
+                    Cancel
+                  </button>
+                )}
+
+                {scanError && (
+                  <p style={{ color: '#ef4444', fontSize: '0.82rem', marginTop: '0.75rem' }}>{scanError}</p>
                 )}
               </div>
             )}
