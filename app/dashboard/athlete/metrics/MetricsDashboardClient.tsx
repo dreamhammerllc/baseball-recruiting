@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import MetricCard from '@/components/MetricCard';
 import MetricsGraph from '@/components/MetricsGraph';
 import VideoUpload from '@/components/VideoUpload';
@@ -281,6 +282,7 @@ export default function MetricsDashboardClient({
   highlights: initialHighlights,
   highlightSlotLimit,
 }: Props) {
+  const router = useRouter();
   const [currentPosition, setCurrentPosition] = useState<AthletePosition | null>(initialPosition);
   const [metrics, setMetrics] = useState<AthleteMetric[]>(initialMetrics);
   const [graphMetricKey, setGraphMetricKey] = useState<MetricKey | null>(null);
@@ -397,7 +399,11 @@ export default function MetricsDashboardClient({
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ metricKey, videoUrl, athleteClerkId }),
     }).then(res => {
-      if (!res.ok) res.json().then(d => console.error('[save-video-url] Error:', d)).catch(() => {});
+      if (res.ok) {
+        router.refresh();
+      } else {
+        res.json().then(d => console.error('[save-video-url] Error:', d)).catch(() => {});
+      }
     }).catch(err => console.error('[save-video-url] Fetch failed:', err));
 
     if (hadPB) {
