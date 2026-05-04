@@ -192,7 +192,7 @@ export async function POST(req: NextRequest) {
         source_label:      `${coach.full_name} - ${coach.organization}`,
         ai_confidence:     aiConfidence,
         is_personal_best:  isPersonalBest,
-        video_url:         videoUrl ?? null,
+        video_url:         isPersonalBest ? (videoUrl ?? null) : null,
         recorded_at:       recordedAtValue,
       })
       .select('id')
