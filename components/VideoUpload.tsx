@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef } from 'react';
+import * as tus from 'tus-js-client';
 import type { MetricKey } from '@/lib/metrics';
 
 interface VideoUploadProps {
@@ -26,11 +27,12 @@ export default function VideoUpload({
   onUploadComplete,
   onError,
 }: VideoUploadProps) {
-  const [dragOver, setDragOver] = useState(false);
+  const [dragOver, setDragOver]         = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [isUploading, setIsUploading] = useState(false);
+  const [isUploading, setIsUploading]   = useState(false);
   const [uploadComplete, setUploadComplete] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [progress, setProgress]         = useState(0);
+  const [error, setError]               = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   function handleFile(file: File) {
@@ -44,6 +46,7 @@ export default function VideoUpload({
     }
     setSelectedFile(file);
     setUploadComplete(false);
+    setProgress(0);
     setError(null);
   }
 
@@ -72,25 +75,54 @@ export default function VideoUpload({
   async function handleUpload() {
     if (!selectedFile) return;
     setIsUploading(true);
+    setProgress(0);
     setError(null);
 
     try {
-      const formData = new FormData();
-      // Fields MUST come before the file so the streaming server-side parser
-      // knows the storage path before the file bytes start arriving.
-      formData.append('uploadType', uploadType);
-      if (uploadType === 'metric' && metricKey) {
-        formData.append('metricKey', metricKey);
-      } else if (uploadType === 'highlight' && slotNumber !== undefined) {
-        formData.append('slotNumber', String(slotNumber));
-      }
-      formData.append('file', selectedFile);
+      // Step 1: Get TUS credentials from server (creates Bunny Stream video entry)
+      const tokenRes = await fetch('/api/upload-video/stream-token', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          filename:   selectedFile.name,
+          uploadType,
+          metricKey:  metricKey ?? null,
+          slotNumber: slotNumber ?? null,
+        }),
+      });
+      const token = await tokenRes.json();
+      if (!tokenRes.ok || token.error) throw new Error(token.error ?? 'Failed to get upload token.');
 
-      const res  = await fetch('/api/upload-video', { method: 'POST', body: formData });
-      const json = await res.json();
-      if (!res.ok || json.error) throw new Error(json.error ?? 'Upload failed.');
+      const { videoId, libraryId, expirationTime, signature, cdnUrl } = token;
+
+      // Step 2: Upload directly to Bunny Stream via TUS — never touches Vercel with file data
+      await new Promise<void>((resolve, reject) => {
+        const upload = new tus.Upload(selectedFile, {
+          endpoint:    'https://video.bunnycdn.com/tusupload',
+          retryDelays: [0, 3000, 5000, 10000, 20000],
+          headers: {
+            AuthorizationSignature: signature,
+            AuthorizationExpire:    String(expirationTime),
+            VideoId:                videoId,
+            LibraryId:              String(libraryId),
+          },
+          metadata: {
+            filetype: selectedFile.type,
+            title:    selectedFile.name,
+          },
+          onProgress(bytesUploaded, bytesTotal) {
+            setProgress(Math.round((bytesUploaded / bytesTotal) * 100));
+          },
+          onSuccess() { resolve(); },
+          onError(err) { reject(err); },
+        });
+        upload.start();
+      });
+
+      // Step 3: Notify parent with the Bunny Stream CDN URL
       setUploadComplete(true);
-      onUploadComplete(json.videoUrl);
+      onUploadComplete(cdnUrl);
+
     } catch (err) {
       console.error('Upload failed:', err);
       setError('Upload failed: ' + (err instanceof Error ? err.message : String(err)));
@@ -100,14 +132,7 @@ export default function VideoUpload({
 
   if (uploadComplete) {
     return (
-      <div
-        style={{
-          border: '2px dashed #1e2530',
-          borderRadius: '0.75rem',
-          padding: '2rem',
-          textAlign: 'center',
-        }}
-      >
+      <div style={{ border: '2px dashed #1e2530', borderRadius: '0.75rem', padding: '2rem', textAlign: 'center' }}>
         <div style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>&#10003;</div>
         <span style={{ color: '#34d399', fontWeight: 600, fontSize: '0.95rem' }}>
           Upload complete
@@ -118,30 +143,20 @@ export default function VideoUpload({
 
   if (isUploading) {
     return (
-      <div
-        style={{
-          border: '2px dashed #1e2530',
-          borderRadius: '0.75rem',
-          padding: '2rem',
-          textAlign: 'center',
-        }}
-      >
-        <span
-          style={{
-            color: '#e8a020',
-            fontWeight: 600,
-            fontSize: '0.95rem',
-            animation: 'pulse 1.5s ease-in-out infinite',
-          }}
-        >
-          Uploading...
-        </span>
-        <style>{`
-          @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.4; }
-          }
-        `}</style>
+      <div style={{ border: '2px dashed #1e2530', borderRadius: '0.75rem', padding: '2rem', textAlign: 'center' }}>
+        <p style={{ color: '#e8a020', fontWeight: 600, fontSize: '0.95rem', margin: '0 0 0.75rem' }}>
+          Uploading{progress > 0 ? ` ${progress}%` : '...'}
+        </p>
+        {/* Progress bar */}
+        <div style={{ backgroundColor: '#1e2530', borderRadius: '9999px', height: '6px', overflow: 'hidden' }}>
+          <div style={{
+            height: '100%',
+            width: `${progress}%`,
+            backgroundColor: '#e8a020',
+            borderRadius: '9999px',
+            transition: 'width 0.3s ease',
+          }} />
+        </div>
       </div>
     );
   }
@@ -163,12 +178,8 @@ export default function VideoUpload({
           transition: 'border-color 0.15s',
           background: dragOver ? 'rgba(232,160,32,0.04)' : 'transparent',
         }}
-        onMouseEnter={e => {
-          if (!dragOver) (e.currentTarget as HTMLDivElement).style.borderColor = '#e8a020';
-        }}
-        onMouseLeave={e => {
-          if (!dragOver) (e.currentTarget as HTMLDivElement).style.borderColor = '#1e2530';
-        }}
+        onMouseEnter={e => { if (!dragOver) (e.currentTarget as HTMLDivElement).style.borderColor = '#e8a020'; }}
+        onMouseLeave={e => { if (!dragOver) (e.currentTarget as HTMLDivElement).style.borderColor = '#1e2530'; }}
       >
         <input
           ref={fileInputRef}
@@ -229,19 +240,15 @@ export default function VideoUpload({
               cursor: 'pointer',
               transition: 'background 0.15s',
             }}
-            onMouseEnter={e => {
-              (e.currentTarget as HTMLButtonElement).style.background = '#d4911c';
-            }}
-            onMouseLeave={e => {
-              (e.currentTarget as HTMLButtonElement).style.background = '#e8a020';
-            }}
+            onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = '#d4911c'; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = '#e8a020'; }}
           >
             Upload
           </button>
         </div>
       )}
 
-      {error && <div style={{ color: 'red', marginTop: '8px' }}>{error}</div>}
+      {error && <div style={{ color: '#f87171', marginTop: '8px', fontSize: '0.85rem' }}>{error}</div>}
     </div>
   );
 }
