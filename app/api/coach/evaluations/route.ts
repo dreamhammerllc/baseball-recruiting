@@ -38,22 +38,7 @@ export async function GET(req: NextRequest) {
 
   const { data, error } = await db
     .from('coach_verifications')
-    .select(`
-      id,
-      metric_key,
-      value,
-      athlete_clerk_id,
-      status,
-      ai_confidence,
-      video_url,
-      recorded_at,
-      created_at,
-      approved_at,
-      athletes (
-        first_name,
-        last_name
-      )
-    `)
+    .select('id, metric_key, value, athlete_clerk_id, status, ai_confidence, video_url, recorded_at, created_at, approved_at')
     .eq('coach_id', coach.id)
     .order('created_at', { ascending: false })
     .limit(200);
@@ -63,13 +48,23 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Failed to fetch evaluations.' }, { status: 500 });
   }
 
-  type AthleteRow = { first_name: string | null; last_name: string | null } | null;
+  // Second query: look up athlete names by clerk_user_id
+  const athleteIds = [...new Set((data ?? []).map(r => r.athlete_clerk_id))];
+  const nameMap: Record<string, string> = {};
+
+  if (athleteIds.length > 0) {
+    const { data: athleteRows } = await db
+      .from('athletes')
+      .select('clerk_user_id, first_name, last_name')
+      .in('clerk_user_id', athleteIds);
+
+    for (const a of athleteRows ?? []) {
+      const name = [a.first_name, a.last_name].filter(Boolean).join(' ') || 'Unknown Athlete';
+      nameMap[a.clerk_user_id] = name;
+    }
+  }
 
   const evaluations: Evaluation[] = (data ?? []).map(row => {
-    const athlete = row.athletes as unknown as AthleteRow;
-    const firstName = athlete?.first_name ?? '';
-    const lastName  = athlete?.last_name  ?? '';
-    const athleteName = [firstName, lastName].filter(Boolean).join(' ') || 'Unknown Athlete';
     const key = row.metric_key as MetricKey;
     const info = METRIC_INFO[key] ?? { label: key, unit: '' };
 
@@ -79,7 +74,7 @@ export async function GET(req: NextRequest) {
       metricLabel:    info.label,
       metricUnit:     info.unit,
       value:          Number(row.value),
-      athleteName,
+      athleteName:    nameMap[row.athlete_clerk_id] ?? 'Unknown Athlete',
       athleteClerkId: row.athlete_clerk_id,
       status:         row.status,
       aiConfidence:   row.ai_confidence ?? null,
