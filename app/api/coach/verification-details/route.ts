@@ -31,6 +31,7 @@ export interface VerificationDetails {
   bio:             string | null;
   yearsExperience: number | null;
   photoUrl:        string | null;
+  videoUrl:        string | null;
 }
 
 // ─── GET /api/coach/verification-details?metricKey=exit_velocity ─────────────
@@ -52,6 +53,7 @@ export async function GET(req: NextRequest) {
     .select(`
       approved_at,
       status,
+      video_url,
       coaches (
         full_name,
         organization,
@@ -99,6 +101,7 @@ export async function GET(req: NextRequest) {
         bio:             coach.bio ?? null,
         yearsExperience: coach.years_experience ?? null,
         photoUrl:        coach.photo_url ?? null,
+        videoUrl:        (row as unknown as { video_url: string | null }).video_url ?? null,
       };
     });
 

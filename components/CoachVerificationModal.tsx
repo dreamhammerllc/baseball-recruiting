@@ -228,6 +228,31 @@ export default function CoachVerificationModal({ metricKey, onClose }: CoachVeri
                       {d.email}
                     </a>
                   </div>
+
+                  {/* Watch video button */}
+                  {d.videoUrl && (
+                    <a
+                      href={d.videoUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '0.4rem',
+                        backgroundColor: 'rgba(232,160,32,0.08)',
+                        border: '1px solid rgba(232,160,32,0.3)',
+                        borderRadius: '0.4rem',
+                        color: '#e8a020',
+                        fontSize: '0.82rem',
+                        fontWeight: 600,
+                        padding: '0.4rem 0.85rem',
+                        textDecoration: 'none',
+                        alignSelf: 'flex-start',
+                      }}
+                    >
+                      ▶ Watch Verification Video
+                    </a>
+                  )}
                 </div>
               ))}
             </>

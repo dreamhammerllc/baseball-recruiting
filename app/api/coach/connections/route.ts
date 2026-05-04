@@ -35,7 +35,7 @@ export async function GET(req: NextRequest) {
   const athleteIds = connections.map(c => c.athlete_id);
   const { data: profiles, error: profileError } = await supabase
     .from('athletes')
-    .select('clerk_user_id, full_name, photo_url, position, grad_year, username')
+    .select('clerk_user_id, first_name, last_name, photo_url, position, grad_year')
     .in('clerk_user_id', athleteIds);
 
   if (profileError) {
@@ -53,11 +53,11 @@ export async function GET(req: NextRequest) {
       connectionId:  conn.id,
       athleteId:     conn.athlete_id,
       connectedAt:   conn.connected_at,
-      name:          p?.full_name ?? 'Unknown Athlete',
+      name:          p ? ([p.first_name, p.last_name].filter(Boolean).join(' ') || 'Unknown Athlete') : 'Unknown Athlete',
       photo:         p?.photo_url ?? null,
       position:      p?.position ?? null,
       gradYear:      p?.grad_year ?? null,
-      username:      p?.username ?? null,
+      username:      null,
     };
   });
 

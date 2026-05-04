@@ -135,8 +135,8 @@ export default function MyAthletesPage() {
                       borderRadius: '0.75rem', padding: '0.9rem 1.1rem',
                     }}
                   >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', flexWrap: 'wrap' }}>
-                      {/* Avatar — clicking opens verify flow */}
+                    {/* Row 1: avatar + name/details */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', marginBottom: '0.75rem' }}>
                       <button
                         type="button"
                         onClick={() => openVerifyFlow(a)}
@@ -156,57 +156,52 @@ export default function MyAthletesPage() {
                         </div>
                       </button>
 
-                      {/* Name + details — clicking opens verify flow */}
-                      <button
-                        type="button"
-                        onClick={() => openVerifyFlow(a)}
-                        style={{ flex: 1, minWidth: 0, background: 'none', border: 'none', textAlign: 'left', cursor: 'pointer', padding: 0 }}
-                      >
-                        <p style={{ color: '#f0f6fc', fontWeight: 600, fontSize: '0.9rem', margin: 0 }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <p style={{ color: '#f0f6fc', fontWeight: 600, fontSize: '0.9rem', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {a.name}
                         </p>
                         <p style={{ color: '#6b7280', fontSize: '0.75rem', margin: '0.1rem 0 0' }}>
-                          {[a.position, a.gradYear ? `Class of ${a.gradYear}` : null].filter(Boolean).join(' · ') || 'Tap to verify metrics'}
+                          {[a.position, a.gradYear ? `Class of ${a.gradYear}` : null].filter(Boolean).join(' · ') || 'No position on file'}
                         </p>
-                      </button>
+                      </div>
+                    </div>
 
-                      {/* Actions */}
-                      <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                    {/* Row 2: action buttons */}
+                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                      <button
+                        type="button"
+                        onClick={() => openVerifyFlow(a)}
+                        style={{
+                          backgroundColor: 'rgba(232,160,32,0.1)', border: '1px solid rgba(232,160,32,0.3)',
+                          borderRadius: '0.4rem', color: '#e8a020', cursor: 'pointer',
+                          fontSize: '0.72rem', fontWeight: 600, padding: '0.35rem 0.75rem',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        Verify Metric
+                      </button>
+                      <a
+                        href={`/profile/${a.athleteId}`}
+                        target="_blank" rel="noopener noreferrer"
+                        style={{
+                          backgroundColor: 'transparent', border: '1px solid #1e2530',
+                          borderRadius: '0.4rem', color: '#58a6ff', fontSize: '0.72rem',
+                          fontWeight: 500, padding: '0.35rem 0.75rem', textDecoration: 'none',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        Profile
+                      </a>
+                      <div style={{ flex: 1 }} />
+                      {!isConfirming && (
                         <button
                           type="button"
-                          onClick={() => openVerifyFlow(a)}
-                          style={{
-                            backgroundColor: 'rgba(232,160,32,0.1)', border: '1px solid rgba(232,160,32,0.3)',
-                            borderRadius: '0.4rem', color: '#e8a020', cursor: 'pointer',
-                            fontSize: '0.72rem', fontWeight: 600, padding: '0.3rem 0.65rem',
-                            whiteSpace: 'nowrap',
-                          }}
+                          onClick={() => setConfirmRemove(a.athleteId)}
+                          style={{ background: 'none', border: 'none', color: '#374151', cursor: 'pointer', fontSize: '0.9rem', padding: '0.2rem' }}
                         >
-                          Verify Metric
+                          ✕
                         </button>
-                        {a.username && (
-                          <a
-                            href={`/profile/${a.username}`}
-                            target="_blank" rel="noopener noreferrer"
-                            style={{
-                              backgroundColor: 'transparent', border: '1px solid #1e2530',
-                              borderRadius: '0.4rem', color: '#58a6ff', fontSize: '0.72rem',
-                              fontWeight: 500, padding: '0.3rem 0.65rem', textDecoration: 'none',
-                            }}
-                          >
-                            Profile
-                          </a>
-                        )}
-                        {!isConfirming && (
-                          <button
-                            type="button"
-                            onClick={() => setConfirmRemove(a.athleteId)}
-                            style={{ background: 'none', border: 'none', color: '#374151', cursor: 'pointer', fontSize: '0.9rem', padding: '0.2rem' }}
-                          >
-                            ✕
-                          </button>
-                        )}
-                      </div>
+                      )}
                     </div>
 
                     {/* Confirm remove */}
