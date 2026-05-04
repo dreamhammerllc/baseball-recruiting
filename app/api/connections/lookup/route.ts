@@ -18,18 +18,21 @@ export async function GET(req: NextRequest) {
   const fullId = req.nextUrl.searchParams.get('id')?.trim();
   const code   = req.nextUrl.searchParams.get('code')?.toUpperCase().trim();
 
-  // ── Direct lookup by full Clerk user ID (QR scan) ────────────────────────
-  if (fullId) {
-    const { data: athlete, error } = await supabase
-      .from('athletes')
-      .select('clerk_user_id, first_name, last_name, photo_url')
-      .eq('clerk_user_id', fullId)
-      .single();
+  // Fetch ALL athletes — no filters, no ilike, just a plain select
+  const { data: all, error } = await supabase
+    .from('athletes')
+    .select('clerk_user_id, first_name, last_name, photo_url');
 
-    if (error) {
-      console.error('[lookup by id] error:', error.message, error.code);
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
+  if (error) {
+    console.error('[lookup] full error object:', JSON.stringify(error));
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  const rows = all ?? [];
+
+  // ── QR scan: match by full Clerk user ID ─────────────────────────────────
+  if (fullId) {
+    const athlete = rows.find(r => r.clerk_user_id === fullId);
     if (!athlete) {
       return NextResponse.json({ error: 'No athlete found with that ID' }, { status: 404 });
     }
@@ -42,7 +45,7 @@ export async function GET(req: NextRequest) {
     });
   }
 
-  // ── Lookup by 6-char invite code ──────────────────────────────────────────
+  // ── Invite code: match by last 6 chars of clerk_user_id ──────────────────
   if (!code || code.length !== 6) {
     return NextResponse.json(
       { error: 'Provide a 6-character invite code or full athlete ID' },
@@ -50,16 +53,9 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  const { data: athlete, error } = await supabase
-    .from('athletes')
-    .select('clerk_user_id, first_name, last_name, photo_url')
-    .ilike('clerk_user_id', `%${code}`)
-    .single();
-
-  if (error) {
-    console.error('[lookup by code] error:', error.message, error.code);
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
+  const athlete = rows.find(
+    r => r.clerk_user_id?.toUpperCase().endsWith(code.toUpperCase())
+  );
 
   if (!athlete) {
     return NextResponse.json({ error: 'No athlete found with that code' }, { status: 404 });
