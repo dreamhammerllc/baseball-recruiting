@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import * as tus from 'tus-js-client';
 import CoachSidebar from '@/components/layout/CoachSidebar';
 import AddAthleteModal from '@/components/AddAthleteModal';
 import { METRIC_KEYS, METRIC_INFO, type MetricKey } from '@/lib/metrics';
@@ -38,6 +39,7 @@ export default function CoachDashboardClient() {
   const [videoFile, setVideoFile]         = useState<File | null>(null);
   const [videoUrl, setVideoUrl]           = useState<string | null>(null);
   const [uploading, setUploading]         = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadError, setUploadError]     = useState<string | null>(null);
   const fileInputRef                      = useRef<HTMLInputElement>(null);
   const captureInputRef                   = useRef<HTMLInputElement>(null);
@@ -144,17 +146,50 @@ export default function CoachDashboardClient() {
   async function handleVideoUpload() {
     if (!videoFile || !selectedAthlete) return;
     setUploading(true);
+    setUploadProgress(0);
     setUploadError(null);
     try {
-      const formData = new FormData();
-      formData.append('uploadType', 'coach_verification');
-      formData.append('athleteClerkId', selectedAthlete.clerkId);
-      formData.append('metricKey', metricKey);
-      formData.append('file', videoFile);
-      const res  = await fetch('/api/upload-video', { method: 'POST', body: formData });
-      const json = await res.json();
-      if (!res.ok || json.error) throw new Error(json.error ?? 'Upload failed.');
-      setVideoUrl(json.videoUrl);
+      // Step 1: Get TUS credentials from server
+      const tokenRes = await fetch('/api/upload-video/stream-token', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          filename:   videoFile.name,
+          uploadType: 'coach_verification',
+          metricKey,
+          slotNumber: null,
+        }),
+      });
+      const token = await tokenRes.json();
+      if (!tokenRes.ok || token.error) throw new Error(token.error ?? 'Failed to get upload token.');
+
+      const { videoId, libraryId, expirationTime, signature, cdnUrl } = token;
+
+      // Step 2: Upload directly to Bunny Stream via TUS
+      await new Promise<void>((resolve, reject) => {
+        const upload = new tus.Upload(videoFile, {
+          endpoint:    'https://video.bunnycdn.com/tusupload',
+          retryDelays: [0, 3000, 5000, 10000, 20000],
+          headers: {
+            AuthorizationSignature: signature,
+            AuthorizationExpire:    String(expirationTime),
+            VideoId:                videoId,
+            LibraryId:              String(libraryId),
+          },
+          metadata: {
+            filetype: videoFile.type,
+            title:    videoFile.name,
+          },
+          onProgress(bytesUploaded, bytesTotal) {
+            setUploadProgress(Math.round((bytesUploaded / bytesTotal) * 100));
+          },
+          onSuccess() { resolve(); },
+          onError(err) { reject(err); },
+        });
+        upload.start();
+      });
+
+      setVideoUrl(cdnUrl);
     } catch (err: unknown) {
       setUploadError(err instanceof Error ? err.message : 'Upload failed.');
     } finally {
@@ -601,7 +636,7 @@ export default function CoachDashboardClient() {
                             cursor: uploading ? 'not-allowed' : 'pointer',
                           }}
                         >
-                          {uploading ? 'Uploading...' : 'Upload'}
+                          {uploading ? (uploadProgress > 0 ? `Uploading ${uploadProgress}%` : 'Uploading...') : 'Upload'}
                         </button>
                         {!uploading && (
                           <button
