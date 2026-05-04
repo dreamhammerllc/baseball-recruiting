@@ -22,9 +22,9 @@ export async function GET(req: NextRequest) {
   if (fullId) {
     const { data: athlete, error } = await supabase
       .from('athletes')
-      .select('clerk_user_id, full_name, photo_url, position, grad_year')
+      .select('clerk_user_id, first_name, last_name, photo_url')
       .eq('clerk_user_id', fullId)
-      .maybeSingle();
+      .single();
 
     if (error) {
       console.error('[lookup by id] error:', error.message, error.code);
@@ -35,10 +35,10 @@ export async function GET(req: NextRequest) {
     }
     return NextResponse.json({
       athleteId: athlete.clerk_user_id,
-      name:      athlete.full_name  ?? 'Unknown Athlete',
-      photo:     athlete.photo_url  ?? null,
-      position:  athlete.position   ?? null,
-      gradYear:  athlete.grad_year  ?? null,
+      name:      [athlete.first_name, athlete.last_name].filter(Boolean).join(' ') || 'Unknown Athlete',
+      photo:     athlete.photo_url ?? null,
+      position:  null,
+      gradYear:  null,
     });
   }
 
@@ -50,48 +50,26 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  // Fresh direct query — ilike on clerk_user_id with no let-variable reassignment
-  const { data: athletes, error } = await supabase
+  const { data: athlete, error } = await supabase
     .from('athletes')
-    .select('clerk_user_id, full_name, photo_url, position, grad_year')
-    .ilike('clerk_user_id', `%${code}`);
+    .select('clerk_user_id, first_name, last_name, photo_url')
+    .ilike('clerk_user_id', `%${code}`)
+    .single();
 
   if (error) {
-    console.error('[lookup by code] ilike error:', error.message, error.code, error.details);
-    // Surface the real Supabase error so it shows in the UI for debugging
+    console.error('[lookup by code] error:', error.message, error.code);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  // ilike returned rows — find exact suffix match (handles any case issues)
-  let match = (athletes ?? []).find(
-    a => a.clerk_user_id?.toUpperCase().slice(-6) === code
-  );
-
-  // Fallback: if ilike returned nothing, fetch all and filter in JS
-  if (!match && (!athletes || athletes.length === 0)) {
-    const { data: all, error: allError } = await supabase
-      .from('athletes')
-      .select('clerk_user_id, full_name, photo_url, position, grad_year');
-
-    if (allError) {
-      console.error('[lookup fallback] error:', allError.message, allError.code);
-      return NextResponse.json({ error: allError.message }, { status: 500 });
-    }
-
-    match = (all ?? []).find(
-      a => a.clerk_user_id?.toUpperCase().slice(-6) === code
-    );
-  }
-
-  if (!match) {
+  if (!athlete) {
     return NextResponse.json({ error: 'No athlete found with that code' }, { status: 404 });
   }
 
   return NextResponse.json({
-    athleteId: match.clerk_user_id,
-    name:      match.full_name  ?? 'Unknown Athlete',
-    photo:     match.photo_url  ?? null,
-    position:  match.position   ?? null,
-    gradYear:  match.grad_year  ?? null,
+    athleteId: athlete.clerk_user_id,
+    name:      [athlete.first_name, athlete.last_name].filter(Boolean).join(' ') || 'Unknown Athlete',
+    photo:     athlete.photo_url ?? null,
+    position:  null,
+    gradYear:  null,
   });
 }
