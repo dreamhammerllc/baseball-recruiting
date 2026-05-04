@@ -906,12 +906,21 @@ export default function MetricsDashboardClient({
               {/* Video player */}
               <div style={{ backgroundColor: '#000', lineHeight: 0 }}>
                 {videoUrl ? (
-                  <video
-                    src={videoUrl}
-                    controls
-                    autoPlay
-                    style={{ width: '100%', maxHeight: '70vh', display: 'block' }}
-                  />
+                  videoUrl.includes('iframe.mediadelivery.net') ? (
+                    <iframe
+                      src={videoUrl}
+                      style={{ width: '100%', height: '400px', border: 'none', display: 'block' }}
+                      allowFullScreen
+                      allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture"
+                    />
+                  ) : (
+                    <video
+                      src={videoUrl}
+                      controls
+                      autoPlay
+                      style={{ width: '100%', maxHeight: '70vh', display: 'block' }}
+                    />
+                  )
                 ) : (
                   <div style={{
                     padding: '3rem',

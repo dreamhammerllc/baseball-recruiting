@@ -34,6 +34,7 @@ export default function CoachEvaluationsPage() {
   const [evaluations, setEvaluations] = useState<Evaluation[]>([]);
   const [loading, setLoading]         = useState(true);
   const [error, setError]             = useState<string | null>(null);
+  const [watchVideoUrl, setWatchVideoUrl] = useState<string | null>(null);
 
   useEffect(() => {
     fetch('/api/coach/evaluations')
@@ -153,10 +154,8 @@ export default function CoachEvaluationsPage() {
 
                 {/* Watch video */}
                 {ev.videoUrl && (
-                  <a
-                    href={ev.videoUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                  <button
+                    onClick={() => setWatchVideoUrl(ev.videoUrl)}
                     style={{
                       display: 'inline-flex',
                       alignItems: 'center',
@@ -168,14 +167,14 @@ export default function CoachEvaluationsPage() {
                       fontSize: '0.78rem',
                       fontWeight: 600,
                       padding: '0.35rem 0.8rem',
-                      textDecoration: 'none',
+                      cursor: 'pointer',
                       whiteSpace: 'nowrap',
                     }}
-                    onMouseEnter={e => { (e.currentTarget as HTMLAnchorElement).style.backgroundColor = 'rgba(232,160,32,0.15)'; }}
-                    onMouseLeave={e => { (e.currentTarget as HTMLAnchorElement).style.backgroundColor = 'rgba(232,160,32,0.08)'; }}
+                    onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'rgba(232,160,32,0.15)'; }}
+                    onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'rgba(232,160,32,0.08)'; }}
                   >
                     ▶ Watch Video
-                  </a>
+                  </button>
                 )}
               </div>
             ))}
@@ -183,6 +182,63 @@ export default function CoachEvaluationsPage() {
         )}
 
       </main>
+
+      {/* Video player modal */}
+      {watchVideoUrl && (
+        <div
+          onClick={() => setWatchVideoUrl(null)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(13,17,23,0.92)',
+            zIndex: 200,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '1.5rem',
+          }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              width: '100%',
+              maxWidth: '800px',
+              backgroundColor: '#111827',
+              border: '1px solid #1e2530',
+              borderRadius: '0.75rem',
+              overflow: 'hidden',
+            }}
+          >
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '0.875rem 1.25rem',
+              borderBottom: '1px solid #1e2530',
+            }}>
+              <span style={{ color: '#f0f6fc', fontWeight: 700, fontSize: '0.95rem' }}>
+                Verification Video
+              </span>
+              <button
+                onClick={() => setWatchVideoUrl(null)}
+                style={{ background: 'none', border: 'none', color: '#6b7280', fontSize: '1.25rem', cursor: 'pointer', lineHeight: 1, padding: '0.25rem 0.5rem' }}
+                onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = '#f0f6fc'; }}
+                onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = '#6b7280'; }}
+              >
+                &#x2715;
+              </button>
+            </div>
+            <div style={{ backgroundColor: '#000', lineHeight: 0 }}>
+              <iframe
+                src={watchVideoUrl}
+                style={{ width: '100%', height: '450px', border: 'none', display: 'block' }}
+                allowFullScreen
+                allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture"
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

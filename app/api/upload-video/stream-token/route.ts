@@ -52,8 +52,8 @@ export async function POST(req: NextRequest) {
     .update(`${libraryId}${apiKey}${expirationTime}${videoId}`)
     .digest('hex');
 
-  // Bunny Stream CDN URL for the transcoded video (available after processing)
-  const cdnUrl = `https://${cdnHost}/${videoId}/play_720p.mp4`;
+  // Bunny Stream embed URL — use iframe player to avoid direct MP4 access restrictions
+  const cdnUrl = `https://iframe.mediadelivery.net/embed/${libraryId}/${videoId}`;
 
   return NextResponse.json({
     videoId,
