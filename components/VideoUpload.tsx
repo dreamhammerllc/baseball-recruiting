@@ -76,13 +76,15 @@ export default function VideoUpload({
 
     try {
       const formData = new FormData();
-      formData.append('file', selectedFile);
+      // Fields MUST come before the file so the streaming server-side parser
+      // knows the storage path before the file bytes start arriving.
       formData.append('uploadType', uploadType);
       if (uploadType === 'metric' && metricKey) {
         formData.append('metricKey', metricKey);
       } else if (uploadType === 'highlight' && slotNumber !== undefined) {
         formData.append('slotNumber', String(slotNumber));
       }
+      formData.append('file', selectedFile);
 
       const res  = await fetch('/api/upload-video', { method: 'POST', body: formData });
       const json = await res.json();

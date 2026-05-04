@@ -147,10 +147,10 @@ export default function CoachDashboardClient() {
     setUploadError(null);
     try {
       const formData = new FormData();
-      formData.append('file', videoFile);
       formData.append('uploadType', 'coach_verification');
       formData.append('athleteClerkId', selectedAthlete.clerkId);
       formData.append('metricKey', metricKey);
+      formData.append('file', videoFile);
       const res  = await fetch('/api/upload-video', { method: 'POST', body: formData });
       const json = await res.json();
       if (!res.ok || json.error) throw new Error(json.error ?? 'Upload failed.');
