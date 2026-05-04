@@ -12,6 +12,12 @@ function formatDate(dateStr: string): string {
   return `${months[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
 }
 
+function toEmbedUrl(url: string): string {
+  if (url.includes('iframe.mediadelivery.net')) return url;
+  const videoId = url.split('/').slice(-2)[0];
+  return `https://iframe.mediadelivery.net/embed/653202/${videoId}`;
+}
+
 function StatusBadge({ status }: { status: string }) {
   const approved = status === 'approved';
   return (
@@ -155,7 +161,7 @@ export default function CoachEvaluationsPage() {
                 {/* Watch video */}
                 {ev.videoUrl && (
                   <button
-                    onClick={() => setWatchVideoUrl(ev.videoUrl)}
+                    onClick={() => setWatchVideoUrl(toEmbedUrl(ev.videoUrl!))}
                     style={{
                       display: 'inline-flex',
                       alignItems: 'center',

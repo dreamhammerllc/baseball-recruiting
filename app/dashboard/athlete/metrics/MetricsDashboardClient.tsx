@@ -914,12 +914,17 @@ export default function MetricsDashboardClient({
                       allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture"
                     />
                   ) : (
-                    <video
-                      src={videoUrl}
-                      controls
-                      autoPlay
-                      style={{ width: '100%', maxHeight: '70vh', display: 'block' }}
-                    />
+                    <div style={{ padding: '2.5rem', textAlign: 'center', backgroundColor: '#0d1117' }}>
+                      <p style={{ color: '#9ca3af', fontSize: '0.875rem', margin: '0 0 1rem', lineHeight: 1.6 }}>
+                        Video format not supported — please re-upload this video.
+                      </p>
+                      <button
+                        onClick={() => { closeWatchVideoModal(); openMetricUploadModal(watchVideoMetricKey!); }}
+                        style={{ backgroundColor: '#e8a020', color: '#000', border: 'none', borderRadius: '0.5rem', padding: '0.5rem 1.25rem', fontSize: '0.875rem', fontWeight: 700, cursor: 'pointer' }}
+                      >
+                        Upload Video
+                      </button>
+                    </div>
                   )
                 ) : (
                   <div style={{
