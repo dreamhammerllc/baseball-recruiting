@@ -143,21 +143,21 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  const isApproved = aiConfidence >= 70;
+  const aiStatus = aiConfidence >= 70 ? 'approved' : 'flagged';
   const now = new Date().toISOString();
   const recordedAtValue = recordedAt ?? now;
 
-  // ── Insert coach_verifications row ────────────────────────────────────────
+  // ── Insert coach_verifications row (always) ───────────────────────────────
   const { error: cvInsertError } = await db.from('coach_verifications').insert({
-    coach_id:        coach.id,
+    coach_id:         coach.id,
     athlete_clerk_id: athleteClerkId,
-    metric_key:      metricKey,
+    metric_key:       metricKey,
     value,
-    video_url:       videoUrl    ?? null,
-    recorded_at:     recordedAtValue,
-    ai_reviewed_at:  now,
-    approved_at:     isApproved ? now : null,
-    status:          isApproved ? 'approved' : 'pending',
+    video_url:        videoUrl ?? null,
+    recorded_at:      recordedAtValue,
+    ai_reviewed_at:   now,
+    approved_at:      aiStatus === 'approved' ? now : null,
+    status:           aiStatus,
   });
 
   if (cvInsertError) {
@@ -165,60 +165,58 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Failed to record verification.' }, { status: 500 });
   }
 
-  // ── If approved: personal best logic + insert athlete_metrics ─────────────
-  if (isApproved) {
-    const { data: existingBest } = await db
+  // ── Always write to athlete_metrics ───────────────────────────────────────
+  const { data: existingBest } = await db
+    .from('athlete_metrics')
+    .select('id, value')
+    .eq('athlete_clerk_id', athleteClerkId)
+    .eq('metric_key', metricKey)
+    .eq('is_personal_best', true)
+    .maybeSingle();
+
+  const lowerIsBetter = info.lowerIsBetter;
+  const isPersonalBest = !existingBest ||
+    (lowerIsBetter
+      ? value < Number(existingBest.value)
+      : value > Number(existingBest.value));
+
+  const { data: newRow, error: insertError } = await db
+    .from('athlete_metrics')
+    .insert({
+      athlete_clerk_id:  athleteClerkId,
+      metric_key:        metricKey,
+      value,
+      unit:              info.unit,
+      verification_type: 'coach_verified',
+      source_label:      `${coach.full_name} - ${coach.organization}`,
+      ai_confidence:     aiConfidence,
+      is_personal_best:  isPersonalBest,
+      video_url:         isPersonalBest ? (videoUrl ?? null) : null,
+      recorded_at:       recordedAtValue,
+    })
+    .select('id')
+    .single();
+
+  if (insertError) {
+    console.error('[verify-metric] athlete_metrics insert error:', insertError.message);
+  }
+
+  if (isPersonalBest && existingBest && newRow) {
+    const { error: clearError } = await db
       .from('athlete_metrics')
-      .select('id, value')
+      .update({ is_personal_best: false })
       .eq('athlete_clerk_id', athleteClerkId)
       .eq('metric_key', metricKey)
-      .eq('is_personal_best', true)
-      .maybeSingle();
+      .neq('id', newRow.id);
 
-    const lowerIsBetter = info.lowerIsBetter;
-    const isPersonalBest = !existingBest ||
-      (lowerIsBetter
-        ? value < Number(existingBest.value)
-        : value > Number(existingBest.value));
-
-    const { data: newRow, error: insertError } = await db
-      .from('athlete_metrics')
-      .insert({
-        athlete_clerk_id:  athleteClerkId,
-        metric_key:        metricKey,
-        value,
-        unit:              info.unit,
-        verification_type: 'coach_verified',
-        source_label:      `${coach.full_name} - ${coach.organization}`,
-        ai_confidence:     aiConfidence,
-        is_personal_best:  isPersonalBest,
-        video_url:         isPersonalBest ? (videoUrl ?? null) : null,
-        recorded_at:       recordedAtValue,
-      })
-      .select('id')
-      .single();
-
-    if (insertError) {
-      console.error('[verify-metric] athlete_metrics insert error:', insertError.message);
-    }
-
-    if (isPersonalBest && existingBest && newRow) {
-      const { error: clearError } = await db
-        .from('athlete_metrics')
-        .update({ is_personal_best: false })
-        .eq('athlete_clerk_id', athleteClerkId)
-        .eq('metric_key', metricKey)
-        .neq('id', newRow.id);
-
-      if (clearError) {
-        console.error('[verify-metric] clear old PB error:', clearError.message);
-      }
+    if (clearError) {
+      console.error('[verify-metric] clear old PB error:', clearError.message);
     }
   }
 
   return NextResponse.json({
     success:     true,
-    status:      isApproved ? 'approved' : 'pending',
+    status:      aiStatus,
     aiConfidence,
     aiNotes,
   });
