@@ -38,7 +38,7 @@ export async function GET(req: NextRequest) {
 
   const { data, error } = await db
     .from('coach_verifications')
-    .select('id, metric_key, value, athlete_clerk_id, status, ai_confidence, video_url, recorded_at, created_at, approved_at')
+    .select('id, metric_key, value, athlete_clerk_id, status, video_url, recorded_at, created_at, approved_at')
     .eq('coach_id', coach.id)
     .order('created_at', { ascending: false })
     .limit(200);
@@ -77,7 +77,7 @@ export async function GET(req: NextRequest) {
       athleteName:    nameMap[row.athlete_clerk_id] ?? 'Unknown Athlete',
       athleteClerkId: row.athlete_clerk_id,
       status:         row.status,
-      aiConfidence:   row.ai_confidence ?? null,
+      aiConfidence:   null,
       videoUrl:       row.video_url ?? null,
       recordedAt:     row.recorded_at as string,
       createdAt:      row.created_at,
