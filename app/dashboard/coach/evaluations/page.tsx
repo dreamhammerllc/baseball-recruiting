@@ -13,9 +13,13 @@ function formatDate(dateStr: string): string {
 }
 
 function toEmbedUrl(url: string): string {
+  if (!url) return '';
   if (url.includes('iframe.mediadelivery.net')) return url;
-  const videoId = url.split('/').slice(-2)[0];
-  return `https://iframe.mediadelivery.net/embed/653202/${videoId}`;
+  if (url.includes('vz-d9ee7f6e-2b7.b-cdn.net')) {
+    const videoId = url.split('/')[3];
+    return `https://iframe.mediadelivery.net/embed/653202/${videoId}`;
+  }
+  return url;
 }
 
 function StatusBadge({ status }: { status: string }) {
