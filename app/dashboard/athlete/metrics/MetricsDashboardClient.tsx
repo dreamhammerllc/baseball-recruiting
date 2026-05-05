@@ -912,15 +912,14 @@ export default function MetricsDashboardClient({
                     videoId = videoUrl.split('/')[3] ?? '';
                   }
                   return videoId ? (
-                    <div style={{ position: 'relative', paddingTop: '56.25%' }}>
-                      <iframe
-                        src={`https://iframe.mediadelivery.net/embed/653202/${videoId}?autoplay=false&preload=true`}
-                        loading="lazy"
-                        style={{ border: 'none', position: 'absolute', top: 0, height: '100%', width: '100%' }}
-                        allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;"
-                        allowFullScreen
-                      />
-                    </div>
+                    <iframe
+                      src={`https://iframe.mediadelivery.net/embed/653202/${videoId}?autoplay=false&preload=true`}
+                      width="100%"
+                      height="300"
+                      style={{ border: 'none', display: 'block' }}
+                      allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;"
+                      allowFullScreen
+                    />
                   ) : (
                     <div style={{ padding: '2.5rem', textAlign: 'center', backgroundColor: '#0d1117' }}>
                       <p style={{ color: '#9ca3af', fontSize: '0.875rem', margin: '0 0 1rem', lineHeight: 1.6 }}>
