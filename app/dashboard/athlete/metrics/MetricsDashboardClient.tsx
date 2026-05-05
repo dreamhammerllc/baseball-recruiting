@@ -863,7 +863,6 @@ export default function MetricsDashboardClient({
                 background: '#111827',
                 border: '1px solid #1e2530',
                 borderRadius: '0.75rem',
-                overflow: 'hidden',
               }}
             >
               {/* Modal header */}
