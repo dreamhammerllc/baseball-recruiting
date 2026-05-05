@@ -15,6 +15,10 @@ interface AthleteRow {
   position: string | null;
   grad_year: string | null;
   home_state: string | null;
+  height_inches: number | null;
+  weight_lbs: number | null;
+  throws: string | null;
+  bats: string | null;
   gpa_unweighted: number | null;
   sat_score: number | null;
   act_score: number | null;
@@ -78,7 +82,7 @@ export default async function AthleteProfilePage({
   const { data: athlete, error: athleteError } = await db
     .from('athletes')
     .select(
-      'id, first_name, last_name, position, grad_year, home_state, gpa_unweighted, sat_score, act_score, exit_velocity_mph, fastball_velocity_mph, sixty_yard_dash_seconds, bio, subscription_tier',
+      'id, first_name, last_name, position, grad_year, home_state, height_inches, weight_lbs, throws, bats, gpa_unweighted, sat_score, act_score, exit_velocity_mph, fastball_velocity_mph, sixty_yard_dash_seconds, bio, subscription_tier',
     )
     .eq('clerk_user_id', username)
     .maybeSingle();
@@ -463,6 +467,22 @@ export default async function AthleteProfilePage({
               gap: '0.75rem',
             }}
           >
+            {athleteData.height_inches != null && (
+              <StatCard
+                label="Height"
+                value={`${Math.floor(athleteData.height_inches / 12)}'${athleteData.height_inches % 12}"`}
+                colors={colors}
+              />
+            )}
+            {athleteData.weight_lbs != null && (
+              <StatCard label="Weight" value={`${athleteData.weight_lbs} lbs`} colors={colors} />
+            )}
+            {athleteData.throws && (
+              <StatCard label="Throws" value={athleteData.throws} colors={colors} />
+            )}
+            {athleteData.bats && (
+              <StatCard label="Bats" value={athleteData.bats} colors={colors} />
+            )}
             {gpa != null && (
               <StatCard label={gpaLabel} value={String(gpa.toFixed(2))} colors={colors} />
             )}

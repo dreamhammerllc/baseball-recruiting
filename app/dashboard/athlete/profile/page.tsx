@@ -20,6 +20,11 @@ interface Profile {
   grad_year:           string;
   position:            string;
   secondary_position:  string;
+  height_feet:         string;
+  height_in:           string;
+  weight_lbs:          string;
+  throws:              string;
+  bats:                string;
   gpa_weighted:        string;
   gpa_unweighted:      string;
   home_state:          string;
@@ -30,6 +35,7 @@ interface Profile {
 
 const EMPTY: Profile = {
   full_name: '', grad_year: '', position: '', secondary_position: '',
+  height_feet: '', height_in: '', weight_lbs: '', throws: '', bats: '',
   gpa_weighted: '', gpa_unweighted: '', home_state: '',
   highlight_video_url: '', photo_url: '', bio: '',
 };
@@ -91,6 +97,11 @@ export default function AthleteProfilePage() {
             grad_year:           p.grad_year           ?? '',
             position:            p.position            ?? '',
             secondary_position:  p.secondary_position  ?? '',
+            height_feet:         p.height_inches != null ? String(Math.floor(p.height_inches / 12)) : '',
+            height_in:           p.height_inches != null ? String(p.height_inches % 12) : '',
+            weight_lbs:          p.weight_lbs    != null ? String(p.weight_lbs) : '',
+            throws:              p.throws        ?? '',
+            bats:                p.bats          ?? '',
             gpa_weighted:        p.gpa_weighted        != null ? String(p.gpa_weighted)   : '',
             gpa_unweighted:      p.gpa_unweighted      != null ? String(p.gpa_unweighted) : '',
             home_state:          p.home_state          ?? '',
@@ -142,6 +153,12 @@ export default function AthleteProfilePage() {
         grad_year:           profile.grad_year           || null,
         position:            profile.position            || null,
         secondary_position:  profile.secondary_position  || null,
+        height_inches:       (profile.height_feet !== '' && profile.height_in !== '')
+                               ? parseInt(profile.height_feet) * 12 + parseInt(profile.height_in)
+                               : null,
+        weight_lbs:          profile.weight_lbs ? parseInt(profile.weight_lbs) : null,
+        throws:              profile.throws || null,
+        bats:                profile.bats   || null,
         gpa_weighted:        profile.gpa_weighted        ? parseFloat(profile.gpa_weighted)   : null,
         gpa_unweighted:      profile.gpa_unweighted      ? parseFloat(profile.gpa_unweighted) : null,
         home_state:          profile.home_state          || null,
@@ -281,6 +298,62 @@ export default function AthleteProfilePage() {
                 </select>
               </Field>
               <div /> {/* spacer */}
+            </div>
+
+            {/* ── Physical Info ── */}
+            <div style={{ borderTop: '1px solid #1e2530', paddingTop: '1.25rem' }}>
+              <h3 style={{ color: '#9ca3af', fontSize: '0.75rem', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', margin: '0 0 1.25rem' }}>
+                Physical Info
+              </h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                  <Field label="Height">
+                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                      <select value={profile.height_feet} onChange={e => set('height_feet', e.target.value)} style={{ ...selectStyle, flex: 1 }}>
+                        <option value="">ft</option>
+                        {[4,5,6,7].map(f => <option key={f} value={String(f)}>{f}&apos;</option>)}
+                      </select>
+                      <select value={profile.height_in} onChange={e => set('height_in', e.target.value)} style={{ ...selectStyle, flex: 1 }}>
+                        <option value="">in</option>
+                        {Array.from({ length: 12 }, (_, i) => i).map(i => <option key={i} value={String(i)}>{i}&quot;</option>)}
+                      </select>
+                    </div>
+                  </Field>
+
+                  <Field label="Weight (lbs)">
+                    <input
+                      type="number"
+                      min="100"
+                      max="400"
+                      value={profile.weight_lbs}
+                      onChange={e => set('weight_lbs', e.target.value)}
+                      placeholder="e.g. 185"
+                      style={inputStyle}
+                    />
+                  </Field>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                  <Field label="Throws">
+                    <select value={profile.throws} onChange={e => set('throws', e.target.value)} style={selectStyle}>
+                      <option value="">Select</option>
+                      <option value="RHT">RHT (Right Hand Thrower)</option>
+                      <option value="LHT">LHT (Left Hand Thrower)</option>
+                    </select>
+                  </Field>
+
+                  <Field label="Bats">
+                    <select value={profile.bats} onChange={e => set('bats', e.target.value)} style={selectStyle}>
+                      <option value="">Select</option>
+                      <option value="RH">RH (Right Hand Hitter)</option>
+                      <option value="LH">LH (Left Hand Hitter)</option>
+                      <option value="S">S (Switch Hitter)</option>
+                    </select>
+                  </Field>
+                </div>
+
+              </div>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
