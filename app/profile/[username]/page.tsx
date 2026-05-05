@@ -13,6 +13,7 @@ interface AthleteRow {
   first_name: string | null;
   last_name: string | null;
   position: string | null;
+  secondary_position: string | null;
   grad_year: string | null;
   home_state: string | null;
   height_inches: number | null;
@@ -25,6 +26,7 @@ interface AthleteRow {
   exit_velocity_mph: number | null;
   fastball_velocity_mph: number | null;
   sixty_yard_dash_seconds: number | null;
+  highlight_video_url: string | null;
   bio: string | null;
   subscription_tier: string | null;
 }
@@ -82,7 +84,7 @@ export default async function AthleteProfilePage({
   const { data: athlete, error: athleteError } = await db
     .from('athletes')
     .select(
-      'id, first_name, last_name, position, grad_year, home_state, height_inches, weight_lbs, throws, bats, gpa_unweighted, sat_score, act_score, exit_velocity_mph, fastball_velocity_mph, sixty_yard_dash_seconds, bio, subscription_tier',
+      'id, first_name, last_name, position, secondary_position, grad_year, home_state, height_inches, weight_lbs, throws, bats, gpa_unweighted, sat_score, act_score, exit_velocity_mph, fastball_velocity_mph, sixty_yard_dash_seconds, highlight_video_url, bio, subscription_tier',
     )
     .eq('clerk_user_id', username)
     .maybeSingle();
@@ -250,6 +252,17 @@ export default async function AthleteProfilePage({
     muted: '#6b7280',
   };
 
+  function extractVideoId(url: string): string {
+    if (!url) return '';
+    if (url.includes('iframe.mediadelivery.net')) {
+      return url.split('/').pop()?.split('?')[0] ?? '';
+    }
+    if (url.includes('vz-d9ee7f6e-2b7.b-cdn.net')) {
+      return url.split('/')[3] ?? '';
+    }
+    return '';
+  }
+
   const mono: React.CSSProperties = { fontFamily: 'monospace' };
   const serif: React.CSSProperties = { fontFamily: 'Georgia, serif' };
 
@@ -367,6 +380,22 @@ export default async function AthleteProfilePage({
                 {athleteData.position}
               </span>
             )}
+            {athleteData.secondary_position && (
+              <span
+                style={{
+                  ...mono,
+                  background: colors.surface,
+                  border: `1px solid ${colors.border}`,
+                  borderRadius: '0.375rem',
+                  padding: '0.25rem 0.75rem',
+                  fontSize: '0.75rem',
+                  color: colors.muted,
+                  letterSpacing: '0.05em',
+                }}
+              >
+                {athleteData.secondary_position}
+              </span>
+            )}
             {athleteData.grad_year && (
               <span
                 style={{
@@ -418,18 +447,6 @@ export default async function AthleteProfilePage({
             )}
           </div>
 
-          {/* Subscription tier label */}
-          <p
-            style={{
-              ...mono,
-              fontSize: '0.7rem',
-              color: colors.muted,
-              marginTop: '0.75rem',
-              letterSpacing: '0.08em',
-            }}
-          >
-            {tierLabel}
-          </p>
         </section>
 
         {/* ── ACTION BUTTONS ROW ─────────────────────────────────────────────── */}
@@ -682,6 +699,33 @@ export default async function AthleteProfilePage({
             </div>
           </section>
         )}
+        {/* ── RECRUITING VIDEO ───────────────────────────────────────────────── */}
+        {athleteData.highlight_video_url && extractVideoId(athleteData.highlight_video_url) && (
+          <section style={{ marginBottom: '2.5rem' }}>
+            <h2
+              style={{
+                ...mono,
+                fontSize: '0.65rem',
+                letterSpacing: '0.18em',
+                color: colors.muted,
+                textTransform: 'uppercase',
+                margin: '0 0 1rem',
+              }}
+            >
+              Recruiting Video
+            </h2>
+            <div style={{ position: 'relative', paddingTop: '56.25%', borderRadius: '0.75rem', overflow: 'hidden' }}>
+              <iframe
+                src={`https://iframe.mediadelivery.net/embed/653202/${extractVideoId(athleteData.highlight_video_url)}?autoplay=false&preload=true`}
+                loading="lazy"
+                style={{ border: 'none', position: 'absolute', top: 0, height: '100%', width: '100%' }}
+                allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;"
+                allowFullScreen
+              />
+            </div>
+          </section>
+        )}
+
       </div>
 
       {/* ── FOOTER ───────────────────────────────────────────────────────────── */}
