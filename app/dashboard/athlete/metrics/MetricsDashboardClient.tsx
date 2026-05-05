@@ -911,6 +911,7 @@ export default function MetricsDashboardClient({
                   } else if (videoUrl.includes('vz-d9ee7f6e-2b7.b-cdn.net')) {
                     videoId = videoUrl.split('/')[3] ?? '';
                   }
+                  if (videoId) console.log('[WatchModal] iframe src:', `https://iframe.mediadelivery.net/embed/653202/${videoId}?autoplay=false&preload=true`);
                   return videoId ? (
                     <iframe
                       src={`https://iframe.mediadelivery.net/embed/653202/${videoId}?autoplay=false&preload=true`}
