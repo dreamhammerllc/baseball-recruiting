@@ -338,17 +338,17 @@ export default function AthleteProfilePage() {
                   <Field label="Throws">
                     <select value={profile.throws} onChange={e => set('throws', e.target.value)} style={selectStyle}>
                       <option value="">Select</option>
-                      <option value="RHT">RHT (Right Hand Thrower)</option>
-                      <option value="LHT">LHT (Left Hand Thrower)</option>
+                      <option value="R">Right Hand Thrower (RHT)</option>
+                      <option value="L">Left Hand Thrower (LHT)</option>
                     </select>
                   </Field>
 
                   <Field label="Bats">
                     <select value={profile.bats} onChange={e => set('bats', e.target.value)} style={selectStyle}>
                       <option value="">Select</option>
-                      <option value="RH">RH (Right Hand Hitter)</option>
-                      <option value="LH">LH (Left Hand Hitter)</option>
-                      <option value="S">S (Switch Hitter)</option>
+                      <option value="R">Right Hand Hitter (RH)</option>
+                      <option value="L">Left Hand Hitter (LH)</option>
+                      <option value="S">Switch Hitter (S)</option>
                     </select>
                   </Field>
                 </div>

@@ -478,10 +478,18 @@ export default async function AthleteProfilePage({
               <StatCard label="Weight" value={`${athleteData.weight_lbs} lbs`} colors={colors} />
             )}
             {athleteData.throws && (
-              <StatCard label="Throws" value={athleteData.throws} colors={colors} />
+              <StatCard
+                label="Throws"
+                value={athleteData.throws === 'R' ? 'RHT' : athleteData.throws === 'L' ? 'LHT' : athleteData.throws}
+                colors={colors}
+              />
             )}
             {athleteData.bats && (
-              <StatCard label="Bats" value={athleteData.bats} colors={colors} />
+              <StatCard
+                label="Bats"
+                value={athleteData.bats === 'R' ? 'RH' : athleteData.bats === 'L' ? 'LH' : athleteData.bats}
+                colors={colors}
+              />
             )}
             {gpa != null && (
               <StatCard label={gpaLabel} value={String(gpa.toFixed(2))} colors={colors} />
