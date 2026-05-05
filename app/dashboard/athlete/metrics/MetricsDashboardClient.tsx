@@ -904,15 +904,24 @@ export default function MetricsDashboardClient({
               </div>
 
               {/* Video player */}
-              <div style={{ backgroundColor: '#000', lineHeight: 0 }}>
-                {videoUrl ? (
-                  videoUrl.includes('iframe.mediadelivery.net') ? (
-                    <iframe
-                      src={videoUrl}
-                      style={{ width: '100%', height: '400px', border: 'none', display: 'block' }}
-                      allowFullScreen
-                      allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture"
-                    />
+              <div style={{ backgroundColor: '#000' }}>
+                {videoUrl ? (() => {
+                  let videoId = '';
+                  if (videoUrl.includes('iframe.mediadelivery.net')) {
+                    videoId = videoUrl.split('/').pop()?.split('?')[0] ?? '';
+                  } else if (videoUrl.includes('vz-d9ee7f6e-2b7.b-cdn.net')) {
+                    videoId = videoUrl.split('/')[3] ?? '';
+                  }
+                  return videoId ? (
+                    <div style={{ position: 'relative', paddingTop: '56.25%' }}>
+                      <iframe
+                        src={`https://iframe.mediadelivery.net/embed/653202/${videoId}?autoplay=false&preload=true`}
+                        loading="lazy"
+                        style={{ border: 'none', position: 'absolute', top: 0, height: '100%', width: '100%' }}
+                        allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;"
+                        allowFullScreen
+                      />
+                    </div>
                   ) : (
                     <div style={{ padding: '2.5rem', textAlign: 'center', backgroundColor: '#0d1117' }}>
                       <p style={{ color: '#9ca3af', fontSize: '0.875rem', margin: '0 0 1rem', lineHeight: 1.6 }}>
@@ -925,8 +934,8 @@ export default function MetricsDashboardClient({
                         Upload Video
                       </button>
                     </div>
-                  )
-                ) : (
+                  );
+                })() : (
                   <div style={{
                     padding: '3rem',
                     textAlign: 'center',

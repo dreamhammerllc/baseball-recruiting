@@ -12,14 +12,15 @@ function formatDate(dateStr: string): string {
   return `${months[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
 }
 
-function toEmbedUrl(url: string): string {
+function extractVideoId(url: string): string {
   if (!url) return '';
-  if (url.includes('iframe.mediadelivery.net')) return url;
-  if (url.includes('vz-d9ee7f6e-2b7.b-cdn.net')) {
-    const videoId = url.split('/')[3];
-    return `https://iframe.mediadelivery.net/embed/653202/${videoId}`;
+  if (url.includes('iframe.mediadelivery.net')) {
+    return url.split('/').pop()?.split('?')[0] ?? '';
   }
-  return url;
+  if (url.includes('vz-d9ee7f6e-2b7.b-cdn.net')) {
+    return url.split('/')[3] ?? '';
+  }
+  return '';
 }
 
 function StatusBadge({ status }: { status: string }) {
@@ -165,7 +166,7 @@ export default function CoachEvaluationsPage() {
                 {/* Watch video */}
                 {ev.videoUrl && (
                   <button
-                    onClick={() => setWatchVideoUrl(toEmbedUrl(ev.videoUrl!))}
+                    onClick={() => setWatchVideoUrl(extractVideoId(ev.videoUrl!))}
                     style={{
                       display: 'inline-flex',
                       alignItems: 'center',
@@ -238,12 +239,13 @@ export default function CoachEvaluationsPage() {
                 &#x2715;
               </button>
             </div>
-            <div style={{ backgroundColor: '#000', lineHeight: 0 }}>
+            <div style={{ position: 'relative', paddingTop: '56.25%' }}>
               <iframe
-                src={watchVideoUrl}
-                style={{ width: '100%', height: '450px', border: 'none', display: 'block' }}
+                src={`https://iframe.mediadelivery.net/embed/653202/${watchVideoUrl}?autoplay=false&preload=true`}
+                loading="lazy"
+                style={{ border: 'none', position: 'absolute', top: 0, height: '100%', width: '100%' }}
+                allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;"
                 allowFullScreen
-                allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture"
               />
             </div>
           </div>
