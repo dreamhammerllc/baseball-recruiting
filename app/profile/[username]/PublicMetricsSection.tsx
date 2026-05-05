@@ -20,8 +20,20 @@ interface GraphState {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
+function extractVideoId(url: string): string {
+  if (!url) return '';
+  if (url.includes('iframe.mediadelivery.net')) {
+    return url.split('/').pop()?.split('?')[0] ?? '';
+  }
+  if (url.includes('vz-d9ee7f6e-2b7.b-cdn.net')) {
+    return url.split('/')[3] ?? '';
+  }
+  return '';
+}
+
 export default function PublicMetricsSection({ personalBestMetrics, athleteClerkId }: Props) {
   const [graphState, setGraphState] = useState<GraphState | null>(null);
+  const [watchVideoUrl, setWatchVideoUrl] = useState<string | null>(null);
 
   async function openGraph(metricKey: MetricKey) {
     // Show loading modal immediately
@@ -190,10 +202,66 @@ export default function PublicMetricsSection({ personalBestMetrics, athleteClerk
                   <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
                 </svg>
               </button>
+
+              {/* Watch video button */}
+              {metric.video_url && extractVideoId(metric.video_url) && (
+                <button
+                  onClick={() => setWatchVideoUrl(metric.video_url!)}
+                  style={{
+                    marginTop: '0.5rem',
+                    background: 'rgba(232,160,32,0.08)',
+                    border: '1px solid rgba(232,160,32,0.3)',
+                    borderRadius: '0.375rem',
+                    color: '#e8a020',
+                    fontSize: '0.7rem',
+                    fontWeight: 600,
+                    padding: '0.25rem 0.6rem',
+                    cursor: 'pointer',
+                    fontFamily: 'monospace',
+                    alignSelf: 'flex-start',
+                  }}
+                  onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(232,160,32,0.15)'; }}
+                  onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(232,160,32,0.08)'; }}
+                >
+                  ▶ Watch
+                </button>
+              )}
             </div>
           );
         })}
       </div>
+
+      {/* Video modal */}
+      {watchVideoUrl && (
+        <div onClick={() => setWatchVideoUrl(null)} style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          zIndex: 1000, padding: '1rem',
+        }}>
+          <div onClick={e => e.stopPropagation()} style={{
+            width: '100%', maxWidth: '720px',
+            background: '#111827', borderRadius: '0.75rem', overflow: 'visible',
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between',
+              alignItems: 'center', padding: '1rem' }}>
+              <span style={{ color: 'white', fontWeight: 600 }}>Verification Video</span>
+              <button onClick={() => setWatchVideoUrl(null)} style={{
+                background: 'none', border: 'none', color: 'white',
+                fontSize: '1.25rem', cursor: 'pointer',
+              }}>×</button>
+            </div>
+            <iframe
+              src={`https://iframe.mediadelivery.net/embed/653202/${extractVideoId(watchVideoUrl)}?autoplay=false&preload=true`}
+              width="100%"
+              height="300"
+              loading="lazy"
+              style={{ border: 'none', display: 'block' }}
+              allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;"
+              allowFullScreen
+            />
+          </div>
+        </div>
+      )}
 
       {/* Graph modal */}
       {graphState && (
