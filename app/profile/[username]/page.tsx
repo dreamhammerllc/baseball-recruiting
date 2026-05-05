@@ -90,6 +90,7 @@ export default async function AthleteProfilePage({
     .eq('clerk_user_id', username)
     .maybeSingle();
 
+  console.log('[profile] username:', username, '| data:', athlete, '| error:', athleteError);
   if (athleteError || !athlete) {
     return (
       <main
