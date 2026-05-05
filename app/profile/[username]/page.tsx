@@ -10,25 +10,18 @@ import type { AthleteMetric } from '@/lib/metrics';
 
 interface AthleteRow {
   id: string;
-  full_name: string | null;
   first_name: string | null;
   last_name: string | null;
   position: string | null;
-  secondary_position: string | null;
   grad_year: string | null;
   home_state: string | null;
-  gpa_weighted: number | null;
   gpa_unweighted: number | null;
   sat_score: number | null;
   act_score: number | null;
   exit_velocity_mph: number | null;
   fastball_velocity_mph: number | null;
-  sixty_yard_dash: number | null;
-  division_pref: string | null;
+  sixty_yard_dash_seconds: number | null;
   bio: string | null;
-  highlight_video_url: string | null;
-  transcript_url: string | null;
-  test_scores_url: string | null;
   subscription_tier: string | null;
 }
 
@@ -85,12 +78,11 @@ export default async function AthleteProfilePage({
   const { data: athlete, error: athleteError } = await db
     .from('athletes')
     .select(
-      'id, full_name, first_name, last_name, position, secondary_position, grad_year, home_state, gpa_weighted, gpa_unweighted, sat_score, act_score, exit_velocity_mph, fastball_velocity_mph, sixty_yard_dash, division_pref, bio, highlight_video_url, transcript_url, test_scores_url, subscription_tier',
+      'id, first_name, last_name, position, grad_year, home_state, gpa_unweighted, sat_score, act_score, exit_velocity_mph, fastball_velocity_mph, sixty_yard_dash_seconds, bio, subscription_tier',
     )
     .eq('clerk_user_id', username)
     .maybeSingle();
 
-  console.log('[profile] username:', username, '| data:', athlete, '| error:', athleteError);
   if (athleteError || !athlete) {
     return (
       <main
@@ -206,12 +198,10 @@ export default async function AthleteProfilePage({
   // ─── Derived values ──────────────────────────────────────────────────────────
 
   const fullName =
-    athleteData.full_name ||
-    [athleteData.first_name, athleteData.last_name].filter(Boolean).join(' ') ||
-    'Athlete';
+    [athleteData.first_name, athleteData.last_name].filter(Boolean).join(' ') || 'Athlete';
 
-  const gpa = athleteData.gpa_weighted ?? athleteData.gpa_unweighted;
-  const gpaLabel = athleteData.gpa_weighted != null ? 'GPA (W)' : 'GPA (UW)';
+  const gpa = athleteData.gpa_unweighted;
+  const gpaLabel = 'GPA (UW)';
 
   const isPitcher =
     athleteData.position?.toUpperCase() === 'P' ||
@@ -233,7 +223,7 @@ export default async function AthleteProfilePage({
     gpa,
     sat: athleteData.sat_score,
     exitVelocity: athleteData.exit_velocity_mph,
-    dashTime: athleteData.sixty_yard_dash,
+    dashTime: athleteData.sixty_yard_dash_seconds,
     fastballVelo: athleteData.fastball_velocity_mph,
     schoolMatches: schoolMatches.map((m) => ({
       school_name: m.school_name,
@@ -373,22 +363,6 @@ export default async function AthleteProfilePage({
                 {athleteData.position}
               </span>
             )}
-            {athleteData.secondary_position && (
-              <span
-                style={{
-                  ...mono,
-                  background: colors.surface,
-                  border: `1px solid ${colors.border}`,
-                  borderRadius: '0.375rem',
-                  padding: '0.25rem 0.75rem',
-                  fontSize: '0.75rem',
-                  color: colors.muted,
-                  letterSpacing: '0.05em',
-                }}
-              >
-                {athleteData.secondary_position}
-              </span>
-            )}
             {athleteData.grad_year && (
               <span
                 style={{
@@ -505,10 +479,10 @@ export default async function AthleteProfilePage({
                 colors={colors}
               />
             )}
-            {athleteData.sixty_yard_dash != null && (
+            {athleteData.sixty_yard_dash_seconds != null && (
               <StatCard
                 label="60 Yd"
-                value={`${athleteData.sixty_yard_dash}s`}
+                value={`${athleteData.sixty_yard_dash_seconds}s`}
                 colors={colors}
               />
             )}
@@ -519,49 +493,9 @@ export default async function AthleteProfilePage({
                 colors={colors}
               />
             )}
-            {athleteData.division_pref && (
-              <StatCard label="Division Pref" value={athleteData.division_pref} colors={colors} />
-            )}
           </div>
         </section>
 
-        {/* ── HIGHLIGHT VIDEO ───────────────────────────────────────────────── */}
-        {athleteData.highlight_video_url && (
-          <section style={{ marginBottom: '2rem' }}>
-            <h2
-              style={{
-                ...mono,
-                fontSize: '0.65rem',
-                letterSpacing: '0.18em',
-                color: colors.muted,
-                textTransform: 'uppercase',
-                margin: '0 0 0.75rem',
-              }}
-            >
-              Highlight Video
-            </h2>
-            <a
-              href={athleteData.highlight_video_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-                backgroundColor: 'rgba(232,160,32,0.1)',
-                border: `1px solid ${colors.gold}44`,
-                borderRadius: '0.5rem',
-                color: colors.gold,
-                fontSize: '0.85rem',
-                fontWeight: 600,
-                padding: '0.55rem 1rem',
-                textDecoration: 'none',
-              }}
-            >
-              ▶ Watch Highlight Video
-            </a>
-          </section>
-        )}
 
         {/* ── VERIFIED METRICS SECTION ───────────────────────────────────────── */}
         <section style={{ marginBottom: '2.5rem' }}>
