@@ -213,13 +213,15 @@ export default async function AthleteProfilePage({
     athleteData.position?.toUpperCase() === 'P' ||
     athleteData.position?.toUpperCase() === 'TWP';
 
-  const tier = athleteData.subscription_tier ?? 'athlete_free';
+  const tier = athleteData.subscription_tier ?? 'free';
   const tierLabel =
-    tier === 'athlete_pro'
-      ? 'Athlete Pro'
-      : tier === 'athlete'
-        ? 'Athlete'
-        : 'Free Profile';
+    tier === 'elite'      ? 'Elite'       :
+    tier === 'verified'   ? 'Verified'    :
+    tier === 'athlete_pro'? 'Athlete Pro' :
+    tier === 'athlete'    ? 'Athlete'     : 'Scout';
+  const isPaidTier   = tier === 'verified' || tier === 'elite' || tier === 'athlete' || tier === 'athlete_pro';
+  const isEliteTier  = tier === 'elite' || tier === 'athlete_pro';
+  const showVerifiedBadge = isPaidTier;
 
   const pdfProps: DownloadPDFButtonProps = {
     athleteName: fullName,
@@ -340,6 +342,28 @@ export default async function AthleteProfilePage({
       {/* ── CONTENT WRAPPER ─────────────────────────────────────────────────── */}
       <div style={{ maxWidth: '860px', margin: '0 auto', padding: '2.5rem 1.5rem 4rem' }}>
 
+        {/* ── UNVERIFIED BANNER ─────────────────────────────────────────────── */}
+        {!isPaidTier && (
+          <div
+            style={{
+              background: 'rgba(107,114,128,0.08)',
+              border: '1px solid rgba(107,114,128,0.3)',
+              borderRadius: '0.75rem',
+              padding: '0.875rem 1.25rem',
+              marginBottom: '1.75rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.75rem',
+              flexWrap: 'wrap',
+            }}
+          >
+            <span style={{ color: colors.muted, fontSize: '0.9rem' }}>&#9650;</span>
+            <p style={{ ...mono, color: colors.muted, fontSize: '0.8rem', margin: 0, flex: 1 }}>
+              Unverified Profile &#8212; This athlete has not yet verified their stats.
+            </p>
+          </div>
+        )}
+
         {/* ── HERO / PROFILE HEADER ──────────────────────────────────────────── */}
         <section style={{ marginBottom: '2rem' }}>
           <h1
@@ -428,7 +452,7 @@ export default async function AthleteProfilePage({
                 {athleteData.home_state}
               </span>
             )}
-            {isVerified && (
+            {showVerifiedBadge && (
               <span
                 style={{
                   ...mono,
@@ -453,14 +477,14 @@ export default async function AthleteProfilePage({
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: tier === 'athlete_pro' ? '1fr 1fr' : '1fr',
+            gridTemplateColumns: isEliteTier ? '1fr 1fr' : '1fr',
             gap: '0.75rem',
             marginBottom: '2.5rem',
             maxWidth: '480px',
           }}
         >
           <ShareButton />
-          {tier === 'athlete_pro' && <DownloadPDFWrapper {...pdfProps} />}
+          {isEliteTier && <DownloadPDFWrapper {...pdfProps} />}
         </div>
 
         {/* ── STATS GRID ─────────────────────────────────────────────────────── */}
@@ -566,10 +590,48 @@ export default async function AthleteProfilePage({
             </h2>
             <span style={{ color: colors.gold, fontSize: '0.75rem' }}>&#9670;</span>
           </div>
-          <PublicMetricsSection
-            personalBestMetrics={personalBestMetrics}
-            athleteClerkId={username}
-          />
+          {isPaidTier ? (
+            <PublicMetricsSection
+              personalBestMetrics={personalBestMetrics}
+              athleteClerkId={username}
+            />
+          ) : (
+            <div style={{ position: 'relative', borderRadius: '0.75rem', overflow: 'hidden' }}>
+              {/* Blurred placeholder rows */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', filter: 'blur(4px)', userSelect: 'none', pointerEvents: 'none' }}>
+                {[1, 2, 3].map((i) => (
+                  <div
+                    key={i}
+                    style={{
+                      background: colors.surface,
+                      border: `1px solid ${colors.border}`,
+                      borderRadius: '0.75rem',
+                      padding: '0.875rem 1.25rem',
+                      height: '56px',
+                    }}
+                  />
+                ))}
+              </div>
+              {/* Overlay lock message */}
+              <div
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '0.5rem',
+                  background: 'rgba(13,17,23,0.7)',
+                }}
+              >
+                <span style={{ fontSize: '1.5rem' }}>&#128274;</span>
+                <p style={{ ...mono, color: colors.muted, fontSize: '0.8rem', margin: 0 }}>
+                  Verified metrics are hidden on unverified profiles.
+                </p>
+              </div>
+            </div>
+          )}
         </section>
 
         {/* ── SCHOOL MATCHES ─────────────────────────────────────────────────── */}

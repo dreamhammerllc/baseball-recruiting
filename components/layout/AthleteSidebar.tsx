@@ -11,6 +11,7 @@ const NAV_ITEMS = [
   { href: '/dashboard/athlete/metrics',        label: 'My Metrics',    icon: ChartIcon },
   { href: '/dashboard/athlete/find-coaches',   label: 'Find Coaches',  icon: PinIcon },
   { href: '/dashboard/athlete/school-matches', label: 'School Matches',icon: SearchIcon },
+  { href: '/dashboard/athlete/upgrade',        label: 'Upgrade',       icon: StarIcon },
   { href: '/dashboard/athlete/settings',       label: 'Settings',      icon: GearIcon },
 ];
 
@@ -288,6 +289,14 @@ function CloseIcon() {
   return (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
       <path d="M18 6L6 18M6 6l12 12" />
+    </svg>
+  );
+}
+
+function StarIcon({ active }: { active: boolean }) {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill={active ? '#e8a020' : 'none'} stroke={active ? '#e8a020' : '#6b7280'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
     </svg>
   );
 }
