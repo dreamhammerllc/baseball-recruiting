@@ -34,14 +34,17 @@ export default function UpgradePage() {
         body:    JSON.stringify({ priceId, tier }),
       })
       const data = await res.json()
+      console.log('checkout response:', data)
       if (data.url) {
         window.location.href = data.url
       } else {
-        setError('Could not start checkout. Please try again.')
+        setError(data.error || 'Could not start checkout. Please try again.')
         setLoading(null)
+        return
       }
-    } catch {
-      setError('Something went wrong. Please try again.')
+    } catch (err) {
+      console.log('checkout fetch error:', err)
+      setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.')
       setLoading(null)
     }
   }
