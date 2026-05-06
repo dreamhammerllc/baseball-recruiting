@@ -13,7 +13,5 @@ export default clerkMiddleware(async (auth, req) => {
 });
 
 export const config = {
-  // Exclude /api/* routes — they handle their own auth via auth() and must
-  // receive the raw request body (Edge runtime buffers + drops large bodies).
-  matcher: ['/((?!_next|api/|.*\\..*).*)'],
+  matcher: ['/((?!_next|.*\\..*).*)'],
 };
