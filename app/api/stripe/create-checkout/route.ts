@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { auth } from '@clerk/nextjs/server'
 import Stripe from 'stripe'
 import { createAdminClient } from '@/lib/supabase'
-import { getAuthenticatedUserId } from '@/lib/auth'
 
 export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
 
 export async function POST(req: NextRequest) {
   try {
-    const userId = await getAuthenticatedUserId(req)
+    const { userId } = await auth()
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
