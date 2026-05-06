@@ -6,6 +6,13 @@ import { createAdminClient } from '@/lib/supabase'
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
+const PRICE_MAP: Record<string, string | undefined> = {
+  'verified:monthly': process.env.STRIPE_VERIFIED_MONTHLY_PRICE_ID,
+  'verified:yearly':  process.env.STRIPE_VERIFIED_YEARLY_PRICE_ID,
+  'elite:monthly':    process.env.STRIPE_ELITE_MONTHLY_PRICE_ID,
+  'elite:yearly':     process.env.STRIPE_ELITE_YEARLY_PRICE_ID,
+}
+
 export async function POST(req: NextRequest) {
   try {
     const { userId } = await auth()
@@ -13,9 +20,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { priceId, tier } = await req.json()
+    const { tier, period } = await req.json()
+    if (!tier || !period) {
+      return NextResponse.json({ error: 'tier and period are required' }, { status: 400 })
+    }
+
+    const priceId = PRICE_MAP[`${tier}:${period}`]
     if (!priceId) {
-      return NextResponse.json({ error: 'priceId is required' }, { status: 400 })
+      return NextResponse.json({ error: `No price configured for ${tier}:${period}` }, { status: 400 })
     }
 
     const stripeKey = process.env.STRIPE_SECRET_KEY
@@ -59,7 +71,7 @@ export async function POST(req: NextRequest) {
       mode:                 'subscription',
       success_url:          'https://diamondverified.app/dashboard/athlete?upgraded=true',
       cancel_url:           'https://diamondverified.app/dashboard/athlete/settings',
-      metadata:             { tier: tier ?? '', clerk_user_id: userId },
+      metadata:             { tier, clerk_user_id: userId },
     })
 
     return NextResponse.json({ url: session.url })

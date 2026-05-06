@@ -7,10 +7,10 @@ export const dynamic = 'force-dynamic'
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!)
 
 const PRICE_TO_TIER: Record<string, string> = {
-  [process.env.STRIPE_VERIFIED_MONTHLY_PRICE_ID ?? 'price_1TU9gUJP5BSkTrOw7VGE6Jm']: 'verified',
-  [process.env.STRIPE_VERIFIED_YEARLY_PRICE_ID  ?? 'price_1TU9gUJP5BSkTrOzYqTxpSM']: 'verified',
-  [process.env.STRIPE_ELITE_MONTHLY_PRICE_ID    ?? 'price_1TU9hBJP5BSkTrO7pJiDi8d']: 'elite',
-  [process.env.STRIPE_ELITE_YEARLY_PRICE_ID     ?? 'price_1TU9jvIJP5BSkTrO5ZHF4eAF']: 'elite',
+  [process.env.STRIPE_VERIFIED_MONTHLY_PRICE_ID ?? 'price_1TUBy1IJP5BSkTrOV2GWhk4e']: 'verified',
+  [process.env.STRIPE_VERIFIED_YEARLY_PRICE_ID  ?? 'price_1TUBy1IJP5BSkTrO38zxmCgU']: 'verified',
+  [process.env.STRIPE_ELITE_MONTHLY_PRICE_ID    ?? 'price_1TUBzdIJP5BSkTrOTlCFNfKX']: 'elite',
+  [process.env.STRIPE_ELITE_YEARLY_PRICE_ID     ?? 'price_1TUC0HIJP5BSkTrORs6SyEbm']: 'elite',
 }
 
 function tierFromPriceId(priceId: string): string {

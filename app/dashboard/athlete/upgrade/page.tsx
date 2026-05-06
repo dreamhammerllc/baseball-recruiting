@@ -3,12 +3,6 @@
 import { useState } from 'react'
 import AthleteSidebar from '@/components/layout/AthleteSidebar'
 
-const PRICES = {
-  verifiedMonthly: process.env.NEXT_PUBLIC_STRIPE_VERIFIED_MONTHLY_PRICE_ID ?? 'price_1TU9gUJP5BSkTrOw7VGE6Jm',
-  verifiedYearly:  process.env.NEXT_PUBLIC_STRIPE_VERIFIED_YEARLY_PRICE_ID  ?? 'price_1TU9gUJP5BSkTrOzYqTxpSM',
-  eliteMonthly:    process.env.NEXT_PUBLIC_STRIPE_ELITE_MONTHLY_PRICE_ID    ?? 'price_1TU9hBJP5BSkTrO7pJiDi8d',
-  eliteYearly:     process.env.NEXT_PUBLIC_STRIPE_ELITE_YEARLY_PRICE_ID     ?? 'price_1TU9jvIJP5BSkTrO5ZHF4eAF',
-}
 
 const colors = {
   bg:      '#0d1117',
@@ -24,26 +18,23 @@ export default function UpgradePage() {
   const [loading, setLoading] = useState<string | null>(null)
   const [error, setError]     = useState<string | null>(null)
 
-  async function handleUpgrade(priceId: string, tier: string) {
-    setLoading(priceId)
+  async function handleUpgrade(tier: string, period: string) {
+    setLoading(`${tier}:${period}`)
     setError(null)
     try {
       const res  = await fetch('/api/stripe/create-checkout', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ priceId, tier }),
+        body:    JSON.stringify({ tier, period }),
       })
       const data = await res.json()
-      console.log('checkout response:', data)
       if (data.url) {
         window.location.href = data.url
       } else {
         setError(data.error || 'Could not start checkout. Please try again.')
         setLoading(null)
-        return
       }
     } catch (err) {
-      console.log('checkout fetch error:', err)
       setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.')
       setLoading(null)
     }
@@ -115,9 +106,9 @@ export default function UpgradePage() {
               <button
                 type="button"
                 disabled={loading !== null}
-                onClick={() => handleUpgrade(PRICES.verifiedMonthly, 'verified')}
+                onClick={() => handleUpgrade('verified', 'monthly')}
                 style={{
-                  backgroundColor: loading === PRICES.verifiedMonthly ? colors.muted : colors.gold,
+                  backgroundColor: loading === 'verified:monthly' ? colors.muted : colors.gold,
                   color:           '#0d1117',
                   border:          'none',
                   borderRadius:    '0.5rem',
@@ -129,12 +120,12 @@ export default function UpgradePage() {
                   letterSpacing:   '0.04em',
                 }}
               >
-                {loading === PRICES.verifiedMonthly ? 'Redirecting...' : 'Start Monthly - $9.99/mo'}
+                {loading === 'verified:monthly' ? 'Redirecting...' : 'Start Monthly - $9.99/mo'}
               </button>
               <button
                 type="button"
                 disabled={loading !== null}
-                onClick={() => handleUpgrade(PRICES.verifiedYearly, 'verified')}
+                onClick={() => handleUpgrade('verified', 'yearly')}
                 style={{
                   backgroundColor: 'transparent',
                   color:           colors.gold,
@@ -148,7 +139,7 @@ export default function UpgradePage() {
                   letterSpacing:   '0.04em',
                 }}
               >
-                {loading === PRICES.verifiedYearly ? 'Redirecting...' : 'Start Yearly - $79/yr'}
+                {loading === 'verified:yearly' ? 'Redirecting...' : 'Start Yearly - $79/yr'}
               </button>
             </div>
           </div>
@@ -196,9 +187,9 @@ export default function UpgradePage() {
               <button
                 type="button"
                 disabled={loading !== null}
-                onClick={() => handleUpgrade(PRICES.eliteMonthly, 'elite')}
+                onClick={() => handleUpgrade('elite', 'monthly')}
                 style={{
-                  backgroundColor: loading === PRICES.eliteMonthly ? colors.muted : colors.blue,
+                  backgroundColor: loading === 'elite:monthly' ? colors.muted : colors.blue,
                   color:           '#0d1117',
                   border:          'none',
                   borderRadius:    '0.5rem',
@@ -210,12 +201,12 @@ export default function UpgradePage() {
                   letterSpacing:   '0.04em',
                 }}
               >
-                {loading === PRICES.eliteMonthly ? 'Redirecting...' : 'Start Monthly - $19.99/mo'}
+                {loading === 'elite:monthly' ? 'Redirecting...' : 'Start Monthly - $19.99/mo'}
               </button>
               <button
                 type="button"
                 disabled={loading !== null}
-                onClick={() => handleUpgrade(PRICES.eliteYearly, 'elite')}
+                onClick={() => handleUpgrade('elite', 'yearly')}
                 style={{
                   backgroundColor: 'transparent',
                   color:           colors.blue,
@@ -229,7 +220,7 @@ export default function UpgradePage() {
                   letterSpacing:   '0.04em',
                 }}
               >
-                {loading === PRICES.eliteYearly ? 'Redirecting...' : 'Start Yearly - $159/yr'}
+                {loading === 'elite:yearly' ? 'Redirecting...' : 'Start Yearly - $159/yr'}
               </button>
             </div>
           </div>
