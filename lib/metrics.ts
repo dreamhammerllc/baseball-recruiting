@@ -1,7 +1,8 @@
 export const METRIC_KEYS = [
-  'sixty_yard_dash', 'exit_velocity', 'launch_angle', 'distance', 'vertical_jump', 'bat_speed',
-  'fastball_velocity', 'curveball_velocity', 'slider_velocity', 'changeup_velocity',
-  'spin_rate', 'vertical_break', 'horizontal_break',
+  'sixty_yard_dash', 'home_to_first', 'exit_velocity', 'launch_angle', 'distance', 'vertical_jump', 'bat_speed',
+  'attack_angle', 'barrel_pct',
+  'fastball_velocity', 'secondary_pitch_velocity', 'curveball_velocity', 'slider_velocity', 'changeup_velocity',
+  'spin_rate', 'vertical_break', 'horizontal_break', 'extension',
   'pop_time', 'catcher_throwing_velocity',
   'infield_throwing_velocity', 'outfield_throwing_velocity',
 ] as const;
@@ -17,6 +18,7 @@ export const VERIFICATION_TYPES = [
   'third_party_rapsodo',
   'third_party_blast_motion',
   'third_party_perfect_game',
+  'third_party_trackman',
   'self_reported',
 ] as const;
 export type VerificationType = typeof VERIFICATION_TYPES[number];
@@ -24,29 +26,35 @@ export type VerificationType = typeof VERIFICATION_TYPES[number];
 // ─── Metric Info ─────────────────────────────────────────────────────────────
 
 export const METRIC_INFO: Record<MetricKey, { label: string; unit: string; lowerIsBetter: boolean; description: string }> = {
-  sixty_yard_dash:           { label: 'sixty Yard Dash',                unit: 's',   lowerIsBetter: true,  description: 'Sprint from home plate to second base' },
-  exit_velocity:             { label: 'Exit Velocity',                   unit: 'mph', lowerIsBetter: false, description: 'Maximum batted ball exit speed' },
-  launch_angle:              { label: 'Launch Angle',                    unit: 'deg', lowerIsBetter: false, description: 'Average batted ball launch angle' },
-  distance:                  { label: 'Distance',                        unit: 'ft',  lowerIsBetter: false, description: 'Average batted ball distance' },
-  vertical_jump:             { label: 'Vertical Jump',                   unit: 'in',  lowerIsBetter: false, description: 'Vertical leap from flat foot' },
-  bat_speed:                 { label: 'Bat Speed',                       unit: 'mph', lowerIsBetter: false, description: 'Bat head speed through the hitting zone' },
-  fastball_velocity:         { label: 'Fastball Velocity',               unit: 'mph', lowerIsBetter: false, description: 'Four-seam fastball velocity' },
-  curveball_velocity:        { label: 'Curveball Velocity',              unit: 'mph', lowerIsBetter: false, description: 'Curveball pitch velocity' },
-  slider_velocity:           { label: 'Slider Velocity',                 unit: 'mph', lowerIsBetter: false, description: 'Slider pitch velocity' },
-  changeup_velocity:         { label: 'Changeup Velocity',               unit: 'mph', lowerIsBetter: false, description: 'Changeup pitch velocity' },
-  spin_rate:                 { label: 'Spin Rate',                       unit: 'rpm', lowerIsBetter: false, description: 'Pitch spin rate' },
-  vertical_break:            { label: 'Vertical Break',                  unit: 'in',  lowerIsBetter: false, description: 'Vertical movement on pitch' },
-  horizontal_break:          { label: 'Horizontal Break',                unit: 'in',  lowerIsBetter: false, description: 'Horizontal movement on pitch' },
-  pop_time:                  { label: 'Pop Time',                        unit: 's',   lowerIsBetter: true,  description: 'Time from catch to tag at second base' },
-  catcher_throwing_velocity: { label: 'Catcher Throwing Velocity',       unit: 'mph', lowerIsBetter: false, description: 'Catcher arm strength throwing to second' },
-  infield_throwing_velocity: { label: 'Infield Throwing Velocity',       unit: 'mph', lowerIsBetter: false, description: 'Infield arm strength across the diamond' },
-  outfield_throwing_velocity:{ label: 'Outfield Throwing Velocity',      unit: 'mph', lowerIsBetter: false, description: 'Outfield arm strength throwing to home' },
+  sixty_yard_dash:            { label: '60-Yard Dash',                   unit: 's',   lowerIsBetter: true,  description: 'Sprint from home plate to second base' },
+  home_to_first:              { label: 'Home-to-First',                  unit: 's',   lowerIsBetter: true,  description: 'Sprint from home plate to first base' },
+  exit_velocity:              { label: 'Exit Velocity',                   unit: 'mph', lowerIsBetter: false, description: 'Maximum batted ball exit speed' },
+  launch_angle:               { label: 'Launch Angle',                   unit: 'deg', lowerIsBetter: false, description: 'Average batted ball launch angle' },
+  distance:                   { label: 'Distance',                       unit: 'ft',  lowerIsBetter: false, description: 'Average batted ball distance' },
+  vertical_jump:              { label: 'Vertical Jump',                  unit: 'in',  lowerIsBetter: false, description: 'Vertical leap from flat foot' },
+  bat_speed:                  { label: 'Bat Speed',                      unit: 'mph', lowerIsBetter: false, description: 'Bat head speed through the hitting zone' },
+  attack_angle:               { label: 'Attack Angle',                   unit: 'deg', lowerIsBetter: false, description: 'Bat attack angle at contact' },
+  barrel_pct:                 { label: 'Barrel %',                       unit: '%',   lowerIsBetter: false, description: 'Percentage of batted balls that are barrels' },
+  fastball_velocity:          { label: 'Fastball Velocity',              unit: 'mph', lowerIsBetter: false, description: 'Four-seam fastball velocity' },
+  secondary_pitch_velocity:   { label: 'Secondary Pitch Velocity',       unit: 'mph', lowerIsBetter: false, description: 'Best secondary pitch velocity' },
+  curveball_velocity:         { label: 'Curveball Velocity',             unit: 'mph', lowerIsBetter: false, description: 'Curveball pitch velocity' },
+  slider_velocity:            { label: 'Slider Velocity',                unit: 'mph', lowerIsBetter: false, description: 'Slider pitch velocity' },
+  changeup_velocity:          { label: 'Changeup Velocity',              unit: 'mph', lowerIsBetter: false, description: 'Changeup pitch velocity' },
+  spin_rate:                  { label: 'Spin Rate',                      unit: 'rpm', lowerIsBetter: false, description: 'Pitch spin rate' },
+  vertical_break:             { label: 'Pitch Movement (Vert)',          unit: 'in',  lowerIsBetter: false, description: 'Vertical movement on pitch' },
+  horizontal_break:           { label: 'Pitch Movement (Horiz)',         unit: 'in',  lowerIsBetter: false, description: 'Horizontal movement on pitch' },
+  extension:                  { label: 'Extension',                      unit: 'ft',  lowerIsBetter: false, description: 'Pitcher release point extension' },
+  pop_time:                   { label: 'Pop Time',                       unit: 's',   lowerIsBetter: true,  description: 'Time from catch to tag at second base' },
+  catcher_throwing_velocity:  { label: 'Arm Strength',                   unit: 'mph', lowerIsBetter: false, description: 'Catcher arm strength throwing to second' },
+  infield_throwing_velocity:  { label: 'Arm Strength',                   unit: 'mph', lowerIsBetter: false, description: 'Infield arm strength across the diamond' },
+  outfield_throwing_velocity: { label: 'Arm Strength',                   unit: 'mph', lowerIsBetter: false, description: 'Outfield arm strength throwing to home' },
 };
 
 // ─── Universal metrics (all positions) ───────────────────────────────────────
 
 export const UNIVERSAL_METRICS: MetricKey[] = [
   'sixty_yard_dash',
+  'home_to_first',
   'exit_velocity',
   'launch_angle',
   'distance',
@@ -58,29 +66,38 @@ export const UNIVERSAL_METRICS: MetricKey[] = [
 
 const PITCHER_METRICS: MetricKey[] = [
   'fastball_velocity',
+  'secondary_pitch_velocity',
   'curveball_velocity',
   'slider_velocity',
   'changeup_velocity',
   'spin_rate',
   'vertical_break',
   'horizontal_break',
+  'extension',
+];
+
+// ─── Hitting metrics (all positions except Pitcher and DH) ───────────────────
+
+const HITTING_METRICS: MetricKey[] = [
+  'attack_angle',
+  'barrel_pct',
 ];
 
 // ─── Position additional metrics ─────────────────────────────────────────────
 
 export const POSITION_ADDITIONAL_METRICS: Record<Position, MetricKey[]> = {
   P:    PITCHER_METRICS,
-  C:    ['pop_time', 'catcher_throwing_velocity', 'infield_throwing_velocity'],
-  '1B': ['infield_throwing_velocity'],
-  '2B': ['infield_throwing_velocity'],
-  SS:   ['infield_throwing_velocity'],
-  '3B': ['infield_throwing_velocity'],
-  LF:   ['outfield_throwing_velocity'],
-  CF:   ['outfield_throwing_velocity'],
-  RF:   ['outfield_throwing_velocity'],
-  OF:   ['outfield_throwing_velocity'],
+  C:    [...HITTING_METRICS, 'pop_time', 'catcher_throwing_velocity'],
+  '1B': [...HITTING_METRICS, 'infield_throwing_velocity'],
+  '2B': [...HITTING_METRICS, 'infield_throwing_velocity'],
+  SS:   [...HITTING_METRICS, 'infield_throwing_velocity'],
+  '3B': [...HITTING_METRICS, 'infield_throwing_velocity'],
+  LF:   [...HITTING_METRICS, 'outfield_throwing_velocity'],
+  CF:   [...HITTING_METRICS, 'outfield_throwing_velocity'],
+  RF:   [...HITTING_METRICS, 'outfield_throwing_velocity'],
+  OF:   [...HITTING_METRICS, 'outfield_throwing_velocity'],
   DH:   [],
-  UTIL: [],
+  UTIL: [...HITTING_METRICS],
   TWP:  [...PITCHER_METRICS, 'infield_throwing_velocity'],
 };
 
@@ -119,6 +136,7 @@ export const VERIFICATION_LABELS: Record<VerificationType, { label: string; shor
   third_party_rapsodo:         { label: '3rd Party - Rapsodo',          shortLabel: 'Rapsodo',      color: '#58a6ff' },
   third_party_blast_motion:    { label: '3rd Party - Blast Motion',     shortLabel: 'Blast Motion', color: '#58a6ff' },
   third_party_perfect_game:    { label: '3rd Party - Perfect Game',     shortLabel: 'Perfect Game', color: '#58a6ff' },
+  third_party_trackman:        { label: '3rd Party - Trackman',         shortLabel: 'Trackman',     color: '#58a6ff' },
   self_reported:               { label: 'Self Reported',                shortLabel: 'Self',         color: '#6b7280' },
 };
 

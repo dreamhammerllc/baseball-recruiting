@@ -29,6 +29,9 @@ interface AthleteRow {
   highlight_video_url: string | null;
   bio: string | null;
   subscription_tier: string | null;
+  gamechanger_url: string | null;
+  iscore_url: string | null;
+  perfectgame_url: string | null;
 }
 
 interface SchoolMatch {
@@ -84,7 +87,7 @@ export default async function AthleteProfilePage({
   const { data: athlete, error: athleteError } = await db
     .from('athletes')
     .select(
-      'id, first_name, last_name, position, secondary_position, grad_year, home_state, height_inches, weight_lbs, throws, bats, gpa_unweighted, sat_score, act_score, exit_velocity_mph, fastball_velocity_mph, sixty_yard_dash_seconds, highlight_video_url, bio, subscription_tier',
+      'id, first_name, last_name, position, secondary_position, grad_year, home_state, height_inches, weight_lbs, throws, bats, gpa_unweighted, sat_score, act_score, exit_velocity_mph, fastball_velocity_mph, sixty_yard_dash_seconds, highlight_video_url, bio, subscription_tier, gamechanger_url, iscore_url, perfectgame_url',
     )
     .eq('clerk_user_id', username)
     .maybeSingle();
@@ -167,15 +170,14 @@ export default async function AthleteProfilePage({
     // table may not exist yet — ignore
   }
 
-  // 4. Fetch personal-best metrics — OPTION B: only verified (not self_reported)
+  // 4. Fetch all personal-best metrics (self-reported shown without gold badge; verified shown with gold badge)
   let personalBestMetrics: AthleteMetric[] = [];
   try {
     const { data: metricsRows } = await db
       .from('athlete_metrics')
       .select('*')
       .eq('athlete_clerk_id', username)
-      .eq('is_personal_best', true)
-      .neq('verification_type', 'self_reported'); // Option B: hide self-reported from public profile
+      .eq('is_personal_best', true);
     if (metricsRows) {
       personalBestMetrics = metricsRows as AthleteMetric[];
     }
@@ -784,6 +786,98 @@ export default async function AthleteProfilePage({
                 allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;"
                 allowFullScreen
               />
+            </div>
+          </section>
+        )}
+
+        {/* ── EXTERNAL PROFILES ──────────────────────────────────────────────── */}
+        {(athleteData.gamechanger_url || athleteData.iscore_url || athleteData.perfectgame_url) && (
+          <section style={{ marginBottom: '2.5rem' }}>
+            <h2
+              style={{
+                ...mono,
+                fontSize: '0.65rem',
+                letterSpacing: '0.18em',
+                color: colors.muted,
+                textTransform: 'uppercase',
+                margin: '0 0 1rem',
+              }}
+            >
+              External Profiles
+            </h2>
+            <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+              {athleteData.gamechanger_url && (
+                <a
+                  href={athleteData.gamechanger_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    ...mono,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.4rem',
+                    background: colors.surface,
+                    border: `1px solid ${colors.gold}`,
+                    borderRadius: '2rem',
+                    color: colors.gold,
+                    fontSize: '0.8rem',
+                    fontWeight: 600,
+                    padding: '0.45rem 1.1rem',
+                    textDecoration: 'none',
+                    letterSpacing: '0.03em',
+                  }}
+                >
+                  GameChanger &#8599;
+                </a>
+              )}
+              {athleteData.iscore_url && (
+                <a
+                  href={athleteData.iscore_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    ...mono,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.4rem',
+                    background: colors.surface,
+                    border: `1px solid ${colors.gold}`,
+                    borderRadius: '2rem',
+                    color: colors.gold,
+                    fontSize: '0.8rem',
+                    fontWeight: 600,
+                    padding: '0.45rem 1.1rem',
+                    textDecoration: 'none',
+                    letterSpacing: '0.03em',
+                  }}
+                >
+                  iScore &#8599;
+                </a>
+              )}
+              {athleteData.perfectgame_url && (
+                <a
+                  href={athleteData.perfectgame_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    ...mono,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.4rem',
+                    background: colors.surface,
+                    border: `1px solid ${colors.gold}`,
+                    borderRadius: '2rem',
+                    color: colors.gold,
+                    fontSize: '0.8rem',
+                    fontWeight: 600,
+                    padding: '0.45rem 1.1rem',
+                    textDecoration: 'none',
+                    letterSpacing: '0.03em',
+                  }}
+                >
+                  Perfect Game &#8599;
+                </a>
+              )}
             </div>
           </section>
         )}

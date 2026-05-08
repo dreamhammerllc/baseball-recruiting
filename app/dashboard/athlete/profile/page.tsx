@@ -31,6 +31,9 @@ interface Profile {
   highlight_video_url: string;
   photo_url:           string;
   bio:                 string;
+  gamechanger_url:     string;
+  iscore_url:          string;
+  perfectgame_url:     string;
 }
 
 const EMPTY: Profile = {
@@ -38,6 +41,7 @@ const EMPTY: Profile = {
   height_feet: '', height_in: '', weight_lbs: '', throws: '', bats: '',
   gpa_weighted: '', gpa_unweighted: '', home_state: '',
   highlight_video_url: '', photo_url: '', bio: '',
+  gamechanger_url: '', iscore_url: '', perfectgame_url: '',
 };
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
@@ -108,6 +112,9 @@ export default function AthleteProfilePage() {
             highlight_video_url: p.highlight_video_url ?? '',
             photo_url:           p.photo_url           ?? '',
             bio:                 p.bio                 ?? '',
+            gamechanger_url:     p.gamechanger_url     ?? '',
+            iscore_url:          p.iscore_url          ?? '',
+            perfectgame_url:     p.perfectgame_url     ?? '',
           });
           if (p.photo_url) setPhotoPreview(p.photo_url);
         }
@@ -164,6 +171,9 @@ export default function AthleteProfilePage() {
         home_state:          profile.home_state          || null,
         highlight_video_url: profile.highlight_video_url || null,
         bio:                 profile.bio                 || null,
+        gamechanger_url:     profile.gamechanger_url     || null,
+        iscore_url:          profile.iscore_url          || null,
+        perfectgame_url:     profile.perfectgame_url     || null,
       };
       const res  = await fetch('/api/athlete/profile', {
         method: 'PATCH',
@@ -412,6 +422,46 @@ export default function AthleteProfilePage() {
                 value={profile.highlight_video_url}
                 onChange={e => set('highlight_video_url', e.target.value)}
                 placeholder="https://youtube.com/watch?v=..."
+                style={inputStyle}
+              />
+            </Field>
+          </div>
+
+          {/* External Profiles */}
+          <div style={{ backgroundColor: '#111827', border: '1px solid #1e2530', borderRadius: '0.75rem', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+            <div>
+              <h2 style={{ color: '#ffffff', fontSize: '1rem', fontWeight: 600, margin: '0 0 0.25rem' }}>External Profiles</h2>
+              <p style={{ color: '#6b7280', fontSize: '0.8rem', margin: 0 }}>
+                Add links to your profiles on other platforms. These will appear as buttons on your public profile.
+              </p>
+            </div>
+
+            <Field label="GameChanger URL">
+              <input
+                type="url"
+                value={profile.gamechanger_url}
+                onChange={e => set('gamechanger_url', e.target.value)}
+                placeholder="https://gc.com/..."
+                style={inputStyle}
+              />
+            </Field>
+
+            <Field label="iScore URL">
+              <input
+                type="url"
+                value={profile.iscore_url}
+                onChange={e => set('iscore_url', e.target.value)}
+                placeholder="https://iscoresports.com/..."
+                style={inputStyle}
+              />
+            </Field>
+
+            <Field label="Perfect Game URL">
+              <input
+                type="url"
+                value={profile.perfectgame_url}
+                onChange={e => set('perfectgame_url', e.target.value)}
+                placeholder="https://perfectgame.org/..."
                 style={inputStyle}
               />
             </Field>

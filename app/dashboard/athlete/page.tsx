@@ -112,14 +112,14 @@ export default async function AthleteDashboard({
             },
             {
               label: 'Verified Metrics',
-              value: String(allMetrics.filter(m => m.verification_type === 'coach_verified').length),
-              sub: 'Coach verified stats',
+              value: String(allMetrics.filter(m => m.verification_type !== 'self_reported').length),
+              sub: 'Third-party or coach verified',
               highlight: false,
             },
             {
               label: 'Total Metrics',
-              value: String(allMetrics.filter(m => m.is_personal_best).length),
-              sub: 'Personal bests on file',
+              value: String(allMetrics.length),
+              sub: 'All entries on file',
               highlight: false,
             },
           ].map((card) => (

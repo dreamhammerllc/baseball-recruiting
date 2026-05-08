@@ -51,6 +51,9 @@ const PROFILE_FIELDS = [
   'bio',
   'subscription_tier',
   'notification_preferences',
+  'gamechanger_url',
+  'iscore_url',
+  'perfectgame_url',
 ] as const;
 
 // ── GET ───────────────────────────────────────────────────────────────────────
@@ -91,7 +94,23 @@ const ALLOWED_PATCH_FIELDS = new Set([
   'highlight_video_url',
   'photo_url',
   'bio',
+  'gamechanger_url',
+  'iscore_url',
+  'perfectgame_url',
 ]);
+
+const URL_FIELDS = new Set(['gamechanger_url', 'iscore_url', 'perfectgame_url', 'highlight_video_url']);
+
+function isValidUrl(val: unknown): boolean {
+  if (val === null || val === undefined || val === '') return true;
+  if (typeof val !== 'string') return false;
+  try {
+    const u = new URL(val);
+    return u.protocol === 'https:' || u.protocol === 'http:';
+  } catch {
+    return false;
+  }
+}
 
 export async function PATCH(req: NextRequest) {
   const userId = await getAuthenticatedUserId(req);
@@ -112,6 +131,12 @@ export async function PATCH(req: NextRequest) {
 
   if (Object.keys(update).length === 0) {
     return NextResponse.json({ error: 'No valid fields provided.' }, { status: 400 });
+  }
+
+  for (const [key, val] of Object.entries(update)) {
+    if (URL_FIELDS.has(key) && !isValidUrl(val)) {
+      return NextResponse.json({ error: `Invalid URL for field: ${key}` }, { status: 400 });
+    }
   }
 
   const db = createAdminClient();

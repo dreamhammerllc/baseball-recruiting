@@ -31,6 +31,7 @@ const VERIFICATION_LABELS: Record<VerificationType, string> = {
   third_party_rapsodo:        '3rd Party - Rapsodo',
   third_party_blast_motion:   '3rd Party - Blast Motion',
   third_party_perfect_game:   '3rd Party - Perfect Game',
+  third_party_trackman:       '3rd Party - Trackman',
   self_reported:              'Self Reported',
 };
 
