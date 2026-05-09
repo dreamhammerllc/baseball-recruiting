@@ -7,7 +7,30 @@
       "Bash(git commit *)",
       "Bash(git push *)",
       "Bash(git pull *)",
-      "Bash(git stash *)"
+      "Bash(git stash *)",
+      "Bash(cp C:/Users/dream/Projects/baseball-recruiting/.env.local .env.local && ls -la .env.local)",
+      "Bash(node scripts/verify-schema.mjs)",
+      "Bash(mkdir -p \"app/api/coach/athletes/[athleteId]\")",
+      "Bash(mkdir -p \"app/dashboard/coach/athletes/[athleteId]\")",
+      "Bash(npx tsc *)",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(curl -s -o /dev/null -w \"status=%{http_code}\\\\n\" \"http://localhost:3002/api/coach/athletes/user_3Cx45lltJlEnKk4A4vGgMejEUgg\")",
+      "Bash(curl -s \"http://localhost:3002/api/coach/athletes/user_3Cx45lltJlEnKk4A4vGgMejEUgg\")",
+      "Bash(curl -s -o /dev/null -w \"username=%{http_code}\\\\n\" \"http://localhost:3002/profile/korbin_williams\")",
+      "Bash(curl -s -o /dev/null -w \"clerk_id=%{http_code}\\\\n\" \"http://localhost:3002/profile/user_3Cx45lltJlEnKk4A4vGgMejEUgg\")",
+      "Bash(curl -s -o /dev/null -w \"bogus=%{http_code}\\\\n\" \"http://localhost:3002/profile/nonexistent_user_xyz\")",
+      "Bash(curl -s \"http://localhost:3002/profile/korbin_williams\")",
+      "Bash(curl -s \"http://localhost:3002/profile/korbin_williams\" > /tmp/profile.html; echo \"--- iframes ---\"; grep -oE '<iframe[^>]*src=\"[^\"]*\"' /tmp/profile.html | head -5; echo \"--- photo img ---\"; grep -oE '<img[^>]*alt=\"[^\"]*\"[^>]*src=\"[^\"]*\"' /tmp/profile.html | head -3; echo \"--- name h1 ---\"; grep -oE '<h1[^>]*>[^<]*</h1>' /tmp/profile.html | head -3; echo \"--- profile-not-found check ---\"; grep -c \"Profile Not Found\" /tmp/profile.html)",
+      "Bash(curl -s \"http://localhost:3002/profile/user_3Cx45lltJlEnKk4A4vGgMejEUgg\")",
+      "Bash(curl -s \"http://localhost:3002/profile/nonexistent_user_xyz\")",
+      "Bash(curl -s -o /dev/null -w \"api=%{http_code}\\\\n\" \"http://localhost:3002/api/coach/discover\")",
+      "Bash(curl -s -o /dev/null -w \"page=%{http_code}\\\\n\" \"http://localhost:3002/dashboard/coach/discover\")",
+      "Bash(curl -s -o /dev/null -w \"api=%{http_code}\\\\n\" \"http://localhost:3002/api/coach/discover?fbVeloMin=85&exitVeloMin=90\")",
+      "Bash(curl -s -o /dev/null -w \"api2=%{http_code}\\\\n\" \"http://localhost:3002/api/coach/discover?vertJumpMin=28\")",
+      "Bash(curl -s -o /dev/null -w \"discover_api=%{http_code}\\\\n\" \"http://localhost:3002/api/coach/discover?fbVeloMin=85&vertJumpMin=28&launchAngleMin=10&launchAngleMax=20\")",
+      "Bash(curl -s \"http://localhost:3002/profile/jake_carter\")",
+      "Bash(curl -s -o /dev/null -w \"api=%{http_code}\\\\n\" \"http://localhost:3002/api/coach/saved-athletes?sort=recent\")",
+      "Bash(curl -s -o /dev/null -w \"page=%{http_code}\\\\n\" \"http://localhost:3002/dashboard/coach/saved\")"
     ]
   }
 }

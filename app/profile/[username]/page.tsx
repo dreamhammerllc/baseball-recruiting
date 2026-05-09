@@ -4,12 +4,15 @@ import DownloadPDFWrapper from './DownloadPDFWrapper';
 import ShareButton from './ShareButton';
 import type { DownloadPDFButtonProps } from './DownloadPDFButton';
 import PublicMetricsSection from './PublicMetricsSection';
+import VideoPlayer from '@/components/profile/VideoPlayer';
 import type { AthleteMetric } from '@/lib/metrics';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface AthleteRow {
   id: string;
+  clerk_user_id: string;
+  photo_url: string | null;
   first_name: string | null;
   last_name: string | null;
   position: string | null;
@@ -83,14 +86,38 @@ export default async function AthleteProfilePage({
   const { username } = await params;
   const db = createAdminClient();
 
-  // 1. Fetch athlete row
-  const { data: athlete, error: athleteError } = await db
-    .from('athletes')
-    .select(
-      'id, first_name, last_name, position, secondary_position, grad_year, home_state, height_inches, weight_lbs, throws, bats, gpa_unweighted, sat_score, act_score, exit_velocity_mph, fastball_velocity_mph, sixty_yard_dash_seconds, highlight_video_url, bio, subscription_tier, gamechanger_url, iscore_url, perfectgame_url',
-    )
-    .eq('clerk_user_id', username)
-    .maybeSingle();
+  // 1. Fetch athlete row — accept either username (primary) or clerk_user_id (fallback)
+  const SELECT_COLS =
+    'id, clerk_user_id, photo_url, first_name, last_name, position, secondary_position, grad_year, home_state, height_inches, weight_lbs, throws, bats, gpa_unweighted, sat_score, act_score, exit_velocity_mph, fastball_velocity_mph, sixty_yard_dash_seconds, highlight_video_url, bio, subscription_tier, gamechanger_url, iscore_url, perfectgame_url';
+
+  let athlete: AthleteRow | null = null;
+  let athleteError: unknown = null;
+
+  // Try username first
+  {
+    const { data, error } = await db
+      .from('athletes')
+      .select(SELECT_COLS)
+      .eq('username', username)
+      .maybeSingle();
+    if (data) athlete = data as unknown as AthleteRow;
+    if (error) athleteError = error;
+  }
+
+  // Fall back to clerk_user_id (lets QR-scanned full IDs still resolve)
+  if (!athlete) {
+    const { data, error } = await db
+      .from('athletes')
+      .select(SELECT_COLS)
+      .eq('clerk_user_id', username)
+      .maybeSingle();
+    if (data) {
+      athlete = data as unknown as AthleteRow;
+      athleteError = null;
+    } else if (error) {
+      athleteError = error;
+    }
+  }
 
   if (athleteError || !athlete) {
     return (
@@ -138,6 +165,7 @@ export default async function AthleteProfilePage({
   }
 
   const athleteData = athlete as AthleteRow;
+  const athleteClerkId = athleteData.clerk_user_id;
 
   // 2. Fetch is_verified (isolated)
   let isVerified = false;
@@ -145,7 +173,7 @@ export default async function AthleteProfilePage({
     const { data: verRow } = await db
       .from('athletes')
       .select('is_verified')
-      .eq('clerk_user_id', username)
+      .eq('clerk_user_id', athleteClerkId)
       .maybeSingle();
     if (verRow && typeof (verRow as Record<string, unknown>).is_verified === 'boolean') {
       isVerified = (verRow as { is_verified: boolean }).is_verified;
@@ -176,7 +204,7 @@ export default async function AthleteProfilePage({
     const { data: metricsRows } = await db
       .from('athlete_metrics')
       .select('*')
-      .eq('athlete_clerk_id', username)
+      .eq('athlete_clerk_id', athleteClerkId)
       .eq('is_personal_best', true);
     if (metricsRows) {
       personalBestMetrics = metricsRows as AthleteMetric[];
@@ -193,7 +221,7 @@ export default async function AthleteProfilePage({
     const { data: posRow } = await db
       .from('athlete_positions')
       .select('primary_position, secondary_position')
-      .eq('athlete_clerk_id', username)
+      .eq('athlete_clerk_id', athleteClerkId)
       .maybeSingle();
     if (posRow) {
       athletePositions = posRow as { primary_position: string; secondary_position: string | null };
@@ -256,16 +284,7 @@ export default async function AthleteProfilePage({
     muted: '#6b7280',
   };
 
-  function extractVideoId(url: string): string {
-    if (!url) return '';
-    if (url.includes('iframe.mediadelivery.net')) {
-      return url.split('/').pop()?.split('?')[0] ?? '';
-    }
-    if (url.includes('vz-d9ee7f6e-2b7.b-cdn.net')) {
-      return url.split('/')[3] ?? '';
-    }
-    return '';
-  }
+  const initials = fullName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
 
   const mono: React.CSSProperties = { fontFamily: 'monospace' };
   const serif: React.CSSProperties = { fontFamily: 'Georgia, serif' };
@@ -367,19 +386,57 @@ export default async function AthleteProfilePage({
         )}
 
         {/* ── HERO / PROFILE HEADER ──────────────────────────────────────────── */}
-        <section style={{ marginBottom: '2rem' }}>
-          <h1
+        <section
+          style={{
+            marginBottom: '2rem',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '1.5rem',
+            flexWrap: 'wrap',
+          }}
+        >
+          {/* Gold-bordered circular photo with initials fallback */}
+          <div
             style={{
-              ...serif,
-              fontSize: 'clamp(2rem, 6vw, 3.25rem)',
-              fontWeight: 800,
-              lineHeight: 1.1,
-              margin: '0 0 1rem',
-              letterSpacing: '-0.02em',
+              width: '112px',
+              height: '112px',
+              borderRadius: '50%',
+              overflow: 'hidden',
+              border: `2px solid ${colors.gold}`,
+              background: 'rgba(232,160,32,0.1)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
             }}
           >
-            {fullName}
-          </h1>
+            {athleteData.photo_url ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={athleteData.photo_url}
+                alt={fullName}
+                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+              />
+            ) : (
+              <span style={{ color: colors.gold, fontWeight: 700, fontSize: '2rem', ...serif }}>
+                {initials}
+              </span>
+            )}
+          </div>
+
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <h1
+              style={{
+                ...serif,
+                fontSize: 'clamp(2rem, 6vw, 3.25rem)',
+                fontWeight: 800,
+                lineHeight: 1.1,
+                margin: '0 0 1rem',
+                letterSpacing: '-0.02em',
+              }}
+            >
+              {fullName}
+            </h1>
 
           {/* Badges row */}
           <div
@@ -471,6 +528,7 @@ export default async function AthleteProfilePage({
                 &#9670; Diamond Verified
               </span>
             )}
+          </div>
           </div>
 
         </section>
@@ -595,7 +653,7 @@ export default async function AthleteProfilePage({
           {isPaidTier ? (
             <PublicMetricsSection
               personalBestMetrics={personalBestMetrics}
-              athleteClerkId={username}
+              athleteClerkId={athleteClerkId}
             />
           ) : (
             <div style={{ position: 'relative', borderRadius: '0.75rem', overflow: 'hidden' }}>
@@ -764,31 +822,7 @@ export default async function AthleteProfilePage({
           </section>
         )}
         {/* ── RECRUITING VIDEO ───────────────────────────────────────────────── */}
-        {athleteData.highlight_video_url && extractVideoId(athleteData.highlight_video_url) && (
-          <section style={{ marginBottom: '2.5rem' }}>
-            <h2
-              style={{
-                ...mono,
-                fontSize: '0.65rem',
-                letterSpacing: '0.18em',
-                color: colors.muted,
-                textTransform: 'uppercase',
-                margin: '0 0 1rem',
-              }}
-            >
-              Recruiting Video
-            </h2>
-            <div style={{ position: 'relative', paddingTop: '56.25%', borderRadius: '0.75rem', overflow: 'hidden' }}>
-              <iframe
-                src={`https://iframe.mediadelivery.net/embed/653202/${extractVideoId(athleteData.highlight_video_url)}?autoplay=false&preload=true`}
-                loading="lazy"
-                style={{ border: 'none', position: 'absolute', top: 0, height: '100%', width: '100%' }}
-                allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;"
-                allowFullScreen
-              />
-            </div>
-          </section>
-        )}
+        <VideoPlayer url={athleteData.highlight_video_url} title="Recruiting Video" showPlaceholder={false} />
 
         {/* ── EXTERNAL PROFILES ──────────────────────────────────────────────── */}
         {(athleteData.gamechanger_url || athleteData.iscore_url || athleteData.perfectgame_url) && (

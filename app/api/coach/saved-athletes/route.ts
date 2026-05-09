@@ -47,37 +47,93 @@ async function getCoach(userId: string) {
   return { id: coach.id, isPaid };
 }
 
-// GET /api/coach/saved-athletes — list all saved athletes + groups
+// GET /api/coach/saved-athletes?sort=recent|alphabetical|position
+// Returns full athlete data for everyone the coach has saved, shaped to match
+// /api/coach/discover so the same card layout renders both views identically.
+// Two queries with JS merge — no SQL JOINs (PGRST125-safe).
 export async function GET(req: NextRequest) {
-  const userId = await getAuthenticatedUserId(req);
-  if (!userId) return NextResponse.json({ error: 'Unauthorized.' }, { status: 401 });
-
-  const coach = await getCoach(userId);
-  if (!coach) return NextResponse.json({ error: 'Coach not found.' }, { status: 404 });
-
-  const db = createAdminClient();
-
-  // Try to fetch saved athletes — table may not exist yet
-  let athletes: unknown[] = [];
-  let groups: unknown[] = [];
   try {
-    const [aRes, gRes] = await Promise.all([
-      db.from('saved_athletes').select('*').eq('coach_id', coach.id).order('saved_at', { ascending: false }),
-      db.from('athlete_groups').select('*').eq('coach_id', coach.id).order('created_at'),
-    ]);
-    athletes = aRes.data ?? [];
-    groups   = gRes.data ?? [];
-  } catch { /* tables not yet created — return empty */ }
+    const userId = await getAuthenticatedUserId(req);
+    if (!userId) return NextResponse.json({ error: 'Unauthorized.' }, { status: 401 });
 
-  const count = athletes.length;
+    const coach = await getCoach(userId);
+    if (!coach) return NextResponse.json({ error: 'Coach not found.' }, { status: 404 });
 
-  return NextResponse.json({
-    athletes,
-    groups:  coach.isPaid ? groups : [],
-    count,
-    limit:   coach.isPaid ? null : FREE_LIMIT,
-    is_paid: coach.isPaid,
-  });
+    const db = createAdminClient();
+    const sort = req.nextUrl.searchParams.get('sort') ?? 'recent';
+
+    // ── Q1: saved entries for this coach ────────────────────────────────────
+    const { data: saved, error: savedErr } = await db
+      .from('saved_athletes')
+      .select('athlete_clerk_id, saved_at')
+      .eq('coach_id', coach.id);
+    if (savedErr) throw savedErr;
+
+    if (!saved || saved.length === 0) {
+      return NextResponse.json({ results: [], total: 0, is_paid: coach.isPaid, limit: coach.isPaid ? null : FREE_LIMIT });
+    }
+
+    const ids       = saved.map(s => s.athlete_clerk_id as string);
+    const savedById = new Map(saved.map(s => [s.athlete_clerk_id as string, s.saved_at as string]));
+
+    // ── Q2: athlete rows — same SELECT list as /api/coach/discover for parity ─
+    const { data: rows, error: athErr } = await db
+      .from('athletes')
+      .select(
+        'clerk_user_id, username, first_name, last_name, photo_url, position, secondary_position, grad_year, home_state, bats, throws, gpa_unweighted, sixty_yard_dash_seconds, fastball_velocity_mph, exit_velocity_mph, verification_tier',
+      )
+      .in('clerk_user_id', ids);
+    if (athErr) throw athErr;
+
+    // ── JS merge: drop orphans (saved row whose athlete is gone) + attach saved_at ─
+    const results = (rows ?? [])
+      .filter(r => savedById.has(r.clerk_user_id as string))
+      .map(r => ({
+        clerk_user_id:      r.clerk_user_id,
+        username:           r.username,
+        first_name:         r.first_name,
+        last_name:          r.last_name,
+        photo_url:          r.photo_url,
+        position:           r.position,
+        secondary_position: r.secondary_position,
+        grad_year:          r.grad_year,
+        state:              r.home_state,
+        bats:               r.bats,
+        throws:             r.throws,
+        gpa:                r.gpa_unweighted,
+        sixty_yard:         r.sixty_yard_dash_seconds,
+        fb_velo:            r.fastball_velocity_mph,
+        exit_velo:          r.exit_velocity_mph,
+        verification_tier:  r.verification_tier,
+        saved_at:           savedById.get(r.clerk_user_id as string)!,
+      }));
+
+    if (sort === 'alphabetical') {
+      results.sort((a, b) => {
+        const an = `${a.last_name ?? ''} ${a.first_name ?? ''}`.trim().toLowerCase();
+        const bn = `${b.last_name ?? ''} ${b.first_name ?? ''}`.trim().toLowerCase();
+        return an.localeCompare(bn);
+      });
+    } else if (sort === 'position') {
+      results.sort((a, b) => (a.position ?? 'zzz').localeCompare(b.position ?? 'zzz'));
+    } else {
+      results.sort((a, b) => (b.saved_at ?? '').localeCompare(a.saved_at ?? ''));
+    }
+
+    return NextResponse.json({
+      results,
+      total:   results.length,
+      is_paid: coach.isPaid,
+      limit:   coach.isPaid ? null : FREE_LIMIT,
+    });
+  } catch (e) {
+    const x = e as { message?: string; code?: string; hint?: string; details?: string; stack?: string };
+    console.error('[GET /api/coach/saved-athletes]', e);
+    return NextResponse.json(
+      { error: x?.message ?? 'Unknown error', code: x?.code, hint: x?.hint, details: x?.details, stack: x?.stack },
+      { status: 500 },
+    );
+  }
 }
 
 // POST /api/coach/saved-athletes — save an athlete
