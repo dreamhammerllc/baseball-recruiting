@@ -31,13 +31,36 @@ const SORT_LABELS: Record<SortKey, string> = {
   name:       'Name A–Z',
 };
 
+interface Filters {
+  position:  string;
+  gradYear:  string;
+  minRating: string;
+  search:    string;
+}
+
+const EMPTY_FILTERS: Filters = {
+  position:  '',
+  gradYear:  '',
+  minRating: '',
+  search:    '',
+};
+
+const RATING_THRESHOLDS: readonly { value: string; label: string }[] = [
+  { value: '',  label: 'Any rating' },
+  { value: '6', label: '6+' },
+  { value: '7', label: '7+' },
+  { value: '8', label: '8+' },
+  { value: '9', label: '9+' },
+];
+
 const NOTES_PREVIEW_CHARS = 150;
 
 export default function CoachEvaluationsPage() {
-  const [notes,   setNotes]   = useState<NoteWithAthlete[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error,   setError]   = useState<string | null>(null);
-  const [sort,    setSort]    = useState<SortKey>('recent');
+  const [evaluations, setEvaluations] = useState<NoteWithAthlete[]>([]);
+  const [loading,     setLoading]     = useState(true);
+  const [error,       setError]       = useState<string | null>(null);
+  const [sort,        setSort]        = useState<SortKey>('recent');
+  const [filters,     setFilters]     = useState<Filters>(EMPTY_FILTERS);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -47,13 +70,13 @@ export default function CoachEvaluationsPage() {
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         setError(data.error ?? 'Failed to load evaluations.');
-        setNotes([]);
+        setEvaluations([]);
         return;
       }
-      setNotes((data.notes ?? []) as NoteWithAthlete[]);
+      setEvaluations((data.notes ?? []) as NoteWithAthlete[]);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load evaluations.');
-      setNotes([]);
+      setEvaluations([]);
     } finally {
       setLoading(false);
     }
@@ -61,28 +84,68 @@ export default function CoachEvaluationsPage() {
 
   useEffect(() => { load(); }, [load]);
 
-  const sorted = useMemo(() => {
-    const list = [...notes];
+  // Facets — derived from the full evaluations list, not the filtered set,
+  // so changing one filter doesn't shrink the others' options.
+  const availablePositions = useMemo(() => {
+    const set = new Set<string>();
+    for (const e of evaluations) {
+      if (e.athlete.position) set.add(e.athlete.position);
+    }
+    return Array.from(set).sort();
+  }, [evaluations]);
+
+  const availableGradYears = useMemo(() => {
+    const set = new Set<number>();
+    for (const e of evaluations) {
+      if (e.athlete.graduationYear != null) set.add(e.athlete.graduationYear);
+    }
+    return Array.from(set).sort((a, b) => a - b);
+  }, [evaluations]);
+
+  const visible = useMemo(() => {
+    let rows = evaluations;
+
+    if (filters.position) {
+      rows = rows.filter(e => e.athlete.position === filters.position);
+    }
+    if (filters.gradYear) {
+      rows = rows.filter(e => String(e.athlete.graduationYear ?? '') === filters.gradYear);
+    }
+    if (filters.minRating) {
+      const min = Number(filters.minRating);
+      rows = rows.filter(e => e.rating != null && e.rating >= min);
+    }
+    const q = filters.search.trim().toLowerCase();
+    if (q) {
+      rows = rows.filter(e => {
+        const name = `${e.athlete.firstName ?? ''} ${e.athlete.lastName ?? ''}`.toLowerCase();
+        return name.includes(q);
+      });
+    }
+
+    const sorted = [...rows];
     switch (sort) {
       case 'ratingDesc':
-        list.sort((a, b) => compareRatings(a.rating, b.rating, 'desc') || compareUpdated(a, b));
+        sorted.sort((a, b) => compareRatings(a.rating, b.rating, 'desc') || compareUpdated(a, b));
         break;
       case 'ratingAsc':
-        list.sort((a, b) => compareRatings(a.rating, b.rating, 'asc')  || compareUpdated(a, b));
+        sorted.sort((a, b) => compareRatings(a.rating, b.rating, 'asc')  || compareUpdated(a, b));
         break;
       case 'name':
-        list.sort((a, b) =>
+        sorted.sort((a, b) =>
           fullName(a).localeCompare(fullName(b), undefined, { sensitivity: 'base' }) ||
           compareUpdated(a, b),
         );
         break;
       case 'recent':
       default:
-        list.sort(compareUpdated);
+        sorted.sort(compareUpdated);
         break;
     }
-    return list;
-  }, [notes, sort]);
+    return sorted;
+  }, [evaluations, filters, sort]);
+
+  const clearFilters = () => setFilters(EMPTY_FILTERS);
 
   // ── Loading ────────────────────────────────────────────────────────────
   if (loading) {
@@ -118,22 +181,66 @@ export default function CoachEvaluationsPage() {
                 Evaluations
               </h1>
               <p style={{ color: '#6b7280', fontSize: '0.9rem', margin: 0 }}>
-                {notes.length} evaluation{notes.length === 1 ? '' : 's'}
+                {evaluations.length} evaluation{evaluations.length === 1 ? '' : 's'}
               </p>
             </div>
-            {notes.length > 0 && (
+          </div>
+
+          {/* Filter / sort control bar */}
+          {evaluations.length > 0 && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.5rem', marginBottom: '1.25rem' }}>
+              <select
+                value={filters.position}
+                onChange={e => setFilters(f => ({ ...f, position: e.target.value }))}
+                style={selectStyle}
+                aria-label="Filter by position"
+              >
+                <option value="">Any position</option>
+                {availablePositions.map(p => <option key={p} value={p}>{p}</option>)}
+              </select>
+
+              <select
+                value={filters.gradYear}
+                onChange={e => setFilters(f => ({ ...f, gradYear: e.target.value }))}
+                style={selectStyle}
+                aria-label="Filter by graduation year"
+              >
+                <option value="">Any year</option>
+                {availableGradYears.map(y => <option key={y} value={String(y)}>{`'${String(y).slice(-2)}`}</option>)}
+              </select>
+
+              <select
+                value={filters.minRating}
+                onChange={e => setFilters(f => ({ ...f, minRating: e.target.value }))}
+                style={selectStyle}
+                aria-label="Filter by minimum rating"
+              >
+                {RATING_THRESHOLDS.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+              </select>
+
+              <input
+                type="search"
+                value={filters.search}
+                onChange={e => setFilters(f => ({ ...f, search: e.target.value }))}
+                placeholder="Search by name…"
+                aria-label="Search by athlete name"
+                style={{ ...selectStyle, minWidth: '180px' }}
+              />
+
+              <div style={{ flex: 1 }} />
+
               <select
                 value={sort}
                 onChange={e => setSort(e.target.value as SortKey)}
                 style={selectStyle}
-                aria-label="Sort evaluations"
+                aria-label="Sort"
               >
-                {(Object.keys(SORT_LABELS) as SortKey[]).map(k => (
-                  <option key={k} value={k}>{SORT_LABELS[k]}</option>
+                {Object.entries(SORT_LABELS).map(([k, label]) => (
+                  <option key={k} value={k}>{label}</option>
                 ))}
               </select>
-            )}
-          </div>
+            </div>
+          )}
 
           {/* Error */}
           {error && (
@@ -171,8 +278,8 @@ export default function CoachEvaluationsPage() {
             </div>
           )}
 
-          {/* Empty */}
-          {!error && notes.length === 0 && (
+          {/* Empty — no evaluations exist at all */}
+          {!error && evaluations.length === 0 && (
             <div style={{
               backgroundColor: '#111827',
               border:          '1px dashed #1e2530',
@@ -186,10 +293,34 @@ export default function CoachEvaluationsPage() {
             </div>
           )}
 
+          {/* Filter empty state — evaluations exist but none match current filters */}
+          {!error && evaluations.length > 0 && visible.length === 0 && (
+            <div style={{
+              backgroundColor: '#111827', border: '1px dashed #1e2530',
+              borderRadius: '0.75rem', padding: '2rem 1.5rem', textAlign: 'center',
+            }}>
+              <p style={{ color: '#f0f6fc', fontWeight: 600, margin: '0 0 0.75rem' }}>
+                No evaluations match these filters
+              </p>
+              <button
+                type="button"
+                onClick={clearFilters}
+                style={{
+                  background: 'transparent', color: '#e8a020',
+                  border: '1px solid #e8a020', borderRadius: '0.4rem',
+                  padding: '0.4rem 1rem', fontSize: '0.8rem', fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+              >
+                Clear filters
+              </button>
+            </div>
+          )}
+
           {/* List */}
-          {!error && sorted.length > 0 && (
+          {!error && visible.length > 0 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
-              {sorted.map(n => <EvaluationCard key={n.id} note={n} />)}
+              {visible.map(n => <EvaluationCard key={n.id} note={n} />)}
             </div>
           )}
 
