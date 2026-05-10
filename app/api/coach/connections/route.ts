@@ -35,7 +35,7 @@ export async function GET(req: NextRequest) {
   const athleteIds = connections.map(c => c.athlete_id);
   const { data: profiles, error: profileError } = await supabase
     .from('athletes')
-    .select('clerk_user_id, first_name, last_name, photo_url, position, grad_year')
+    .select('clerk_user_id, first_name, last_name, photo_url, position, grad_year, home_state, updated_at')
     .in('clerk_user_id', athleteIds);
 
   if (profileError) {
@@ -57,6 +57,8 @@ export async function GET(req: NextRequest) {
       photo:         p?.photo_url ?? null,
       position:      p?.position ?? null,
       gradYear:      p?.grad_year ?? null,
+      state:         p?.home_state ?? null,
+      updatedAt:     p?.updated_at ?? null,
       username:      null,
     };
   });

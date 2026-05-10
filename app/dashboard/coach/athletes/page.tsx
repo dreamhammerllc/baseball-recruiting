@@ -1,20 +1,28 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import CoachSidebar from '@/components/layout/CoachSidebar';
 import AddAthleteModal from '@/components/AddAthleteModal';
 
 interface ConnectedAthlete {
   connectionId: string;
-  athleteId: string;
-  connectedAt: string;
-  name: string;
-  photo: string | null;
-  position: string | null;
-  gradYear: number | null;
-  username: string | null;
+  athleteId:    string;
+  connectedAt:  string;
+  name:         string;
+  photo:        string | null;
+  position:     string | null;
+  gradYear:     number | null;
+  state:        string | null;
+  updatedAt:    string | null;
+  username:     string | null;
 }
+
+type SortKey = 'name' | 'gradYearAsc' | 'connectedDesc';
+interface Filters { position: string; gradYear: string }
+const EMPTY_FILTERS: Filters = { position: '', gradYear: '' };
+
+const RECENT_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
 
 export default function MyAthletesPage() {
   const router = useRouter();
@@ -25,6 +33,11 @@ export default function MyAthletesPage() {
   // Remove confirm
   const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
   const [removing, setRemoving]           = useState<string | null>(null);
+
+  // Filters + sort
+  const [filters, setFilters]               = useState<Filters>(EMPTY_FILTERS);
+  const [recentlyActive, setRecentlyActive] = useState(false);
+  const [sort, setSort]                     = useState<SortKey>('name');
 
   const load = useCallback(async () => {
     try {
@@ -37,6 +50,59 @@ export default function MyAthletesPage() {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  // Facets — derived from the full connected roster, not the filtered set,
+  // so changing one filter doesn't shrink the others' options.
+  const availablePositions = useMemo(() => {
+    const s = new Set<string>();
+    for (const a of athletes) if (a.position) s.add(a.position);
+    return [...s].sort();
+  }, [athletes]);
+
+  const availableGradYears = useMemo(() => {
+    const s = new Set<number>();
+    for (const a of athletes) if (a.gradYear != null) s.add(a.gradYear);
+    return [...s].sort((x, y) => x - y);
+  }, [athletes]);
+
+  // Filtered + sorted view
+  const visibleAthletes = useMemo(() => {
+    const cutoff = Date.now() - RECENT_WINDOW_MS;
+    let r = athletes;
+    if (filters.position) {
+      r = r.filter(a => a.position === filters.position);
+    }
+    if (filters.gradYear) {
+      const y = Number(filters.gradYear);
+      r = r.filter(a => a.gradYear === y);
+    }
+    if (recentlyActive) {
+      r = r.filter(a => a.updatedAt != null && new Date(a.updatedAt).getTime() >= cutoff);
+    }
+    const sorted = [...r];
+    if (sort === 'name') {
+      sorted.sort((x, y) => x.name.localeCompare(y.name));
+    } else if (sort === 'gradYearAsc') {
+      sorted.sort((x, y) => {
+        const xy = x.gradYear ?? Number.POSITIVE_INFINITY;
+        const yy = y.gradYear ?? Number.POSITIVE_INFINITY;
+        if (xy !== yy) return xy - yy;
+        return x.name.localeCompare(y.name);
+      });
+    } else {
+      // connectedDesc — most recent first
+      sorted.sort((x, y) =>
+        x.connectedAt < y.connectedAt ? 1 :
+        x.connectedAt > y.connectedAt ? -1 : 0
+      );
+    }
+    return sorted;
+  }, [athletes, filters, recentlyActive, sort]);
+
+  function clearFilters() {
+    setFilters(EMPTY_FILTERS);
+    setRecentlyActive(false);
+  }
 
   async function removeAthlete(athleteId: string) {
     setRemoving(athleteId);
@@ -94,7 +160,7 @@ export default function MyAthletesPage() {
             </button>
           </div>
 
-          {/* Empty state */}
+          {/* Empty state — never connected */}
           {athletes.length === 0 && (
             <div style={{
               backgroundColor: '#111827', border: '1px dashed #1e2530',
@@ -119,13 +185,98 @@ export default function MyAthletesPage() {
             </div>
           )}
 
-          {/* Athlete cards */}
+          {/* Filter / sort control bar */}
           {athletes.length > 0 && (
+            <div style={{
+              display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.5rem',
+              marginBottom: '1rem',
+            }}>
+              <select
+                value={filters.position}
+                onChange={e => setFilters(f => ({ ...f, position: e.target.value }))}
+                style={selectStyle}
+                aria-label="Filter by position"
+              >
+                <option value="">Any position</option>
+                {availablePositions.map(p => <option key={p} value={p}>{p}</option>)}
+              </select>
+
+              <select
+                value={filters.gradYear}
+                onChange={e => setFilters(f => ({ ...f, gradYear: e.target.value }))}
+                style={selectStyle}
+                aria-label="Filter by grad year"
+              >
+                <option value="">Any year</option>
+                {availableGradYears.map(y => <option key={y} value={String(y)}>{y}</option>)}
+              </select>
+
+              <button
+                type="button"
+                onClick={() => setRecentlyActive(v => !v)}
+                aria-pressed={recentlyActive}
+                style={{
+                  backgroundColor: recentlyActive ? 'rgba(232,160,32,0.16)' : 'transparent',
+                  color:           recentlyActive ? '#e8a020' : '#6b7280',
+                  border:          `1px solid ${recentlyActive ? '#e8a020' : '#1e2530'}`,
+                  borderRadius:    '0.4rem',
+                  padding:         '0.4rem 0.75rem',
+                  fontSize:        '0.78rem',
+                  fontWeight:      recentlyActive ? 700 : 500,
+                  cursor:          'pointer',
+                  whiteSpace:      'nowrap',
+                }}
+              >
+                {recentlyActive ? '✓ Recently active' : 'Recently active'}
+              </button>
+
+              <div style={{ flex: 1 }} />
+
+              <select
+                value={sort}
+                onChange={e => setSort(e.target.value as SortKey)}
+                style={selectStyle}
+                aria-label="Sort"
+              >
+                <option value="name">Name A–Z</option>
+                <option value="gradYearAsc">Grad year (earliest)</option>
+                <option value="connectedDesc">Connected date (recent)</option>
+              </select>
+            </div>
+          )}
+
+          {/* Filter empty state — connected but nothing matches current filters */}
+          {athletes.length > 0 && visibleAthletes.length === 0 && (
+            <div style={{
+              backgroundColor: '#111827', border: '1px dashed #1e2530',
+              borderRadius: '0.75rem', padding: '2rem 1.5rem', textAlign: 'center',
+            }}>
+              <p style={{ color: '#f0f6fc', fontWeight: 600, margin: '0 0 0.75rem' }}>
+                No athletes match these filters
+              </p>
+              <button
+                type="button"
+                onClick={clearFilters}
+                style={{
+                  background: 'transparent', color: '#e8a020',
+                  border: '1px solid #e8a020', borderRadius: '0.4rem',
+                  padding: '0.4rem 1rem', fontSize: '0.8rem', fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+              >
+                Clear filters
+              </button>
+            </div>
+          )}
+
+          {/* Athlete cards */}
+          {visibleAthletes.length > 0 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
-              {athletes.map(a => {
+              {visibleAthletes.map(a => {
                 const isConfirming = confirmRemove === a.athleteId;
                 const isRemoving   = removing === a.athleteId;
                 const initials = a.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+                const hasMeta = a.position || a.gradYear || a.state;
 
                 return (
                   <div
@@ -135,7 +286,7 @@ export default function MyAthletesPage() {
                       borderRadius: '0.75rem', padding: '0.9rem 1.1rem',
                     }}
                   >
-                    {/* Row 1: avatar + name/details */}
+                    {/* Row 1: avatar + name/pills */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', marginBottom: '0.75rem' }}>
                       <button
                         type="button"
@@ -160,9 +311,14 @@ export default function MyAthletesPage() {
                         <p style={{ color: '#f0f6fc', fontWeight: 600, fontSize: '0.9rem', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {a.name}
                         </p>
-                        <p style={{ color: '#6b7280', fontSize: '0.75rem', margin: '0.1rem 0 0' }}>
-                          {[a.position, a.gradYear ? `Class of ${a.gradYear}` : null].filter(Boolean).join(' · ') || 'No position on file'}
-                        </p>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.3rem', marginTop: '0.25rem' }}>
+                          {a.position && <Pill>{a.position}</Pill>}
+                          {a.gradYear && <Pill>{`'${String(a.gradYear).slice(-2)}`}</Pill>}
+                          {a.state    && <Pill muted>{a.state}</Pill>}
+                          {!hasMeta   && (
+                            <span style={{ color: '#6b7280', fontSize: '0.72rem' }}>No profile data</span>
+                          )}
+                        </div>
                       </div>
                     </div>
 
@@ -253,11 +409,43 @@ export default function MyAthletesPage() {
               photo: athlete.photo,
               position: athlete.position,
               gradYear: athlete.gradYear,
+              state: null,
+              updatedAt: null,
               username: null,
             });
           }}
         />
       )}
     </div>
+  );
+}
+
+// ── Helpers ─────────────────────────────────────────────────────────────────
+
+const selectStyle: React.CSSProperties = {
+  background:   '#111827',
+  color:        '#f0f6fc',
+  border:       '1px solid #1e2530',
+  borderRadius: '0.4rem',
+  padding:      '0.4rem 0.6rem',
+  fontSize:     '0.78rem',
+  cursor:       'pointer',
+};
+
+function Pill({ children, muted }: { children: React.ReactNode; muted?: boolean }) {
+  return (
+    <span style={{
+      fontFamily:    'monospace',
+      background:    '#0d1117',
+      border:        '1px solid #1e2530',
+      borderRadius:  '0.3rem',
+      padding:       '0.1rem 0.45rem',
+      fontSize:      '0.65rem',
+      color:         muted ? '#6b7280' : '#f0f6fc',
+      letterSpacing: '0.04em',
+      fontWeight:    500,
+    }}>
+      {children}
+    </span>
   );
 }
