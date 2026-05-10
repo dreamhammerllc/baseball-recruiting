@@ -138,8 +138,7 @@ export default async function CoachAthleteDetailPage({
   const fullName = [athlete.first_name, athlete.last_name].filter(Boolean).join(' ') || 'Athlete';
   const initials = fullName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
   const isPitcher = athlete.position?.toUpperCase() === 'P' || athlete.position?.toUpperCase() === 'TWP';
-  const tier = athlete.subscription_tier ?? 'free';
-  const isPaidTier = tier === 'verified' || tier === 'elite' || tier === 'athlete' || tier === 'athlete_pro';
+  const isVerified = (athlete.verification_tier ?? 0) > 0;
 
   // 3. Personal-best metrics (separate query, two-query merge pattern)
   const { data: metricsRows } = await db
@@ -248,7 +247,7 @@ export default async function CoachAthleteDetailPage({
                 {athlete.secondary_position && <Pill muted>{athlete.secondary_position}</Pill>}
                 {athlete.grad_year && <Pill>{`Class of ${athlete.grad_year}`}</Pill>}
                 {athlete.home_state && <Pill>{athlete.home_state}</Pill>}
-                {isPaidTier && (
+                {isVerified && (
                   <Pill gold>◆ Diamond Verified</Pill>
                 )}
               </div>
