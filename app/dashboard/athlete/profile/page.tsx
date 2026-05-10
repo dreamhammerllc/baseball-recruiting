@@ -34,6 +34,7 @@ interface Profile {
   gamechanger_url:     string;
   iscore_url:          string;
   perfectgame_url:     string;
+  username:            string;
 }
 
 const EMPTY: Profile = {
@@ -42,6 +43,7 @@ const EMPTY: Profile = {
   gpa_weighted: '', gpa_unweighted: '', home_state: '',
   highlight_video_url: '', photo_url: '', bio: '',
   gamechanger_url: '', iscore_url: '', perfectgame_url: '',
+  username: '',
 };
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
@@ -115,6 +117,7 @@ export default function AthleteProfilePage() {
             gamechanger_url:     p.gamechanger_url     ?? '',
             iscore_url:          p.iscore_url          ?? '',
             perfectgame_url:     p.perfectgame_url     ?? '',
+            username:            p.username            ?? '',
           });
           if (p.photo_url) setPhotoPreview(p.photo_url);
         }
@@ -191,7 +194,8 @@ export default function AthleteProfilePage() {
   }
 
   async function handleCopyLink() {
-    const url = `https://diamondverified.app/profile/${userId}`;
+    const slug = profile.username || userId;
+    const url = `https://diamondverified.app/profile/${slug}`;
     try {
       await navigator.clipboard.writeText(url);
       setCopied(true);
@@ -516,7 +520,7 @@ export default function AthleteProfilePage() {
               whiteSpace: 'nowrap',
               display: 'block',
             }}>
-              diamondverified.app/profile/{userId}
+              diamondverified.app/profile/{profile.username || userId}
             </code>
             <button
               type="button"

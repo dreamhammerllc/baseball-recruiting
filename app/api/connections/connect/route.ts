@@ -1,9 +1,11 @@
+export const runtime = 'nodejs';
+
+import { auth } from '@clerk/nextjs/server';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { getAuthenticatedUserId } from '@/lib/auth';
 
 export async function POST(req: NextRequest) {
-  const coachId = await getAuthenticatedUserId(req);
+  const { userId: coachId } = await auth();
   if (!coachId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }

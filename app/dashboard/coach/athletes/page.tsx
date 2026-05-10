@@ -181,7 +181,7 @@ export default function MyAthletesPage() {
                         Verify Metric
                       </button>
                       <a
-                        href={`/profile/${a.athleteId}`}
+                        href={`/profile/${a.username ?? a.athleteId}`}
                         target="_blank" rel="noopener noreferrer"
                         style={{
                           backgroundColor: 'transparent', border: '1px solid #1e2530',

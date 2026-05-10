@@ -10,6 +10,7 @@ import type { AthleteMetric } from '@/lib/metrics';
 
 interface AthleteRow {
   id: string;
+  clerk_user_id: string;
   first_name: string | null;
   last_name: string | null;
   position: string | null;
@@ -27,6 +28,7 @@ interface AthleteRow {
   fastball_velocity_mph: number | null;
   sixty_yard_dash_seconds: number | null;
   highlight_video_url: string | null;
+  photo_url: string | null;
   bio: string | null;
   subscription_tier: string | null;
   gamechanger_url: string | null;
@@ -83,14 +85,14 @@ export default async function AthleteProfilePage({
   const { username } = await params;
   const db = createAdminClient();
 
-  // 1. Fetch athlete row
-  const { data: athlete, error: athleteError } = await db
-    .from('athletes')
-    .select(
-      'id, first_name, last_name, position, secondary_position, grad_year, home_state, height_inches, weight_lbs, throws, bats, gpa_unweighted, sat_score, act_score, exit_velocity_mph, fastball_velocity_mph, sixty_yard_dash_seconds, highlight_video_url, bio, subscription_tier, gamechanger_url, iscore_url, perfectgame_url',
-    )
-    .eq('clerk_user_id', username)
-    .maybeSingle();
+  // 1. Fetch athlete row — try username column first, fall back to clerk_user_id for old share links
+  const SELECT_FIELDS =
+    'id, clerk_user_id, first_name, last_name, position, secondary_position, grad_year, home_state, height_inches, weight_lbs, throws, bats, gpa_unweighted, sat_score, act_score, exit_velocity_mph, fastball_velocity_mph, sixty_yard_dash_seconds, highlight_video_url, photo_url, bio, subscription_tier, gamechanger_url, iscore_url, perfectgame_url';
+
+  const isClerkId = username.startsWith('user_');
+  const { data: athlete, error: athleteError } = isClerkId
+    ? await db.from('athletes').select(SELECT_FIELDS).eq('clerk_user_id', username).maybeSingle()
+    : await db.from('athletes').select(SELECT_FIELDS).eq('username', username).maybeSingle();
 
   if (athleteError || !athlete) {
     return (
@@ -138,6 +140,9 @@ export default async function AthleteProfilePage({
   }
 
   const athleteData = athlete as AthleteRow;
+  // Use the real clerk_user_id for all subsequent queries (works whether the URL
+  // used a human-readable username or a raw clerk_user_id)
+  const athleteClerkId = athleteData.clerk_user_id;
 
   // 2. Fetch is_verified (isolated)
   let isVerified = false;
@@ -145,7 +150,7 @@ export default async function AthleteProfilePage({
     const { data: verRow } = await db
       .from('athletes')
       .select('is_verified')
-      .eq('clerk_user_id', username)
+      .eq('clerk_user_id', athleteClerkId)
       .maybeSingle();
     if (verRow && typeof (verRow as Record<string, unknown>).is_verified === 'boolean') {
       isVerified = (verRow as { is_verified: boolean }).is_verified;
@@ -176,7 +181,7 @@ export default async function AthleteProfilePage({
     const { data: metricsRows } = await db
       .from('athlete_metrics')
       .select('*')
-      .eq('athlete_clerk_id', username)
+      .eq('athlete_clerk_id', athleteClerkId)
       .eq('is_personal_best', true);
     if (metricsRows) {
       personalBestMetrics = metricsRows as AthleteMetric[];
@@ -193,7 +198,7 @@ export default async function AthleteProfilePage({
     const { data: posRow } = await db
       .from('athlete_positions')
       .select('primary_position, secondary_position')
-      .eq('athlete_clerk_id', username)
+      .eq('athlete_clerk_id', athleteClerkId)
       .maybeSingle();
     if (posRow) {
       athletePositions = posRow as { primary_position: string; secondary_position: string | null };
@@ -256,15 +261,44 @@ export default async function AthleteProfilePage({
     muted: '#6b7280',
   };
 
-  function extractVideoId(url: string): string {
-    if (!url) return '';
+  type VideoEmbed =
+    | { type: 'youtube'; embedUrl: string }
+    | { type: 'vimeo';   embedUrl: string }
+    | { type: 'bunny';   embedUrl: string }
+    | { type: 'direct';  src: string };
+
+  function parseVideoEmbed(url: string): VideoEmbed | null {
+    if (!url) return null;
+
+    // YouTube — youtu.be/{id} or youtube.com/watch?v={id} or youtube.com/embed/{id}
+    const ytShort  = url.match(/youtu\.be\/([A-Za-z0-9_-]{11})/);
+    const ytLong   = url.match(/youtube\.com\/watch\?v=([A-Za-z0-9_-]{11})/);
+    const ytEmbed  = url.match(/youtube\.com\/embed\/([A-Za-z0-9_-]{11})/);
+    const ytId     = (ytShort ?? ytLong ?? ytEmbed)?.[1];
+    if (ytId) return { type: 'youtube', embedUrl: `https://www.youtube.com/embed/${ytId}` };
+
+    // Vimeo — vimeo.com/{id}
+    const vimeoMatch = url.match(/vimeo\.com\/(\d+)/);
+    if (vimeoMatch) return { type: 'vimeo', embedUrl: `https://player.vimeo.com/video/${vimeoMatch[1]}` };
+
+    // Bunny CDN / mediadelivery
     if (url.includes('iframe.mediadelivery.net')) {
-      return url.split('/').pop()?.split('?')[0] ?? '';
+      return { type: 'bunny', embedUrl: url };
     }
-    if (url.includes('vz-d9ee7f6e-2b7.b-cdn.net')) {
-      return url.split('/')[3] ?? '';
+    if (url.includes('vz-d9ee7f6e-2b7.b-cdn.net') || url.includes('b-cdn.net')) {
+      const videoId = url.split('/')[3]?.split('?')[0];
+      if (videoId) {
+        return {
+          type: 'bunny',
+          embedUrl: `https://iframe.mediadelivery.net/embed/653202/${videoId}?autoplay=false&preload=true`,
+        };
+      }
     }
-    return '';
+
+    // Direct video file
+    if (/\.(mp4|webm|ogg|mov)(\?|$)/i.test(url)) return { type: 'direct', src: url };
+
+    return null;
   }
 
   const mono: React.CSSProperties = { fontFamily: 'monospace' };
@@ -368,6 +402,61 @@ export default async function AthleteProfilePage({
 
         {/* ── HERO / PROFILE HEADER ──────────────────────────────────────────── */}
         <section style={{ marginBottom: '2rem' }}>
+
+          {/* Profile photo */}
+          {(() => {
+            const initials = [athleteData.first_name, athleteData.last_name]
+              .filter(Boolean)
+              .map((n) => n![0].toUpperCase())
+              .join('');
+            return (
+              <div style={{ marginBottom: '1.25rem' }}>
+                {athleteData.photo_url ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={athleteData.photo_url}
+                    alt={fullName}
+                    style={{
+                      width: '140px',
+                      height: '140px',
+                      borderRadius: '50%',
+                      objectFit: 'cover',
+                      border: `3px solid ${colors.gold}`,
+                      boxShadow: '0 4px 24px rgba(232,160,32,0.18), 0 2px 8px rgba(0,0,0,0.5)',
+                      display: 'block',
+                    }}
+                  />
+                ) : (
+                  <div
+                    style={{
+                      width: '140px',
+                      height: '140px',
+                      borderRadius: '50%',
+                      border: `3px solid ${colors.gold}`,
+                      boxShadow: '0 4px 24px rgba(232,160,32,0.18), 0 2px 8px rgba(0,0,0,0.5)',
+                      background: 'rgba(232,160,32,0.08)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <span
+                      style={{
+                        fontFamily: 'monospace',
+                        fontSize: '2.25rem',
+                        fontWeight: 700,
+                        color: colors.gold,
+                        letterSpacing: '-0.02em',
+                      }}
+                    >
+                      {initials || '?'}
+                    </span>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
           <h1
             style={{
               ...serif,
@@ -595,7 +684,7 @@ export default async function AthleteProfilePage({
           {isPaidTier ? (
             <PublicMetricsSection
               personalBestMetrics={personalBestMetrics}
-              athleteClerkId={username}
+              athleteClerkId={athleteClerkId}
             />
           ) : (
             <div style={{ position: 'relative', borderRadius: '0.75rem', overflow: 'hidden' }}>
@@ -764,31 +853,62 @@ export default async function AthleteProfilePage({
           </section>
         )}
         {/* ── RECRUITING VIDEO ───────────────────────────────────────────────── */}
-        {athleteData.highlight_video_url && extractVideoId(athleteData.highlight_video_url) && (
-          <section style={{ marginBottom: '2.5rem' }}>
-            <h2
-              style={{
-                ...mono,
-                fontSize: '0.65rem',
-                letterSpacing: '0.18em',
-                color: colors.muted,
-                textTransform: 'uppercase',
-                margin: '0 0 1rem',
-              }}
-            >
-              Recruiting Video
-            </h2>
-            <div style={{ position: 'relative', paddingTop: '56.25%', borderRadius: '0.75rem', overflow: 'hidden' }}>
-              <iframe
-                src={`https://iframe.mediadelivery.net/embed/653202/${extractVideoId(athleteData.highlight_video_url)}?autoplay=false&preload=true`}
-                loading="lazy"
-                style={{ border: 'none', position: 'absolute', top: 0, height: '100%', width: '100%' }}
-                allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;"
-                allowFullScreen
-              />
-            </div>
-          </section>
-        )}
+        {(() => {
+          const embed = athleteData.highlight_video_url
+            ? parseVideoEmbed(athleteData.highlight_video_url)
+            : null;
+          if (!embed) return null;
+
+          const containerStyle: React.CSSProperties = {
+            position: 'relative',
+            paddingTop: '56.25%',
+            borderRadius: '0.75rem',
+            overflow: 'hidden',
+            background: '#000',
+          };
+          const frameStyle: React.CSSProperties = {
+            border: 'none',
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+          };
+
+          return (
+            <section style={{ marginBottom: '2.5rem' }}>
+              <h2
+                style={{
+                  ...mono,
+                  fontSize: '0.65rem',
+                  letterSpacing: '0.18em',
+                  color: colors.muted,
+                  textTransform: 'uppercase',
+                  margin: '0 0 1rem',
+                }}
+              >
+                Recruiting Video
+              </h2>
+              <div style={containerStyle}>
+                {embed.type === 'direct' ? (
+                  <video
+                    src={(embed as { type: 'direct'; src: string }).src}
+                    controls
+                    style={{ ...frameStyle, objectFit: 'contain' }}
+                  />
+                ) : (
+                  <iframe
+                    src={(embed as { embedUrl: string }).embedUrl}
+                    loading="lazy"
+                    style={frameStyle}
+                    allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture"
+                    allowFullScreen
+                  />
+                )}
+              </div>
+            </section>
+          );
+        })()}
 
         {/* ── EXTERNAL PROFILES ──────────────────────────────────────────────── */}
         {(athleteData.gamechanger_url || athleteData.iscore_url || athleteData.perfectgame_url) && (
