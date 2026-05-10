@@ -11,6 +11,15 @@ const PRICE_TO_TIER: Record<string, string> = {
   [process.env.STRIPE_VERIFIED_YEARLY_PRICE_ID  ?? 'price_1TUBy1IJP5BSkTrO38zxmCgU']: 'verified',
   [process.env.STRIPE_ELITE_MONTHLY_PRICE_ID    ?? 'price_1TUBzdIJP5BSkTrOTlCFNfKX']: 'elite',
   [process.env.STRIPE_ELITE_YEARLY_PRICE_ID     ?? 'price_1TUC0HIJP5BSkTrORs6SyEbm']: 'elite',
+};
+
+// Pro tier — only mapped when Stripe price IDs are configured in env.
+// Lets the code ship before Pro products are created in Stripe.
+if (process.env.STRIPE_PRO_MONTHLY_PRICE_ID) {
+  PRICE_TO_TIER[process.env.STRIPE_PRO_MONTHLY_PRICE_ID] = 'pro';
+}
+if (process.env.STRIPE_PRO_YEARLY_PRICE_ID) {
+  PRICE_TO_TIER[process.env.STRIPE_PRO_YEARLY_PRICE_ID] = 'pro';
 }
 
 function tierFromPriceId(priceId: string): string {

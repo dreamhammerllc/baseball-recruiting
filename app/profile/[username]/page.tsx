@@ -6,6 +6,7 @@ import type { DownloadPDFButtonProps } from './DownloadPDFButton';
 import PublicMetricsSection from './PublicMetricsSection';
 import VideoPlayer from '@/components/profile/VideoPlayer';
 import type { AthleteMetric } from '@/lib/metrics';
+import type { SubscriptionTier } from '@/lib/subscription';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -31,7 +32,7 @@ interface AthleteRow {
   sixty_yard_dash_seconds: number | null;
   highlight_video_url: string | null;
   bio: string | null;
-  subscription_tier: string | null;
+  subscription_tier: SubscriptionTier | null;
   gamechanger_url: string | null;
   iscore_url: string | null;
   perfectgame_url: string | null;
@@ -245,12 +246,11 @@ export default async function AthleteProfilePage({
 
   const tier = athleteData.subscription_tier ?? 'free';
   const tierLabel =
-    tier === 'elite'      ? 'Elite'       :
-    tier === 'verified'   ? 'Verified'    :
-    tier === 'athlete_pro'? 'Athlete Pro' :
-    tier === 'athlete'    ? 'Athlete'     : 'Scout';
-  const isPaidTier   = tier === 'verified' || tier === 'elite' || tier === 'athlete' || tier === 'athlete_pro';
-  const isEliteTier  = tier === 'elite' || tier === 'athlete_pro';
+    tier === 'pro'      ? 'Pro'      :
+    tier === 'elite'    ? 'Elite'    :
+    tier === 'verified' ? 'Verified' : 'Scout';
+  const isPaidTier  = tier !== 'free';
+  const isEliteTier = tier === 'elite' || tier === 'pro';
   const showVerifiedBadge = isPaidTier;
 
   const pdfProps: DownloadPDFButtonProps = {

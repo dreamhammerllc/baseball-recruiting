@@ -9,6 +9,7 @@ import PublicMetricsSection from '@/app/profile/[username]/PublicMetricsSection'
 import CoachActionBar from './CoachActionBar';
 import CoachAthleteEvaluation from './CoachAthleteEvaluation';
 import type { AthleteMetric } from '@/lib/metrics';
+import type { SubscriptionTier } from '@/lib/subscription';
 
 export const runtime = 'nodejs';
 
@@ -39,7 +40,7 @@ interface AthleteRow {
   sixty_yard_dash_seconds:  number | null;
   highlight_video_url:      string | null;
   bio:                      string | null;
-  subscription_tier:        string | null;
+  subscription_tier:        SubscriptionTier | null;
   verification_tier:        number | null;
   is_verified:              boolean | null;
   gamechanger_url:          string | null;
