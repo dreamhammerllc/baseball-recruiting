@@ -35,7 +35,7 @@ export async function GET(req: NextRequest) {
   const athleteIds = connections.map(c => c.athlete_id);
   const { data: profiles, error: profileError } = await supabase
     .from('athletes')
-    .select('clerk_user_id, first_name, last_name, photo_url, position, grad_year, home_state, updated_at')
+    .select('clerk_user_id, first_name, last_name, photo_url, position, grad_year, home_state, updated_at, verification_tier')
     .in('clerk_user_id', athleteIds);
 
   if (profileError) {
@@ -47,6 +47,8 @@ export async function GET(req: NextRequest) {
     (profiles ?? []).map(p => [p.clerk_user_id, p])
   );
 
+  // Verified pill on My Athletes uses the same rule as SavedClient.tsx:
+  // any non-zero verification_tier qualifies.
   const athletes = connections.map(conn => {
     const p = profileMap.get(conn.athlete_id);
     return {
@@ -59,6 +61,7 @@ export async function GET(req: NextRequest) {
       gradYear:      p?.grad_year ?? null,
       state:         p?.home_state ?? null,
       updatedAt:     p?.updated_at ?? null,
+      verified:      (p?.verification_tier ?? 0) > 0,
       username:      null,
     };
   });

@@ -15,6 +15,7 @@ interface ConnectedAthlete {
   gradYear:     number | null;
   state:        string | null;
   updatedAt:    string | null;
+  verified:     boolean;
   username:     string | null;
 }
 
@@ -315,6 +316,7 @@ export default function MyAthletesPage() {
                           {a.position && <Pill>{a.position}</Pill>}
                           {a.gradYear && <Pill>{`'${String(a.gradYear).slice(-2)}`}</Pill>}
                           {a.state    && <Pill muted>{a.state}</Pill>}
+                          {a.verified && <Pill gold>◆ Verified</Pill>}
                           {!hasMeta   && (
                             <span style={{ color: '#6b7280', fontSize: '0.72rem' }}>No profile data</span>
                           )}
@@ -432,18 +434,18 @@ const selectStyle: React.CSSProperties = {
   cursor:       'pointer',
 };
 
-function Pill({ children, muted }: { children: React.ReactNode; muted?: boolean }) {
+function Pill({ children, muted, gold }: { children: React.ReactNode; muted?: boolean; gold?: boolean }) {
   return (
     <span style={{
       fontFamily:    'monospace',
-      background:    '#0d1117',
-      border:        '1px solid #1e2530',
+      background:    gold ? 'rgba(232,160,32,0.12)' : '#0d1117',
+      border:        `1px solid ${gold ? '#e8a020' : '#1e2530'}`,
       borderRadius:  '0.3rem',
       padding:       '0.1rem 0.45rem',
       fontSize:      '0.65rem',
-      color:         muted ? '#6b7280' : '#f0f6fc',
+      color:         gold ? '#e8a020' : muted ? '#6b7280' : '#f0f6fc',
       letterSpacing: '0.04em',
-      fontWeight:    500,
+      fontWeight:    gold ? 700 : 500,
     }}>
       {children}
     </span>
