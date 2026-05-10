@@ -7,6 +7,7 @@ import VideoPlayer from '@/components/profile/VideoPlayer';
 import ExternalProfilePills from '@/components/profile/ExternalProfilePills';
 import PublicMetricsSection from '@/app/profile/[username]/PublicMetricsSection';
 import CoachActionBar from './CoachActionBar';
+import CoachAthleteEvaluation from './CoachAthleteEvaluation';
 import type { AthleteMetric } from '@/lib/metrics';
 
 export const runtime = 'nodejs';
@@ -353,6 +354,11 @@ export default async function CoachAthleteDetailPage({
             <p style={{ ...mono, color: colors.muted, fontSize: '0.7rem', margin: '0.5rem 0 0', letterSpacing: '0.04em' }}>
               Visible only to connected coaches. Never shown on the athlete&apos;s public profile.
             </p>
+          </section>
+
+          {/* Coach's private evaluation — coach-only, never on public profile */}
+          <section style={{ marginBottom: '2.5rem' }}>
+            <CoachAthleteEvaluation athleteId={athlete.clerk_user_id} />
           </section>
 
         </div>

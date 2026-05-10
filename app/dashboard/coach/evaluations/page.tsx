@@ -1,256 +1,402 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import CoachSidebar from '@/components/layout/CoachSidebar';
-import type { Evaluation } from '@/app/api/coach/evaluations/route';
+import { formatRelativeTime } from '@/lib/time';
 
-export const dynamic = 'force-dynamic';
-
-function formatDate(dateStr: string): string {
-  const d = new Date(dateStr);
-  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  return `${months[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
+interface NoteWithAthlete {
+  id:        string;
+  athleteId: string;
+  athlete: {
+    firstName:       string | null;
+    lastName:        string | null;
+    position:        string | null;
+    graduationYear:  number | null;
+    state:           string | null;
+    profilePhotoUrl: string | null;
+  };
+  rating:    number | null;
+  notes:     string | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
-function extractVideoId(url: string): string {
-  if (!url) return '';
-  if (url.includes('iframe.mediadelivery.net')) {
-    return url.split('/').pop()?.split('?')[0] ?? '';
+type SortKey = 'recent' | 'ratingDesc' | 'ratingAsc' | 'name';
+
+const SORT_LABELS: Record<SortKey, string> = {
+  recent:     'Recently updated',
+  ratingDesc: 'Highest rated',
+  ratingAsc:  'Lowest rated',
+  name:       'Name A–Z',
+};
+
+const NOTES_PREVIEW_CHARS = 150;
+
+export default function CoachEvaluationsPage() {
+  const [notes,   setNotes]   = useState<NoteWithAthlete[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error,   setError]   = useState<string | null>(null);
+  const [sort,    setSort]    = useState<SortKey>('recent');
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res  = await fetch('/api/coach/notes');
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(data.error ?? 'Failed to load evaluations.');
+        setNotes([]);
+        return;
+      }
+      setNotes((data.notes ?? []) as NoteWithAthlete[]);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to load evaluations.');
+      setNotes([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const sorted = useMemo(() => {
+    const list = [...notes];
+    switch (sort) {
+      case 'ratingDesc':
+        list.sort((a, b) => compareRatings(a.rating, b.rating, 'desc') || compareUpdated(a, b));
+        break;
+      case 'ratingAsc':
+        list.sort((a, b) => compareRatings(a.rating, b.rating, 'asc')  || compareUpdated(a, b));
+        break;
+      case 'name':
+        list.sort((a, b) =>
+          fullName(a).localeCompare(fullName(b), undefined, { sensitivity: 'base' }) ||
+          compareUpdated(a, b),
+        );
+        break;
+      case 'recent':
+      default:
+        list.sort(compareUpdated);
+        break;
+    }
+    return list;
+  }, [notes, sort]);
+
+  // ── Loading ────────────────────────────────────────────────────────────
+  if (loading) {
+    return (
+      <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#0d1117' }}>
+        <CoachSidebar />
+        <main style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <p style={{ color: '#6b7280' }}>Loading evaluations…</p>
+        </main>
+      </div>
+    );
   }
-  if (url.includes('vz-d9ee7f6e-2b7.b-cdn.net')) {
-    return url.split('/')[3] ?? '';
-  }
-  return '';
+
+  // ── Body ───────────────────────────────────────────────────────────────
+  return (
+    <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#0d1117' }}>
+      <CoachSidebar />
+
+      <main style={{ flex: 1, padding: '2rem 2.5rem', overflowY: 'auto' }}>
+        <div style={{ maxWidth: '720px' }}>
+
+          {/* Header */}
+          <div style={{
+            marginBottom:  '1.5rem',
+            display:       'flex',
+            alignItems:    'flex-start',
+            justifyContent:'space-between',
+            flexWrap:      'wrap',
+            gap:           '1rem',
+          }}>
+            <div>
+              <h1 style={{ color: '#ffffff', fontSize: '1.6rem', fontWeight: 700, margin: '0 0 0.35rem', letterSpacing: '-0.02em' }}>
+                Evaluations
+              </h1>
+              <p style={{ color: '#6b7280', fontSize: '0.9rem', margin: 0 }}>
+                {notes.length} evaluation{notes.length === 1 ? '' : 's'}
+              </p>
+            </div>
+            {notes.length > 0 && (
+              <select
+                value={sort}
+                onChange={e => setSort(e.target.value as SortKey)}
+                style={selectStyle}
+                aria-label="Sort evaluations"
+              >
+                {(Object.keys(SORT_LABELS) as SortKey[]).map(k => (
+                  <option key={k} value={k}>{SORT_LABELS[k]}</option>
+                ))}
+              </select>
+            )}
+          </div>
+
+          {/* Error */}
+          {error && (
+            <div style={{
+              backgroundColor: 'rgba(248,113,113,0.08)',
+              border:          '1px solid rgba(248,113,113,0.3)',
+              borderRadius:    '0.75rem',
+              padding:         '1rem 1.25rem',
+              marginBottom:    '1rem',
+              display:         'flex',
+              alignItems:      'center',
+              gap:             '0.85rem',
+              flexWrap:        'wrap',
+            }}>
+              <p style={{ color: '#f87171', fontSize: '0.85rem', margin: 0, flex: 1, minWidth: '160px' }}>
+                {error}
+              </p>
+              <button
+                type="button"
+                onClick={load}
+                style={{
+                  backgroundColor: 'transparent',
+                  color:           '#f87171',
+                  border:          '1px solid rgba(248,113,113,0.4)',
+                  borderRadius:    '0.4rem',
+                  padding:         '0.4rem 0.95rem',
+                  fontSize:        '0.78rem',
+                  fontWeight:      700,
+                  cursor:          'pointer',
+                  fontFamily:      'monospace',
+                }}
+              >
+                Retry
+              </button>
+            </div>
+          )}
+
+          {/* Empty */}
+          {!error && notes.length === 0 && (
+            <div style={{
+              backgroundColor: '#111827',
+              border:          '1px dashed #1e2530',
+              borderRadius:    '0.75rem',
+              padding:         '3rem 2rem',
+              textAlign:       'center',
+            }}>
+              <p style={{ color: '#6b7280', fontSize: '0.9rem', margin: 0, lineHeight: 1.55 }}>
+                No evaluations yet. Create one from any athlete&apos;s detail page.
+              </p>
+            </div>
+          )}
+
+          {/* List */}
+          {!error && sorted.length > 0 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+              {sorted.map(n => <EvaluationCard key={n.id} note={n} />)}
+            </div>
+          )}
+
+        </div>
+      </main>
+    </div>
+  );
 }
 
-function StatusBadge({ status }: { status: string }) {
-  const approved = status === 'approved';
+// ── Card ────────────────────────────────────────────────────────────────────
+
+function EvaluationCard({ note }: { note: NoteWithAthlete }) {
+  const [hover, setHover] = useState(false);
+  const fullN    = fullName(note);
+  const initials = fullN.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+  const photo    = note.athlete.profilePhotoUrl;
+
+  const trimmed = (note.notes ?? '').trim();
+  const preview =
+    trimmed === '' ? null :
+    trimmed.length > NOTES_PREVIEW_CHARS ? `${trimmed.slice(0, NOTES_PREVIEW_CHARS)}…` :
+    trimmed;
+
+  const hasMeta = note.athlete.position || note.athlete.graduationYear || note.athlete.state;
+
+  return (
+    <Link
+      href={`/dashboard/coach/athletes/${note.athleteId}`}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      aria-label={`Open ${fullN}'s profile to edit evaluation`}
+      style={{
+        display:        'block',
+        textDecoration: 'none',
+        backgroundColor: hover ? '#151c2a' : '#111827',
+        border:         `1px solid ${hover ? '#30363d' : '#1e2530'}`,
+        borderRadius:   '0.75rem',
+        padding:        '0.9rem 1.1rem',
+        transition:     'background-color 120ms, border-color 120ms',
+      }}
+    >
+      {/* Top row: avatar + name/pills + rating */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
+        {/* Avatar — same treatment as My Athletes */}
+        <div style={{
+          width:           '44px',
+          height:          '44px',
+          borderRadius:    '50%',
+          overflow:        'hidden',
+          backgroundColor: 'rgba(232,160,32,0.1)',
+          border:          '1px solid rgba(232,160,32,0.2)',
+          display:         'flex',
+          alignItems:      'center',
+          justifyContent:  'center',
+          flexShrink:      0,
+        }}>
+          {photo ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={photo} alt={fullN} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          ) : (
+            <span style={{ color: '#e8a020', fontWeight: 700, fontSize: '0.9rem' }}>{initials}</span>
+          )}
+        </div>
+
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <p style={{
+            color:        '#f0f6fc',
+            fontWeight:   600,
+            fontSize:     '0.95rem',
+            margin:       0,
+            overflow:     'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace:   'nowrap',
+          }}>
+            {fullN}
+          </p>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.3rem', marginTop: '0.25rem' }}>
+            {note.athlete.position       && <Pill>{note.athlete.position}</Pill>}
+            {note.athlete.graduationYear && <Pill>{`'${String(note.athlete.graduationYear).slice(-2)}`}</Pill>}
+            {note.athlete.state          && <Pill muted>{note.athlete.state}</Pill>}
+            {!hasMeta                    && <span style={{ color: '#6b7280', fontSize: '0.72rem' }}>No profile data</span>}
+          </div>
+        </div>
+
+        <RatingBadge rating={note.rating} />
+      </div>
+
+      {/* Notes preview */}
+      <div style={{ marginTop: '0.75rem' }}>
+        {preview ? (
+          <p style={{
+            color:      '#9ca3af',
+            fontSize:   '0.82rem',
+            margin:     0,
+            lineHeight: 1.55,
+            whiteSpace: 'pre-wrap',
+            wordBreak:  'break-word',
+          }}>
+            {preview}
+          </p>
+        ) : (
+          <p style={{ color: '#4b5563', fontSize: '0.82rem', fontStyle: 'italic', margin: 0 }}>
+            (no notes)
+          </p>
+        )}
+      </div>
+
+      {/* Updated time, bottom-right */}
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '0.5rem' }}>
+        <span style={{ color: '#6b7280', fontSize: '0.7rem', fontFamily: 'monospace' }}>
+          Updated {formatRelativeTime(note.updatedAt)}
+        </span>
+      </div>
+    </Link>
+  );
+}
+
+function RatingBadge({ rating }: { rating: number | null }) {
+  if (rating == null) {
+    return (
+      <div
+        aria-label="No rating"
+        style={{
+          width:           '44px',
+          height:          '44px',
+          borderRadius:    '0.5rem',
+          background:      'transparent',
+          border:          '1px solid #1e2530',
+          display:         'flex',
+          alignItems:      'center',
+          justifyContent:  'center',
+          flexShrink:      0,
+          color:           '#6b7280',
+          fontSize:        '1.2rem',
+          fontFamily:      'monospace',
+        }}
+      >
+        —
+      </div>
+    );
+  }
+  return (
+    <div
+      aria-label={`Rating ${rating} of 10`}
+      style={{
+        width:           '44px',
+        height:          '44px',
+        borderRadius:    '0.5rem',
+        background:      '#e8a020',
+        color:           '#0a0e14',
+        display:         'flex',
+        alignItems:      'center',
+        justifyContent:  'center',
+        flexShrink:      0,
+        fontWeight:      700,
+        fontSize:        '1.05rem',
+        boxShadow:       '0 1px 3px rgba(232,160,32,0.45)',
+        fontFamily:      'monospace',
+      }}
+    >
+      {rating}
+    </div>
+  );
+}
+
+// ── Helpers ────────────────────────────────────────────────────────────────
+
+const selectStyle: React.CSSProperties = {
+  background:   '#111827',
+  color:        '#f0f6fc',
+  border:       '1px solid #1e2530',
+  borderRadius: '0.4rem',
+  padding:      '0.4rem 0.6rem',
+  fontSize:     '0.78rem',
+  cursor:       'pointer',
+};
+
+function Pill({ children, muted }: { children: React.ReactNode; muted?: boolean }) {
   return (
     <span style={{
-      display: 'inline-block',
-      padding: '0.15rem 0.6rem',
-      borderRadius: '9999px',
-      fontSize: '0.7rem',
-      fontWeight: 700,
-      backgroundColor: approved ? 'rgba(74,222,128,0.1)' : 'rgba(232,160,32,0.1)',
-      border: `1px solid ${approved ? 'rgba(74,222,128,0.3)' : 'rgba(232,160,32,0.3)'}`,
-      color: approved ? '#4ade80' : '#e8a020',
+      fontFamily:    'monospace',
+      background:    '#0d1117',
+      border:        '1px solid #1e2530',
+      borderRadius:  '0.3rem',
+      padding:       '0.1rem 0.45rem',
+      fontSize:      '0.65rem',
+      color:         muted ? '#6b7280' : '#f0f6fc',
+      letterSpacing: '0.04em',
+      fontWeight:    500,
     }}>
-      {approved ? 'Approved' : 'Pending'}
+      {children}
     </span>
   );
 }
 
-export default function CoachEvaluationsPage() {
-  const [evaluations, setEvaluations] = useState<Evaluation[]>([]);
-  const [loading, setLoading]         = useState(true);
-  const [error, setError]             = useState<string | null>(null);
-  const [watchVideoUrl, setWatchVideoUrl] = useState<string | null>(null);
+function fullName(n: NoteWithAthlete): string {
+  return [n.athlete.firstName, n.athlete.lastName].filter(Boolean).join(' ') || 'Athlete';
+}
 
-  useEffect(() => {
-    fetch('/api/coach/evaluations')
-      .then(r => r.json())
-      .then(data => {
-        if (data.error) throw new Error(data.error);
-        setEvaluations(data.evaluations ?? []);
-        setLoading(false);
-      })
-      .catch(err => {
-        setError(err instanceof Error ? err.message : 'Failed to load evaluations.');
-        setLoading(false);
-      });
-  }, []);
+function compareUpdated(a: NoteWithAthlete, b: NoteWithAthlete): number {
+  return a.updatedAt < b.updatedAt ? 1 : a.updatedAt > b.updatedAt ? -1 : 0;
+}
 
-  return (
-    <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#0d1117' }}>
-      <CoachSidebar />
-      <main style={{ flex: 1, padding: '2rem 2.5rem', overflowY: 'auto' }}>
-
-        <div style={{ marginBottom: '2rem' }}>
-          <h1 style={{ color: '#ffffff', fontSize: '1.6rem', fontWeight: 700, margin: '0 0 0.35rem', letterSpacing: '-0.02em' }}>
-            Evaluations
-          </h1>
-          <p style={{ color: '#6b7280', fontSize: '0.9rem', margin: 0 }}>
-            All metric verifications you have submitted
-          </p>
-        </div>
-
-        {loading && (
-          <p style={{ color: '#6b7280', fontSize: '0.875rem' }}>Loading...</p>
-        )}
-
-        {!loading && error && (
-          <p style={{ color: '#f87171', fontSize: '0.875rem' }}>{error}</p>
-        )}
-
-        {!loading && !error && evaluations.length === 0 && (
-          <div style={{
-            backgroundColor: '#111827',
-            border: '1px solid #1e2530',
-            borderRadius: '0.75rem',
-            padding: '3rem 2rem',
-            textAlign: 'center',
-          }}>
-            <p style={{ color: '#6b7280', fontSize: '0.875rem', margin: 0 }}>
-              No verifications submitted yet.
-            </p>
-          </div>
-        )}
-
-        {!loading && !error && evaluations.length > 0 && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-            {evaluations.map(ev => (
-              <div
-                key={ev.id}
-                style={{
-                  backgroundColor: '#111827',
-                  border: '1px solid #1e2530',
-                  borderRadius: '0.75rem',
-                  padding: '1.25rem 1.5rem',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '1.25rem',
-                  flexWrap: 'wrap',
-                }}
-              >
-                {/* Metric + value */}
-                <div style={{ minWidth: '140px' }}>
-                  <p style={{ color: '#9ca3af', fontSize: '0.68rem', textTransform: 'uppercase', letterSpacing: '0.07em', margin: '0 0 0.2rem', fontWeight: 600 }}>
-                    {ev.metricLabel}
-                  </p>
-                  <p style={{ color: '#e8a020', fontSize: '1.15rem', fontWeight: 700, margin: 0, fontFamily: 'Georgia, serif' }}>
-                    {ev.value} <span style={{ fontSize: '0.75rem', fontWeight: 400, color: '#6b7280' }}>{ev.metricUnit}</span>
-                  </p>
-                </div>
-
-                {/* Athlete */}
-                <div style={{ flex: 1, minWidth: '140px' }}>
-                  <p style={{ color: '#9ca3af', fontSize: '0.68rem', textTransform: 'uppercase', letterSpacing: '0.07em', margin: '0 0 0.2rem', fontWeight: 600 }}>
-                    Athlete
-                  </p>
-                  <a
-                    href={`/profile/${ev.athleteClerkId}`}
-                    style={{ color: '#f0f6fc', fontSize: '0.9rem', fontWeight: 600, textDecoration: 'none' }}
-                    onMouseEnter={e => { (e.currentTarget as HTMLAnchorElement).style.color = '#e8a020'; }}
-                    onMouseLeave={e => { (e.currentTarget as HTMLAnchorElement).style.color = '#f0f6fc'; }}
-                  >
-                    {ev.athleteName}
-                  </a>
-                </div>
-
-                {/* Date */}
-                <div style={{ minWidth: '100px' }}>
-                  <p style={{ color: '#9ca3af', fontSize: '0.68rem', textTransform: 'uppercase', letterSpacing: '0.07em', margin: '0 0 0.2rem', fontWeight: 600 }}>
-                    Date
-                  </p>
-                  <p style={{ color: '#f0f6fc', fontSize: '0.85rem', margin: 0 }}>
-                    {formatDate(ev.createdAt)}
-                  </p>
-                </div>
-
-                {/* AI confidence */}
-                <div style={{ minWidth: '80px' }}>
-                  <p style={{ color: '#9ca3af', fontSize: '0.68rem', textTransform: 'uppercase', letterSpacing: '0.07em', margin: '0 0 0.2rem', fontWeight: 600 }}>
-                    AI Score
-                  </p>
-                  <p style={{ color: ev.aiConfidence != null && ev.aiConfidence >= 70 ? '#4ade80' : '#f87171', fontSize: '0.85rem', fontWeight: 600, margin: 0 }}>
-                    {ev.aiConfidence != null ? `${ev.aiConfidence}%` : '—'}
-                  </p>
-                </div>
-
-                {/* Status */}
-                <div style={{ minWidth: '80px' }}>
-                  <StatusBadge status={ev.status} />
-                </div>
-
-                {/* Watch video */}
-                {ev.videoUrl && (
-                  <button
-                    onClick={() => setWatchVideoUrl(extractVideoId(ev.videoUrl!))}
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '0.35rem',
-                      backgroundColor: 'rgba(232,160,32,0.08)',
-                      border: '1px solid rgba(232,160,32,0.3)',
-                      borderRadius: '0.4rem',
-                      color: '#e8a020',
-                      fontSize: '0.78rem',
-                      fontWeight: 600,
-                      padding: '0.35rem 0.8rem',
-                      cursor: 'pointer',
-                      whiteSpace: 'nowrap',
-                    }}
-                    onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'rgba(232,160,32,0.15)'; }}
-                    onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'rgba(232,160,32,0.08)'; }}
-                  >
-                    ▶ Watch Video
-                  </button>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-
-      </main>
-
-      {/* Video player modal */}
-      {watchVideoUrl && (
-        <div
-          onClick={() => setWatchVideoUrl(null)}
-          style={{
-            position: 'fixed',
-            inset: 0,
-            backgroundColor: 'rgba(13,17,23,0.92)',
-            zIndex: 200,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '1.5rem',
-          }}
-        >
-          <div
-            onClick={e => e.stopPropagation()}
-            style={{
-              width: '100%',
-              maxWidth: '800px',
-              backgroundColor: '#111827',
-              border: '1px solid #1e2530',
-              borderRadius: '0.75rem',
-              overflow: 'hidden',
-            }}
-          >
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              padding: '0.875rem 1.25rem',
-              borderBottom: '1px solid #1e2530',
-            }}>
-              <span style={{ color: '#f0f6fc', fontWeight: 700, fontSize: '0.95rem' }}>
-                Verification Video
-              </span>
-              <button
-                onClick={() => setWatchVideoUrl(null)}
-                style={{ background: 'none', border: 'none', color: '#6b7280', fontSize: '1.25rem', cursor: 'pointer', lineHeight: 1, padding: '0.25rem 0.5rem' }}
-                onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = '#f0f6fc'; }}
-                onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = '#6b7280'; }}
-              >
-                &#x2715;
-              </button>
-            </div>
-            <div style={{ position: 'relative', paddingTop: '56.25%' }}>
-              <iframe
-                src={`https://iframe.mediadelivery.net/embed/653202/${watchVideoUrl}?autoplay=false&preload=true`}
-                loading="lazy"
-                style={{ border: 'none', position: 'absolute', top: 0, height: '100%', width: '100%' }}
-                allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;"
-                allowFullScreen
-              />
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
+// Null ratings always sort to the bottom regardless of direction.
+function compareRatings(ar: number | null, br: number | null, dir: 'asc' | 'desc'): number {
+  if (ar == null && br == null) return 0;
+  if (ar == null) return 1;
+  if (br == null) return -1;
+  return dir === 'desc' ? br - ar : ar - br;
 }

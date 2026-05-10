@@ -11,7 +11,8 @@ const NAV_ITEMS = [
   { href: '/dashboard/coach/athletes',     label: 'My Athletes',  icon: UsersIcon },
   { href: '/dashboard/coach/saved',        label: 'Saved',        icon: StarIcon },
   { href: '/dashboard/coach/discover',     label: 'Discover',     icon: SearchIcon },
-  { href: '/dashboard/coach/evaluations',  label: 'Evaluations',  icon: ClipboardIcon },
+  { href: '/dashboard/coach/evaluations',  label: 'Evaluations',  icon: ClipboardCheckIcon },
+  { href: '/dashboard/coach/verifications', label: 'Verifications', icon: ClipboardIcon },
   { href: '/dashboard/coach/settings',     label: 'Settings',     icon: GearIcon },
 ];
 
@@ -222,6 +223,16 @@ function ClipboardIcon({ active }: { active: boolean }) {
       <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2" />
       <rect x="9" y="3" width="6" height="4" rx="1" />
       <path d="M9 12h6M9 16h4" />
+    </svg>
+  );
+}
+
+function ClipboardCheckIcon({ active }: { active: boolean }) {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={active ? '#e8a020' : '#6b7280'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2" />
+      <rect x="9" y="3" width="6" height="4" rx="1" />
+      <path d="M9 14l2 2 4-4" />
     </svg>
   );
 }

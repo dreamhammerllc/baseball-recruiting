@@ -44,7 +44,7 @@ export async function GET(req: NextRequest) {
     .limit(200);
 
   if (error) {
-    console.error('[GET /api/coach/evaluations] error:', error.message);
+    console.error('[GET /api/coach/verifications] error:', error.message);
     return NextResponse.json({ error: 'Failed to fetch evaluations.' }, { status: 500 });
   }
 
