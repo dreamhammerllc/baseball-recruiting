@@ -111,6 +111,27 @@ The established pattern across `app/dashboard/coach/athletes/page.tsx` (My Athle
 - **Live Stripe webhook handler:** `app/api/stripe/webhook/route.ts`. Updates `athletes.subscription_tier` only — `coaches.subscription_tier` is not currently driven by Stripe.
 - **Pro tier mapping is env-gated:** the webhook handler maps `STRIPE_PRO_MONTHLY_PRICE_ID` / `STRIPE_PRO_YEARLY_PRICE_ID` to `'pro'` only when those env vars are set. Lets code ship before Pro products exist in Stripe.
 
+### Launch Billing Strategy (as of 2026-05-10)
+
+**Active in live Stripe (4 SKUs):**
+- Verified Monthly
+- Verified Yearly
+- Elite Monthly
+- Elite Yearly
+
+**Deferred from launch:**
+
+- **Pro tier** — DB constraint allows `'pro'` and the webhook code (`app/api/stripe/webhook/route.ts`) has env-gated Pro mapping controlled by `STRIPE_PRO_MONTHLY_PRICE_ID` / `STRIPE_PRO_YEARLY_PRICE_ID`. Pro will activate automatically when those env vars are set and corresponding Stripe products exist. For launch: env vars not set, Pro not in live Stripe products, Pro not in pricing UI. `SubscriptionTier` type union retains `'pro'` for forward compatibility.
+
+- **Coach billing** — `coaches.subscription_tier` column exists with NOT NULL default `'free'` and the same constraint as athletes (`free | verified | elite | pro`). No code path writes to it. No Stripe flow for coaches at launch. **Do not propose coach billing flows.** Coaches are intentionally free at launch to drive adoption — coach acquisition is a critical product priority in early stages. Future possibility: charge coaches once athlete base reaches critical mass. No decision yet on tier structure, pricing, or timing.
+
+**Implications for code:**
+
+- Stripe webhook updates only `athletes.subscription_tier`. Correct as-is.
+- Pricing UI displays Verified and Elite only. Pro hidden until activated.
+- `lib/subscription.ts`'s type union stays as-is — keeps types forward-compatible.
+- `isPaidTier(tier)` helper remains correct for both athlete and coach contexts.
+
 ## "Verified" Naming Gotcha
 
 Two distinct concepts in this codebase share the word "verified":
