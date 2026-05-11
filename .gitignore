@@ -26,3 +26,6 @@ tsconfig.tsbuildinfo
 # misc
 .DS_Store
 *.log
+
+# Clerk configuration (can include secrets)
+/.clerk/
