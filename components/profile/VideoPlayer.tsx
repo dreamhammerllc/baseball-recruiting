@@ -1,53 +1,27 @@
-type Provider = 'bunny' | 'youtube';
+import { getVideoPlaybackInfo } from '@/lib/videoPlayback';
 
-interface Parsed {
-  provider: Provider;
-  id:       string;
+interface YouTubeMatch {
+  id: string;
 }
 
-function parseVideoUrl(url: string): Parsed | null {
-  if (!url) return null;
-
-  // Bunny Stream — iframe form: https://iframe.mediadelivery.net/embed/653202/<id>
-  if (url.includes('iframe.mediadelivery.net')) {
-    const id = url.split('/').pop()?.split('?')[0] ?? '';
-    return id ? { provider: 'bunny', id } : null;
-  }
-
-  // Bunny Stream — CDN form: https://vz-d9ee7f6e-2b7.b-cdn.net/<id>/...
-  if (url.includes('vz-d9ee7f6e-2b7.b-cdn.net')) {
-    const id = url.split('/')[3] ?? '';
-    return id ? { provider: 'bunny', id } : null;
-  }
-
-  // YouTube — youtu.be/<id>, youtube.com/watch?v=<id>,
-  // youtube.com/embed/<id>, youtube.com/shorts/<id>, m.youtube.com/*
+function parseYouTubeUrl(url: string): YouTubeMatch | null {
   try {
     const u = new URL(url);
     const host = u.hostname.toLowerCase();
     if (host === 'youtu.be') {
       const id = u.pathname.replace(/^\//, '').split('/')[0];
-      return id ? { provider: 'youtube', id } : null;
+      return id ? { id } : null;
     }
     if (host.endsWith('youtube.com') || host.endsWith('youtube-nocookie.com')) {
       const v = u.searchParams.get('v');
-      if (v) return { provider: 'youtube', id: v };
+      if (v) return { id: v };
       const m = u.pathname.match(/^\/(?:embed|shorts|v)\/([^/?#]+)/);
-      if (m) return { provider: 'youtube', id: m[1] };
+      if (m) return { id: m[1] };
     }
   } catch {
     // not a parseable URL
   }
-
   return null;
-}
-
-function embedSrc(parsed: Parsed): string {
-  if (parsed.provider === 'bunny') {
-    const lib = process.env.NEXT_PUBLIC_BUNNY_STREAM_LIBRARY_ID ?? '';
-    return `https://iframe.mediadelivery.net/embed/${lib}/${parsed.id}?autoplay=false&preload=true`;
-  }
-  return `https://www.youtube-nocookie.com/embed/${parsed.id}?rel=0`;
 }
 
 export default function VideoPlayer({
@@ -60,9 +34,10 @@ export default function VideoPlayer({
   /** When true, render a "no video uploaded yet" card if url is missing/unparseable. */
   showPlaceholder?: boolean;
 }) {
-  const parsed = url ? parseVideoUrl(url) : null;
+  const playback = url ? getVideoPlaybackInfo(url) : { kind: 'unsupported' as const };
+  const youtube = url && playback.kind === 'unsupported' ? parseYouTubeUrl(url) : null;
 
-  if (!parsed) {
+  if (playback.kind === 'unsupported' && !youtube) {
     if (!showPlaceholder) return null;
     return (
       <section style={{ marginBottom: '2.5rem' }}>
@@ -88,13 +63,31 @@ export default function VideoPlayer({
     <section style={{ marginBottom: '2.5rem' }}>
       <Header title={title} />
       <div style={{ position: 'relative', paddingTop: '56.25%', borderRadius: '0.75rem', overflow: 'hidden' }}>
-        <iframe
-          src={embedSrc(parsed)}
-          loading="lazy"
-          style={{ border: 'none', position: 'absolute', top: 0, height: '100%', width: '100%' }}
-          allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;"
-          allowFullScreen
-        />
+        {playback.kind === 'mp4' && (
+          <video
+            src={playback.src}
+            controls
+            style={{ position: 'absolute', top: 0, height: '100%', width: '100%', background: '#000' }}
+          />
+        )}
+        {playback.kind === 'iframe' && (
+          <iframe
+            src={playback.src}
+            loading="lazy"
+            style={{ border: 'none', position: 'absolute', top: 0, height: '100%', width: '100%' }}
+            allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;"
+            allowFullScreen
+          />
+        )}
+        {youtube && (
+          <iframe
+            src={`https://www.youtube-nocookie.com/embed/${youtube.id}?rel=0`}
+            loading="lazy"
+            style={{ border: 'none', position: 'absolute', top: 0, height: '100%', width: '100%' }}
+            allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;"
+            allowFullScreen
+          />
+        )}
       </div>
     </section>
   );
