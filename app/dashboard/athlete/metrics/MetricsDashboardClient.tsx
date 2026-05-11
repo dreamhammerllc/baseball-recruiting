@@ -8,6 +8,7 @@ import VideoUpload from '@/components/VideoUpload';
 import ThirdPartyImportModal from '@/components/ThirdPartyImportModal';
 import CoachVerificationModal from '@/components/CoachVerificationModal';
 import { getMetricsForPositions, METRIC_INFO, POSITIONS } from '@/lib/metrics';
+import { getVideoPlaybackInfo } from '@/lib/videoPlayback';
 import type {
   AthleteMetric,
   AthletePosition,
@@ -905,23 +906,31 @@ export default function MetricsDashboardClient({
               {/* Video player */}
               <div style={{ backgroundColor: '#000' }}>
                 {videoUrl ? (() => {
-                  let videoId = '';
-                  if (videoUrl.includes('iframe.mediadelivery.net')) {
-                    videoId = videoUrl.split('/').pop()?.split('?')[0] ?? '';
-                  } else if (videoUrl.includes('vz-d9ee7f6e-2b7.b-cdn.net')) {
-                    videoId = videoUrl.split('/')[3] ?? '';
+                  const playback = getVideoPlaybackInfo(videoUrl);
+                  if (playback.kind === 'mp4') {
+                    return (
+                      <video
+                        src={playback.src}
+                        controls
+                        autoPlay
+                        style={{ display: 'block', width: '100%', height: '300px', background: '#000', border: 'none' }}
+                      />
+                    );
                   }
-                  if (videoId) console.log('[WatchModal] iframe src:', `https://iframe.mediadelivery.net/embed/653202/${videoId}?autoplay=false&preload=true`);
-                  return videoId ? (
-                    <iframe
-                      src={`https://iframe.mediadelivery.net/embed/653202/${videoId}?autoplay=false&preload=true`}
-                      width="100%"
-                      height="300"
-                      style={{ border: 'none', display: 'block' }}
-                      allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;"
-                      allowFullScreen
-                    />
-                  ) : (
+                  if (playback.kind === 'iframe') {
+                    return (
+                      <iframe
+                        src={playback.src}
+                        width="100%"
+                        height="300"
+                        loading="lazy"
+                        style={{ border: 'none', display: 'block' }}
+                        allow="autoplay; fullscreen"
+                        allowFullScreen
+                      />
+                    );
+                  }
+                  return (
                     <div style={{ padding: '2.5rem', textAlign: 'center', backgroundColor: '#0d1117' }}>
                       <p style={{ color: '#9ca3af', fontSize: '0.875rem', margin: '0 0 1rem', lineHeight: 1.6 }}>
                         Video format not supported — please re-upload this video.

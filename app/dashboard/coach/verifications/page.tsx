@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import CoachSidebar from '@/components/layout/CoachSidebar';
+import { getVideoPlaybackInfo } from '@/lib/videoPlayback';
 import type { Evaluation } from '@/app/api/coach/verifications/route';
 
 export const dynamic = 'force-dynamic';
@@ -10,17 +11,6 @@ function formatDate(dateStr: string): string {
   const d = new Date(dateStr);
   const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   return `${months[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
-}
-
-function extractVideoId(url: string): string {
-  if (!url) return '';
-  if (url.includes('iframe.mediadelivery.net')) {
-    return url.split('/').pop()?.split('?')[0] ?? '';
-  }
-  if (url.includes('vz-d9ee7f6e-2b7.b-cdn.net')) {
-    return url.split('/')[3] ?? '';
-  }
-  return '';
 }
 
 function StatusBadge({ status }: { status: string }) {
@@ -46,6 +36,8 @@ export default function CoachEvaluationsPage() {
   const [loading, setLoading]         = useState(true);
   const [error, setError]             = useState<string | null>(null);
   const [watchVideoUrl, setWatchVideoUrl] = useState<string | null>(null);
+
+  const playbackInfo = watchVideoUrl ? getVideoPlaybackInfo(watchVideoUrl) : null;
 
   useEffect(() => {
     fetch('/api/coach/verifications')
@@ -164,9 +156,9 @@ export default function CoachEvaluationsPage() {
                 </div>
 
                 {/* Watch video */}
-                {ev.videoUrl && (
+                {ev.videoUrl && getVideoPlaybackInfo(ev.videoUrl).kind !== 'unsupported' && (
                   <button
-                    onClick={() => setWatchVideoUrl(extractVideoId(ev.videoUrl!))}
+                    onClick={() => setWatchVideoUrl(ev.videoUrl!)}
                     style={{
                       display: 'inline-flex',
                       alignItems: 'center',
@@ -195,7 +187,7 @@ export default function CoachEvaluationsPage() {
       </main>
 
       {/* Video player modal */}
-      {watchVideoUrl && (
+      {watchVideoUrl && playbackInfo && (
         <div
           onClick={() => setWatchVideoUrl(null)}
           style={{
@@ -239,15 +231,36 @@ export default function CoachEvaluationsPage() {
                 &#x2715;
               </button>
             </div>
-            <div style={{ position: 'relative', paddingTop: '56.25%' }}>
+            {playbackInfo.kind === 'mp4' && (
+              <video
+                src={playbackInfo.src}
+                controls
+                autoPlay
+                style={{ display: 'block', width: '100%', height: '300px', background: '#000', border: 'none' }}
+              />
+            )}
+            {playbackInfo.kind === 'iframe' && (
               <iframe
-                src={`https://iframe.mediadelivery.net/embed/653202/${watchVideoUrl}?autoplay=false&preload=true`}
+                src={playbackInfo.src}
+                width="100%"
+                height="300"
                 loading="lazy"
-                style={{ border: 'none', position: 'absolute', top: 0, height: '100%', width: '100%' }}
-                allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;"
+                style={{ border: 'none', display: 'block' }}
+                allow="autoplay; fullscreen"
                 allowFullScreen
               />
-            </div>
+            )}
+            {playbackInfo.kind === 'unsupported' && (
+              <div style={{
+                padding: '2rem 1.5rem',
+                textAlign: 'center',
+                color: '#9ca3af',
+                fontSize: '0.85rem',
+                lineHeight: 1.55,
+              }}>
+                This video format isn&apos;t supported by the current player.
+              </div>
+            )}
           </div>
         </div>
       )}

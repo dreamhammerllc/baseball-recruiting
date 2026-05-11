@@ -44,7 +44,8 @@ function parseVideoUrl(url: string): Parsed | null {
 
 function embedSrc(parsed: Parsed): string {
   if (parsed.provider === 'bunny') {
-    return `https://iframe.mediadelivery.net/embed/653202/${parsed.id}?autoplay=false&preload=true`;
+    const lib = process.env.NEXT_PUBLIC_BUNNY_STREAM_LIBRARY_ID ?? '';
+    return `https://iframe.mediadelivery.net/embed/${lib}/${parsed.id}?autoplay=false&preload=true`;
   }
   return `https://www.youtube-nocookie.com/embed/${parsed.id}?rel=0`;
 }
