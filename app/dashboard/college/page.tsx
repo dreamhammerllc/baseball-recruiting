@@ -23,6 +23,20 @@ import { createAdminClient } from '@/lib/supabase';
 
 export const dynamic = 'force-dynamic';
 
+interface AthleteSearchRow {
+  clerk_user_id: string;
+  first_name: string | null;
+  last_name: string | null;
+  position: string | null;
+  grad_year: string | null;
+  home_state: string | null;
+  gpa_weighted: number | null;
+  gpa_unweighted: number | null;
+  exit_velocity_mph: number | null;
+  fastball_velocity_mph: number | null;
+  division_pref: string | null;
+}
+
 export default async function CollegeCoachDashboard() {
   const user = await currentUser();
   if (!user) redirect('/sign-in');
@@ -117,7 +131,8 @@ async function fetchProspects(): Promise<Prospect[]> {
         'clerk_user_id, first_name, last_name, position, grad_year, home_state, ' +
         'gpa_weighted, gpa_unweighted, exit_velocity_mph, fastball_velocity_mph, division_pref',
       )
-      .order('first_name', { ascending: true });
+      .order('first_name', { ascending: true })
+      .returns<AthleteSearchRow[]>();
 
     if (athleteError || !athletes || athletes.length === 0) {
       if (athleteError) console.error('[college] athletes fetch failed:', athleteError.message);

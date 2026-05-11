@@ -6,6 +6,21 @@ import { createAdminClient } from '@/lib/supabase';
 
 export const dynamic = 'force-dynamic';
 
+interface SavedAthleteRow {
+  id: string;
+  clerk_user_id: string;
+  first_name: string | null;
+  last_name: string | null;
+  position: string | null;
+  grad_year: string | null;
+  home_state: string | null;
+  gpa_weighted: number | null;
+  gpa_unweighted: number | null;
+  exit_velocity_mph: number | null;
+  fastball_velocity_mph: number | null;
+  division_pref: string | null;
+}
+
 export default async function SavedProspectsPage() {
   const { userId } = await auth();
   if (!userId) redirect('/sign-in');
@@ -71,7 +86,8 @@ async function fetchSavedProspects(coachClerkId: string): Promise<SavedProspect[
         'id, clerk_user_id, first_name, last_name, position, grad_year, home_state, ' +
         'gpa_weighted, gpa_unweighted, exit_velocity_mph, fastball_velocity_mph, division_pref',
       )
-      .in('clerk_user_id', athleteClerkIds);
+      .in('clerk_user_id', athleteClerkIds)
+      .returns<SavedAthleteRow[]>();
 
     if (athleteError || !athletes || athletes.length === 0) {
       if (athleteError) console.error('[saved-prospects] athletes fetch failed:', athleteError.message);
