@@ -13,5 +13,5 @@ export async function promoteRole(role: string): Promise<string> {
 
   if (role === 'athlete') return '/dashboard/athlete';
   if (role === 'hs_coach') return '/dashboard/coach';
-  return '/dashboard/college';
+  return '/';
 }

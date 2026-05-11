@@ -8,7 +8,6 @@ import { promoteRole } from './actions';
 const ROLES = [
   { value: 'athlete',       label: 'Athlete',          description: 'High school or college athlete looking to get recruited.' },
   { value: 'hs_coach',      label: 'High School Coach', description: 'Coach a high school team and help players get recruited.' },
-  { value: 'college_coach', label: 'College Coach',     description: 'Recruit athletes for a college program.' },
 ] as const;
 type Role = typeof ROLES[number]['value'];
 
