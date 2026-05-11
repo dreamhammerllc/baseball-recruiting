@@ -58,7 +58,7 @@ export async function GET(req: NextRequest) {
       name:          p ? ([p.first_name, p.last_name].filter(Boolean).join(' ') || 'Unknown Athlete') : 'Unknown Athlete',
       photo:         p?.photo_url ?? null,
       position:      p?.position ?? null,
-      gradYear:      p?.grad_year ?? null,
+      graduationYear: p?.grad_year ?? null,
       state:         p?.home_state ?? null,
       updatedAt:     p?.updated_at ?? null,
       verified:      (p?.verification_tier ?? 0) > 0,

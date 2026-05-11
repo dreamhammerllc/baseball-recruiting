@@ -12,7 +12,7 @@ interface ConnectedAthlete {
   name:         string;
   photo:        string | null;
   position:     string | null;
-  gradYear:     number | null;
+  graduationYear: number | null;
   state:        string | null;
   updatedAt:    string | null;
   verified:     boolean;
@@ -62,7 +62,7 @@ export default function MyAthletesPage() {
 
   const availableGradYears = useMemo(() => {
     const s = new Set<number>();
-    for (const a of athletes) if (a.gradYear != null) s.add(a.gradYear);
+    for (const a of athletes) if (a.graduationYear != null) s.add(a.graduationYear);
     return [...s].sort((x, y) => x - y);
   }, [athletes]);
 
@@ -75,7 +75,7 @@ export default function MyAthletesPage() {
     }
     if (filters.gradYear) {
       const y = Number(filters.gradYear);
-      r = r.filter(a => a.gradYear === y);
+      r = r.filter(a => a.graduationYear === y);
     }
     if (recentlyActive) {
       r = r.filter(a => a.updatedAt != null && new Date(a.updatedAt).getTime() >= cutoff);
@@ -85,8 +85,8 @@ export default function MyAthletesPage() {
       sorted.sort((x, y) => x.name.localeCompare(y.name));
     } else if (sort === 'gradYearAsc') {
       sorted.sort((x, y) => {
-        const xy = x.gradYear ?? Number.POSITIVE_INFINITY;
-        const yy = y.gradYear ?? Number.POSITIVE_INFINITY;
+        const xy = x.graduationYear ?? Number.POSITIVE_INFINITY;
+        const yy = y.graduationYear ?? Number.POSITIVE_INFINITY;
         if (xy !== yy) return xy - yy;
         return x.name.localeCompare(y.name);
       });
@@ -277,7 +277,7 @@ export default function MyAthletesPage() {
                 const isConfirming = confirmRemove === a.athleteId;
                 const isRemoving   = removing === a.athleteId;
                 const initials = a.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
-                const hasMeta = a.position || a.gradYear || a.state;
+                const hasMeta = a.position || a.graduationYear || a.state;
 
                 return (
                   <div
@@ -314,7 +314,7 @@ export default function MyAthletesPage() {
                         </p>
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.3rem', marginTop: '0.25rem' }}>
                           {a.position && <Pill>{a.position}</Pill>}
-                          {a.gradYear && <Pill>{`'${String(a.gradYear).slice(-2)}`}</Pill>}
+                          {a.graduationYear && <Pill>{`'${String(a.graduationYear).slice(-2)}`}</Pill>}
                           {a.state    && <Pill muted>{a.state}</Pill>}
                           {a.verified && <Pill gold>◆ Verified</Pill>}
                           {!hasMeta   && (
@@ -410,7 +410,7 @@ export default function MyAthletesPage() {
               name: athlete.name,
               photo: athlete.photo,
               position: athlete.position,
-              gradYear: athlete.gradYear,
+              graduationYear: athlete.gradYear,
               state: null,
               updatedAt: null,
               username: null,
