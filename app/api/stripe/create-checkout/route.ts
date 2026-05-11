@@ -13,6 +13,9 @@ const PRICE_MAP: Record<string, string | undefined> = {
   'elite:yearly':     process.env.STRIPE_ELITE_YEARLY_PRICE_ID,
 }
 
+const SUCCESS_URL = 'https://diamondverified.app/dashboard/athlete?upgraded=true'
+const CANCEL_URL  = 'https://diamondverified.app/dashboard/athlete/upgrade'
+
 export async function POST(req: NextRequest) {
   try {
     const { userId } = await auth()
@@ -40,7 +43,7 @@ export async function POST(req: NextRequest) {
 
     const { data: athlete } = await db
       .from('athletes')
-      .select('stripe_customer_id, email, full_name')
+      .select('stripe_customer_id, stripe_subscription_id, email, full_name')
       .eq('clerk_user_id', userId)
       .single()
 
@@ -48,6 +51,29 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Athlete record not found' }, { status: 404 })
     }
 
+    // If athlete already has an active subscription, upgrade it in-place
+    if (athlete.stripe_subscription_id) {
+      try {
+        const existing = await stripe.subscriptions.retrieve(athlete.stripe_subscription_id)
+
+        if (existing.status === 'active' || existing.status === 'trialing') {
+          const itemId = existing.items.data[0]?.id
+          if (itemId) {
+            await stripe.subscriptions.update(athlete.stripe_subscription_id, {
+              items:              [{ id: itemId, price: priceId }],
+              proration_behavior: 'create_prorations',
+            })
+            // Webhook will fire subscription.updated and sync Supabase
+            return NextResponse.json({ url: SUCCESS_URL })
+          }
+        }
+      } catch (retrieveErr) {
+        // Subscription may have been deleted in Stripe; fall through to new checkout
+        console.warn('[create-checkout] could not retrieve existing subscription:', retrieveErr)
+      }
+    }
+
+    // No active subscription — create a new Stripe customer if needed
     let customerId = athlete.stripe_customer_id
 
     if (!customerId) {
@@ -69,8 +95,8 @@ export async function POST(req: NextRequest) {
       payment_method_types: ['card'],
       line_items:           [{ price: priceId, quantity: 1 }],
       mode:                 'subscription',
-      success_url:          'https://diamondverified.app/dashboard/athlete?upgraded=true',
-      cancel_url:           'https://diamondverified.app/dashboard/athlete/settings',
+      success_url:          SUCCESS_URL,
+      cancel_url:           CANCEL_URL,
       metadata:             { tier, clerk_user_id: userId },
     })
 

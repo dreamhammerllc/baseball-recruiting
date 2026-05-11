@@ -8,10 +8,9 @@ import PushNotificationToggle from '@/components/PushNotificationToggle';
 export const dynamic = 'force-dynamic';
 
 const TIER_META: Record<string, { label: string; color: string; desc: string }> = {
-  free:        { label: 'Free',        color: '#6b7280', desc: 'Basic profile + public metrics page' },
-  athlete:     { label: 'Athlete',     color: '#e8a020', desc: 'Coach verifications + school matching' },
-  athlete_pro: { label: 'Athlete Pro', color: '#a855f7', desc: 'Priority matching + advanced analytics' },
-  coach:       { label: 'Coach',       color: '#58a6ff', desc: 'Coach portal access' },
+  free:     { label: 'Free',             color: '#6b7280', desc: 'Basic profile and public metrics page' },
+  verified: { label: 'Diamond Verified', color: '#e8a020', desc: 'Gold badge on public profile plus all coach-verified metrics visible' },
+  elite:    { label: 'Diamond Elite',    color: '#58a6ff', desc: 'Everything in Verified plus School Matches calculator' },
 };
 
 interface NotifPrefs {
@@ -28,15 +27,18 @@ export default function AthleteSettingsPage() {
   const { user, isLoaded } = useUser();
   const { signOut } = useClerk();
 
-  const [tier, setTier]               = useState<string>('free');
-  const [prefs, setPrefs]             = useState<NotifPrefs>(DEFAULT_PREFS);
-  const [notifSaving, setNotifSaving] = useState(false);
-  const [notifMsg, setNotifMsg]       = useState<string | null>(null);
+  const [tier, setTier]                   = useState<string>('free');
+  const [prefs, setPrefs]                 = useState<NotifPrefs>(DEFAULT_PREFS);
+  const [notifSaving, setNotifSaving]     = useState(false);
+  const [notifMsg, setNotifMsg]           = useState<string | null>(null);
   const [showDeleteWarning, setShowDeleteWarning] = useState(false);
+  const [portalLoading, setPortalLoading] = useState(false);
+  const [portalError, setPortalError]     = useState<string | null>(null);
 
   const email    = user?.emailAddresses[0]?.emailAddress ?? '';
   const tierMeta = TIER_META[tier] ?? TIER_META.free;
   const isFree   = tier === 'free';
+  const isPaid   = !isFree;
 
   useEffect(() => {
     fetch('/api/athlete/profile')
@@ -77,6 +79,24 @@ export default function AthleteSettingsPage() {
     const updated = { ...prefs, [key]: !prefs[key] };
     setPrefs(updated);
     saveNotifs(updated);
+  }
+
+  async function openBillingPortal() {
+    setPortalLoading(true);
+    setPortalError(null);
+    try {
+      const res  = await fetch('/api/stripe/portal', { method: 'POST' });
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        setPortalError(data.error ?? 'Could not open billing portal.');
+        setPortalLoading(false);
+      }
+    } catch {
+      setPortalError('Something went wrong. Please try again.');
+      setPortalLoading(false);
+    }
   }
 
   if (!isLoaded) {
@@ -165,7 +185,7 @@ export default function AthleteSettingsPage() {
                     href="mailto:support@diamondverified.app?subject=Delete%20My%20Account"
                     style={{ color: '#f87171', fontSize: '0.82rem', fontWeight: 700, textDecoration: 'none', display: 'inline-block', marginTop: '0.25rem' }}
                   >
-                    support@diamondverified.app →
+                    support@diamondverified.app &rarr;
                   </a>
                   <button
                     type="button"
@@ -193,22 +213,52 @@ export default function AthleteSettingsPage() {
             {isFree && (
               <>
                 <div style={{ borderTop: '1px solid #1e2530', paddingTop: '1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                  {['Coach-verified metric badges on your profile', 'School match analysis based on your stats', 'Priority placement in recruiter searches'].map(feat => (
+                  {['Gold Diamond Verified badge on your profile', 'All coach-verified metrics visible to coaches', 'School Matches calculator (Elite)'].map(feat => (
                     <div key={feat} style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                      <span style={{ color: '#e8a020', fontSize: '0.9rem' }}>◆</span>
+                      <span style={{ color: '#e8a020', fontSize: '0.9rem' }}>&#9670;</span>
                       <span style={{ color: '#9ca3af', fontSize: '0.82rem' }}>{feat}</span>
                     </div>
                   ))}
                 </div>
-                <a href="/pricing" style={{ backgroundColor: '#e8a020', border: 'none', borderRadius: '0.5rem', color: '#000000', cursor: 'pointer', display: 'inline-block', fontSize: '0.875rem', fontWeight: 700, padding: '0.6rem 1.5rem', textDecoration: 'none', width: 'fit-content' }}>
-                  Upgrade Plan →
+                <a href="/dashboard/athlete/upgrade" style={{ backgroundColor: '#e8a020', border: 'none', borderRadius: '0.5rem', color: '#000000', cursor: 'pointer', display: 'inline-block', fontSize: '0.875rem', fontWeight: 700, padding: '0.6rem 1.5rem', textDecoration: 'none', width: 'fit-content' }}>
+                  Upgrade Plan &rarr;
                 </a>
               </>
             )}
 
-            {!isFree && (
-              <div style={{ borderTop: '1px solid #1e2530', paddingTop: '1rem' }}>
-                <a href="/pricing" style={{ color: '#6b7280', fontSize: '0.82rem', textDecoration: 'none', fontWeight: 500 }}>View all plans →</a>
+            {isPaid && (
+              <div style={{ borderTop: '1px solid #1e2530', paddingTop: '1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                {tier === 'verified' && (
+                  <a href="/dashboard/athlete/upgrade" style={{ color: '#58a6ff', fontSize: '0.82rem', textDecoration: 'none', fontWeight: 600 }}>
+                    Upgrade to Elite &rarr;
+                  </a>
+                )}
+
+                {portalError && (
+                  <p style={{ color: '#f87171', fontSize: '0.8rem', margin: 0 }}>{portalError}</p>
+                )}
+
+                <button
+                  type="button"
+                  onClick={openBillingPortal}
+                  disabled={portalLoading}
+                  style={{
+                    backgroundColor: 'transparent',
+                    border: '1px solid #1e2530',
+                    borderRadius: '0.5rem',
+                    color: portalLoading ? '#4b5563' : '#9ca3af',
+                    cursor: portalLoading ? 'not-allowed' : 'pointer',
+                    fontSize: '0.82rem',
+                    fontWeight: 600,
+                    padding: '0.5rem 1rem',
+                    width: 'fit-content',
+                  }}
+                >
+                  {portalLoading ? 'Opening...' : 'Manage Billing / Cancel'}
+                </button>
+                <p style={{ color: '#4b5563', fontSize: '0.75rem', margin: 0 }}>
+                  Change payment method, view invoices, or cancel your subscription.
+                </p>
               </div>
             )}
           </div>
