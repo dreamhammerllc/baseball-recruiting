@@ -26,7 +26,7 @@ function StatusBadge({ status }: { status: string }) {
       border: `1px solid ${approved ? 'rgba(74,222,128,0.3)' : 'rgba(232,160,32,0.3)'}`,
       color: approved ? '#4ade80' : '#e8a020',
     }}>
-      {approved ? 'Approved' : 'Pending'}
+      {approved ? 'Approved' : 'Low Confidence'}
     </span>
   );
 }

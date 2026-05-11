@@ -226,7 +226,7 @@ export default function CoachDashboardClient() {
         approved: data.status === 'approved',
         message:  data.status === 'approved'
           ? `Metric verified and saved to ${selectedAthlete.fullName}'s profile.`
-          : 'Verification submitted for manual review.',
+          : `Metric saved to ${selectedAthlete.fullName}'s profile with a low-confidence tag. AI couldn't fully verify the measurement.`,
       });
       setValue('');
       setVideoFile(null);

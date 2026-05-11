@@ -228,7 +228,7 @@ export default function SessionUpload({
               fontSize: '0.82rem',
             }}
           >
-            Confidence too low for automatic verification. This will be flagged for manual review.
+            AI confidence was low for this extraction. Please review the metrics carefully before saving.
           </div>
         )}
 
