@@ -76,6 +76,27 @@ The established pattern across `app/dashboard/coach/athletes/page.tsx` (My Athle
 - Use the SELECT-then-skip idempotent pattern (see `scripts/seed-dream-connections.mjs` and `scripts/seed-discover-athletes.mjs`).
 - Use the service-role Supabase client from a `dotenv`-loaded `.env.local`.
 
+### Bunny Stream library configuration
+
+Verification and demo videos are hosted on Bunny Stream library `653202` (library name: `diamond-verified`). The library has security settings that affect playback in ways not visible from the codebase — when video playback fails, check these settings FIRST.
+
+**Allowed Domains is a referrer whitelist.** Bunny library 653202 has a list of domains under Security → General → Allowed Domains. Only browsers whose `Referer` header matches a domain on the list can play videos — anything else gets a 403. Current entries: `localhost`, `diamondverified.app`, `*.vercel.app`.
+
+**Rotation checklist when adding a new domain to the app:**
+1. Add the new domain to Bunny library 653202 → Security → General → Allowed Domains FIRST
+2. Then deploy/launch the app at the new domain
+3. Verify playback works from the new domain before announcing
+
+If you skip step 1, videos will silently 403 from the new domain even though the app otherwise looks healthy.
+
+**"Block direct url file access" is ON.** This is the setting that enforces the Allowed Domains referrer check. Keep it ON for production — turning it off means anyone with a video URL can embed and play it from any site. The protection is referrer-based, which is easy to break in dev when adding new local ports, tunnels, or preview domains.
+
+**Token Authentication is OFF.** We do not generate signed URLs. If anyone enables Token Authentication in the Bunny dashboard, all playback breaks immediately until signed URL generation is implemented in the upload pipeline. Don't enable it without a corresponding code change.
+
+**Library ID lives in env, not in code.** The Bunny library ID is read from `NEXT_PUBLIC_BUNNY_STREAM_LIBRARY_ID` (set to `653202` in `.env.local` and Vercel). Never hardcode `653202` inline in iframe URLs — use the env var. The `getVideoPlaybackInfo` helper in `lib/videoPlayback.ts` handles this correctly; new code that plays Bunny videos should route through that helper.
+
+**First-check rule when video playback fails:** Before investigating code, check the Bunny dashboard's Allowed Domains list. A 403 from `iframe.mediadelivery.net` or the Bunny CDN almost always means a referrer that isn't on the list.
+
 ---
 
 ## Schema Column Mappings (DB → API response key)
