@@ -4,6 +4,8 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import CoachSidebar from '@/components/layout/CoachSidebar';
 import AddAthleteModal from '@/components/AddAthleteModal';
+import Pill from '@/components/ui/Pill';
+import { selectStyle } from '@/lib/ui/selectStyle';
 
 interface ConnectedAthlete {
   connectionId: string;
@@ -419,35 +421,5 @@ export default function MyAthletesPage() {
         />
       )}
     </div>
-  );
-}
-
-// ── Helpers ─────────────────────────────────────────────────────────────────
-
-const selectStyle: React.CSSProperties = {
-  background:   '#111827',
-  color:        '#f0f6fc',
-  border:       '1px solid #1e2530',
-  borderRadius: '0.4rem',
-  padding:      '0.4rem 0.6rem',
-  fontSize:     '0.78rem',
-  cursor:       'pointer',
-};
-
-function Pill({ children, muted, gold }: { children: React.ReactNode; muted?: boolean; gold?: boolean }) {
-  return (
-    <span style={{
-      fontFamily:    'monospace',
-      background:    gold ? 'rgba(232,160,32,0.12)' : '#0d1117',
-      border:        `1px solid ${gold ? '#e8a020' : '#1e2530'}`,
-      borderRadius:  '0.3rem',
-      padding:       '0.1rem 0.45rem',
-      fontSize:      '0.65rem',
-      color:         gold ? '#e8a020' : muted ? '#6b7280' : '#f0f6fc',
-      letterSpacing: '0.04em',
-      fontWeight:    gold ? 700 : 500,
-    }}>
-      {children}
-    </span>
   );
 }

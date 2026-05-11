@@ -4,6 +4,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import CoachSidebar from '@/components/layout/CoachSidebar';
 import { formatRelativeTime } from '@/lib/time';
+import Pill from '@/components/ui/Pill';
+import { selectStyle } from '@/lib/ui/selectStyle';
 
 interface NoteWithAthlete {
   id:        string;
@@ -487,34 +489,6 @@ function RatingBadge({ rating }: { rating: number | null }) {
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────
-
-const selectStyle: React.CSSProperties = {
-  background:   '#111827',
-  color:        '#f0f6fc',
-  border:       '1px solid #1e2530',
-  borderRadius: '0.4rem',
-  padding:      '0.4rem 0.6rem',
-  fontSize:     '0.78rem',
-  cursor:       'pointer',
-};
-
-function Pill({ children, muted }: { children: React.ReactNode; muted?: boolean }) {
-  return (
-    <span style={{
-      fontFamily:    'monospace',
-      background:    '#0d1117',
-      border:        '1px solid #1e2530',
-      borderRadius:  '0.3rem',
-      padding:       '0.1rem 0.45rem',
-      fontSize:      '0.65rem',
-      color:         muted ? '#6b7280' : '#f0f6fc',
-      letterSpacing: '0.04em',
-      fontWeight:    500,
-    }}>
-      {children}
-    </span>
-  );
-}
 
 function fullName(n: NoteWithAthlete): string {
   return [n.athlete.firstName, n.athlete.lastName].filter(Boolean).join(' ') || 'Athlete';
