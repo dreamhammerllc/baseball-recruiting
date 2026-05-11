@@ -228,7 +228,7 @@ export default function SessionUpload({
               fontSize: '0.82rem',
             }}
           >
-            AI confidence was low for this extraction. Please review the metrics carefully before saving.
+            AI confidence was low for this extraction. Please review the metrics carefully — if anything looks off, cancel and re-upload.
           </div>
         )}
 
