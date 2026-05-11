@@ -1,6 +1,8 @@
 'use client';
 
 import { useState } from 'react';
+import { useUser } from '@clerk/nextjs';
+import { useRouter } from 'next/navigation';
 import AthleteSidebar from '@/components/layout/AthleteSidebar';
 import SessionUpload from '@/components/SessionUpload';
 import { METRIC_INFO, METRIC_KEYS, VERIFICATION_TYPES } from '@/lib/metrics';
@@ -218,6 +220,10 @@ function ManualEntryForm() {
 // ─── Session Report Tab ───────────────────────────────────────────────────────
 
 function SessionReportTab() {
+  const { user } = useUser();
+  const router = useRouter();
+  const athleteName = user?.fullName ?? '';
+
   const [sessionResult, setSessionResult] = useState<{
     metrics: Record<string, number>;
     confidence: number;
@@ -404,9 +410,11 @@ function SessionReportTab() {
 
   return (
     <SessionUpload
+      athleteName={athleteName}
       onConfirm={(metrics, sessionDate, sourceType, confidence) =>
         handleConfirm(metrics, sessionDate, sourceType as SourceType, confidence)
       }
+      onCancel={() => router.push('/dashboard/athlete/metrics')}
     />
   );
 }

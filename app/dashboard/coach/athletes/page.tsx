@@ -416,6 +416,7 @@ export default function MyAthletesPage() {
               state: null,
               updatedAt: null,
               username: null,
+              verified: false,
             });
           }}
         />

@@ -15,7 +15,6 @@ interface ExtractedData {
 }
 
 interface SessionUploadProps {
-  athleteClerkId: string;
   athleteName: string;
   onConfirm: (
     metrics: Record<string, number>,
@@ -75,7 +74,6 @@ function ConfidenceBadge({ score }: { score: number }) {
 }
 
 export default function SessionUpload({
-  athleteClerkId: _athleteClerkId,
   athleteName,
   onConfirm,
   onCancel,

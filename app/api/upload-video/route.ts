@@ -275,7 +275,7 @@ async function handleUpload(req: NextRequest): Promise<NextResponse> {
 
     // Pipe the Web ReadableStream (req.body) into busboy via a Node.js Readable.
     // This never buffers the full payload — chunks flow through as they arrive.
-    const nodeReadable = Readable.fromWeb(req.body as ReadableStream<Uint8Array>);
+    const nodeReadable = Readable.fromWeb(req.body as Parameters<typeof Readable.fromWeb>[0]);
     nodeReadable.on('error', (err: Error) => {
       console.error('[upload-video] Request stream error:', err);
       settle(NextResponse.json({ error: 'Failed to read request stream.' }, { status: 500 }));

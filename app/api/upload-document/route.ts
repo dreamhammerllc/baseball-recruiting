@@ -107,7 +107,7 @@ export async function POST(req: NextRequest) {
   const storagePath = `${userId}/${documentType}/${safeName}`;
 
   // ── Upload to Supabase Storage ──────────────────────────────────────────────
-  let db: ReturnType<typeof createClient>;
+  let db: ReturnType<typeof getAdminClient>;
   try {
     db = getAdminClient();
   } catch (err) {
