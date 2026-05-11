@@ -4,6 +4,7 @@ import { useState } from 'react';
 import MetricsGraph from '@/components/MetricsGraph';
 import type { AthleteMetric, MetricKey } from '@/lib/metrics';
 import { METRIC_INFO, VERIFICATION_LABELS } from '@/lib/metrics';
+import { getVideoPlaybackInfo } from '@/lib/videoPlayback';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -20,20 +21,11 @@ interface GraphState {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-function extractVideoId(url: string): string {
-  if (!url) return '';
-  if (url.includes('iframe.mediadelivery.net')) {
-    return url.split('/').pop()?.split('?')[0] ?? '';
-  }
-  if (url.includes('vz-d9ee7f6e-2b7.b-cdn.net')) {
-    return url.split('/')[3] ?? '';
-  }
-  return '';
-}
-
 export default function PublicMetricsSection({ personalBestMetrics, athleteClerkId }: Props) {
   const [graphState, setGraphState] = useState<GraphState | null>(null);
   const [watchVideoUrl, setWatchVideoUrl] = useState<string | null>(null);
+
+  const playbackInfo = watchVideoUrl ? getVideoPlaybackInfo(watchVideoUrl) : null;
 
   async function openGraph(metricKey: MetricKey) {
     // Show loading modal immediately
@@ -204,7 +196,7 @@ export default function PublicMetricsSection({ personalBestMetrics, athleteClerk
               </button>
 
               {/* Watch video button */}
-              {metric.video_url && extractVideoId(metric.video_url) && (
+              {metric.video_url && getVideoPlaybackInfo(metric.video_url).kind !== 'unsupported' && (
                 <button
                   onClick={() => setWatchVideoUrl(metric.video_url!)}
                   style={{
@@ -232,7 +224,7 @@ export default function PublicMetricsSection({ personalBestMetrics, athleteClerk
       </div>
 
       {/* Video modal */}
-      {watchVideoUrl && (
+      {watchVideoUrl && playbackInfo && (
         <div onClick={() => setWatchVideoUrl(null)} style={{
           position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -250,15 +242,36 @@ export default function PublicMetricsSection({ personalBestMetrics, athleteClerk
                 fontSize: '1.25rem', cursor: 'pointer',
               }}>×</button>
             </div>
-            <iframe
-              src={`https://iframe.mediadelivery.net/embed/653202/${extractVideoId(watchVideoUrl)}?autoplay=false&preload=true`}
-              width="100%"
-              height="300"
-              loading="lazy"
-              style={{ border: 'none', display: 'block' }}
-              allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;"
-              allowFullScreen
-            />
+            {playbackInfo.kind === 'mp4' && (
+              <video
+                src={playbackInfo.src}
+                controls
+                autoPlay
+                style={{ display: 'block', width: '100%', height: '300px', background: '#000', border: 'none' }}
+              />
+            )}
+            {playbackInfo.kind === 'iframe' && (
+              <iframe
+                src={playbackInfo.src}
+                width="100%"
+                height="300"
+                loading="lazy"
+                style={{ border: 'none', display: 'block' }}
+                allow="autoplay; fullscreen"
+                allowFullScreen
+              />
+            )}
+            {playbackInfo.kind === 'unsupported' && (
+              <div style={{
+                padding: '2rem 1.5rem',
+                textAlign: 'center',
+                color: '#9ca3af',
+                fontSize: '0.85rem',
+                lineHeight: 1.55,
+              }}>
+                This video format isn&apos;t supported by the current player.
+              </div>
+            )}
           </div>
         </div>
       )}
