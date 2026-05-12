@@ -1,6 +1,6 @@
 import { currentUser } from '@clerk/nextjs/server';
 import { redirect } from 'next/navigation';
-import { createClient } from '@supabase/supabase-js';
+import { createAdminClient } from '@/lib/supabase';
 import AthleteSidebar from '@/components/layout/AthleteSidebar';
 import VerificationDocuments from './VerificationDocuments';
 import AthleteDashboardMetrics from '@/components/AthleteDashboardMetrics';
@@ -21,20 +21,17 @@ export default async function AthleteDashboard({
 
   const firstName = user.firstName ?? user.emailAddresses[0]?.emailAddress.split('@')[0] ?? 'Athlete';
 
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
+  const db = createAdminClient();
 
   // Fetch athlete record (profile + subscription)
-  const { data: athlete } = await supabase
+  const { data: athlete } = await db
     .from('athletes')
     .select('subscription_tier, full_name, grad_year, position, gpa_weighted, home_state, bio, photo_url, highlight_video_url')
     .eq('clerk_user_id', user.id)
     .single();
 
   // Fetch athlete metrics (personal bests only for dashboard summary)
-  const { data: metricsData } = await supabase
+  const { data: metricsData } = await db
     .from('athlete_metrics')
     .select('*')
     .eq('athlete_clerk_id', user.id)
@@ -43,7 +40,7 @@ export default async function AthleteDashboard({
   const allMetrics: AthleteMetric[] = (metricsData ?? []) as AthleteMetric[];
 
   // Fetch school matches count
-  const { count: schoolMatchCount } = await supabase
+  const { count: schoolMatchCount } = await db
     .from('school_matches')
     .select('*', { count: 'exact', head: true })
     .eq('athlete_clerk_id', user.id);
