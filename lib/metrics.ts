@@ -23,6 +23,17 @@ export const VERIFICATION_TYPES = [
 ] as const;
 export type VerificationType = typeof VERIFICATION_TYPES[number];
 
+export const PITCH_TYPES = [
+  'fastball_4seam',
+  'fastball_2seam',
+  'slider',
+  'curveball',
+  'changeup',
+  'cutter',
+  'splitter',
+] as const;
+export type PitchType = typeof PITCH_TYPES[number];
+
 // ─── Metric Info ─────────────────────────────────────────────────────────────
 
 export const METRIC_INFO: Record<MetricKey, { label: string; unit: string; lowerIsBetter: boolean; description: string }> = {
@@ -184,6 +195,24 @@ export interface HighlightVideo {
   video_url: string;
   title: string | null;
   uploaded_at: string;
+}
+
+export interface AthletePitch {
+  id: string;
+  athlete_clerk_id: string;
+  pitch_slot: number;
+  pitch_type: PitchType;
+  velocity: number | null;
+  spin_rate: number | null;
+  h_break: number | null;
+  v_break: number | null;
+  extension: number | null;
+  verification_type: VerificationType;
+  source_label: string | null;
+  ai_confidence: number | null;
+  video_url: string | null;
+  last_updated_at: string;
+  created_at: string;
 }
 
 // ─── Bunny CDN helpers ────────────────────────────────────────────────────────
