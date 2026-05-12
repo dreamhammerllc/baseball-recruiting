@@ -183,7 +183,7 @@ export async function GET(req: NextRequest) {
       photo_url:          r.photo_url,
       position:           r.position,
       secondary_position: r.secondary_position,
-      grad_year:          r.grad_year,
+      graduationYear:     r.grad_year,
       state:              r.home_state,
       bats:               r.bats,
       throws:             r.throws,

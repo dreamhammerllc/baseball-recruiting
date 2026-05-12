@@ -13,7 +13,7 @@ interface Result {
   photo_url:          string | null;
   position:           string | null;
   secondary_position: string | null;
-  grad_year:          number | null;
+  graduationYear:     number | null;
   state:              string | null;
   bats:               string | null;
   throws:             string | null;
@@ -229,7 +229,7 @@ function SavedCard({ result, onRemoved }: { result: Result; onRemoved: (id: stri
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.3rem' }}>
             {result.position           && <Pill>{result.position}</Pill>}
             {result.secondary_position && <Pill muted>{result.secondary_position}</Pill>}
-            {result.grad_year          && <Pill>{`'${String(result.grad_year).slice(-2)}`}</Pill>}
+            {result.graduationYear     && <Pill>{`'${String(result.graduationYear).slice(-2)}`}</Pill>}
             {result.state              && <Pill muted>{result.state}</Pill>}
             {isVerified                && <Pill gold>◆</Pill>}
           </div>
