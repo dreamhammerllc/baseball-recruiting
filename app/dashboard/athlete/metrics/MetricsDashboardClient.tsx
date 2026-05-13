@@ -646,7 +646,7 @@ export default function MetricsDashboardClient({
           <p style={{ color: '#6b7280', fontSize: '0.8rem', margin: '0 0 1rem' }}>
             Your pitch repertoire with telemetry. Add, edit, and remove pitches here.
           </p>
-          <PitchArsenal pitches={pitches} readOnly={false} />
+          <PitchArsenal pitches={pitches} readOnly={false} athleteClerkId={athleteClerkId} />
         </div>
       )}
 

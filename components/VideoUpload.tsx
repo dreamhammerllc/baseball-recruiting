@@ -6,7 +6,7 @@ import type { MetricKey } from '@/lib/metrics';
 
 interface VideoUploadProps {
   athleteClerkId: string;
-  uploadType: 'metric' | 'highlight';
+  uploadType: 'metric' | 'highlight' | 'pitch';
   metricKey?: MetricKey;
   slotNumber?: number;
   onUploadComplete: (videoUrl: string) => void;
@@ -14,10 +14,6 @@ interface VideoUploadProps {
 }
 
 const MAX_FILE_SIZE_BYTES = 500 * 1024 * 1024; // 500 MB
-
-function formatFileSize(bytes: number): string {
-  return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
-}
 
 export default function VideoUpload({
   athleteClerkId: _athleteClerkId,
@@ -27,28 +23,13 @@ export default function VideoUpload({
   onUploadComplete,
   onError,
 }: VideoUploadProps) {
-  const [dragOver, setDragOver]         = useState(false);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [isUploading, setIsUploading]   = useState(false);
+  const [dragOver, setDragOver]             = useState(false);
+  const [, setSelectedFile]                 = useState<File | null>(null);
+  const [isUploading, setIsUploading]       = useState(false);
   const [uploadComplete, setUploadComplete] = useState(false);
-  const [progress, setProgress]         = useState(0);
-  const [error, setError]               = useState<string | null>(null);
+  const [progress, setProgress]             = useState(0);
+  const [error, setError]                   = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  function handleFile(file: File) {
-    if (!file.type.startsWith('video/')) {
-      onError('Please select a valid video file.');
-      return;
-    }
-    if (file.size > MAX_FILE_SIZE_BYTES) {
-      onError('File exceeds the 500 MB size limit. Please choose a smaller file.');
-      return;
-    }
-    setSelectedFile(file);
-    setUploadComplete(false);
-    setProgress(0);
-    setError(null);
-  }
 
   function handleDragOver(e: React.DragEvent<HTMLDivElement>) {
     e.preventDefault();
@@ -63,18 +44,37 @@ export default function VideoUpload({
   function handleDrop(e: React.DragEvent<HTMLDivElement>) {
     e.preventDefault();
     setDragOver(false);
-    const file = e.dataTransfer.files[0];
-    if (file) handleFile(file);
+    const file = e.dataTransfer.files?.[0];
+    if (file) {
+      setSelectedFile(file);
+      handleUpload(file);
+    }
   }
 
   function handleInputChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
-    if (file) handleFile(file);
+    if (file) {
+      setSelectedFile(file);
+      handleUpload(file);
+    }
   }
 
-  async function handleUpload() {
-    if (!selectedFile) return;
+  // Auto-triggered immediately after file selection. Takes `file` as a param so
+  // it doesn't depend on `selectedFile` state (which hasn't committed yet at the
+  // moment the trigger fires from the change/drop handler closure).
+  async function handleUpload(file: File) {
+    // Validate up front — invalid files never enter the upload pipeline.
+    if (!file.type.startsWith('video/')) {
+      onError('Please select a valid video file.');
+      return;
+    }
+    if (file.size > MAX_FILE_SIZE_BYTES) {
+      onError('File exceeds the 500 MB size limit. Please choose a smaller file.');
+      return;
+    }
+
     setIsUploading(true);
+    setUploadComplete(false);
     setProgress(0);
     setError(null);
 
@@ -84,7 +84,7 @@ export default function VideoUpload({
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          filename:   selectedFile.name,
+          filename:   file.name,
           uploadType,
           metricKey:  metricKey ?? null,
           slotNumber: slotNumber ?? null,
@@ -97,7 +97,7 @@ export default function VideoUpload({
 
       // Step 2: Upload directly to Bunny Stream via TUS — never touches Vercel with file data
       await new Promise<void>((resolve, reject) => {
-        const upload = new tus.Upload(selectedFile, {
+        const upload = new tus.Upload(file, {
           endpoint:    'https://video.bunnycdn.com/tusupload',
           retryDelays: [0, 3000, 5000, 10000, 20000],
           headers: {
@@ -107,8 +107,8 @@ export default function VideoUpload({
             LibraryId:              String(libraryId),
           },
           metadata: {
-            filetype: selectedFile.type,
-            title:    selectedFile.name,
+            filetype: file.type,
+            title:    file.name,
           },
           onProgress(bytesUploaded, bytesTotal) {
             setProgress(Math.round((bytesUploaded / bytesTotal) * 100));
@@ -163,7 +163,8 @@ export default function VideoUpload({
 
   return (
     <div>
-      {/* Drop zone */}
+      {/* Drop zone — initial state. File selection auto-triggers the upload, so
+          there is no separate "selected but not uploading" intermediate state. */}
       <div
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
@@ -189,64 +190,20 @@ export default function VideoUpload({
           onChange={handleInputChange}
         />
 
-        {!selectedFile ? (
-          <>
-            <div style={{ marginBottom: '0.75rem' }}>
-              <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#4b5563" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'inline-block' }}>
-                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
-                <polyline points="17 8 12 3 7 8" />
-                <line x1="12" y1="3" x2="12" y2="15" />
-              </svg>
-            </div>
-            <p style={{ color: '#6b7280', margin: '0 0 0.4rem', fontSize: '0.9rem' }}>
-              Drag and drop a video file here
-            </p>
-            <p style={{ color: '#4b5563', margin: 0, fontSize: '0.78rem' }}>
-              or click to browse &mdash; max 500 MB
-            </p>
-          </>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.35rem' }}>
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#e8a020" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-              <polygon points="23 7 16 12 23 17 23 7" />
-              <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
-            </svg>
-            <span style={{ color: '#f0f6fc', fontWeight: 600, fontSize: '0.88rem' }}>
-              {selectedFile.name}
-            </span>
-            <span style={{ color: '#6b7280', fontSize: '0.78rem' }}>
-              {formatFileSize(selectedFile.size)}
-            </span>
-            <span style={{ color: '#4b5563', fontSize: '0.72rem', marginTop: '0.1rem' }}>
-              Click to change file
-            </span>
-          </div>
-        )}
-      </div>
-
-      {/* Upload button */}
-      {selectedFile && (
-        <div style={{ marginTop: '1rem', display: 'flex', justifyContent: 'flex-end' }}>
-          <button
-            onClick={handleUpload}
-            style={{
-              background: '#e8a020',
-              border: 'none',
-              color: '#0d1117',
-              borderRadius: '0.5rem',
-              padding: '0.5rem 1.25rem',
-              fontSize: '0.88rem',
-              fontWeight: 700,
-              cursor: 'pointer',
-              transition: 'background 0.15s',
-            }}
-            onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = '#d4911c'; }}
-            onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = '#e8a020'; }}
-          >
-            Upload
-          </button>
+        <div style={{ marginBottom: '0.75rem' }}>
+          <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#4b5563" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'inline-block' }}>
+            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+            <polyline points="17 8 12 3 7 8" />
+            <line x1="12" y1="3" x2="12" y2="15" />
+          </svg>
         </div>
-      )}
+        <p style={{ color: '#6b7280', margin: '0 0 0.4rem', fontSize: '0.9rem' }}>
+          Drag and drop a video file here
+        </p>
+        <p style={{ color: '#4b5563', margin: 0, fontSize: '0.78rem' }}>
+          or click to browse &mdash; max 500 MB
+        </p>
+      </div>
 
       {error && <div style={{ color: '#f87171', marginTop: '8px', fontSize: '0.85rem' }}>{error}</div>}
     </div>

@@ -661,7 +661,7 @@ export default async function AthleteProfilePage({
             >
               Pitching Arsenal
             </h2>
-            <PitchArsenal pitches={pitches} readOnly={true} />
+            <PitchArsenal pitches={pitches} readOnly={true} athleteClerkId={athleteClerkId} />
           </section>
         )}
 

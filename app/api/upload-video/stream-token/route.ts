@@ -17,9 +17,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Video service not configured.' }, { status: 500 });
   }
 
-  // Build a descriptive title for the video entry in Bunny Stream
-  const suffix = uploadType === 'highlight' ? `highlight-${slotNumber ?? 0}` : (metricKey ?? 'video');
-  const title   = `${uploadType}-${suffix}-${userId}-${Date.now()}`;
+  // Build a descriptive title for the video entry in Bunny Stream. Pitch uploads
+  // carry no inner suffix (no pitch_slot/pitch_type plumbed through the upload
+  // pipeline yet); metric and highlight formats are preserved exactly.
+  let title: string;
+  if (uploadType === 'pitch') {
+    title = `pitch-${userId}-${Date.now()}`;
+  } else {
+    const suffix = uploadType === 'highlight' ? `highlight-${slotNumber ?? 0}` : (metricKey ?? 'video');
+    title = `${uploadType}-${suffix}-${userId}-${Date.now()}`;
+  }
 
   // Create a video entry in Bunny Stream to obtain a videoId
   const createRes = await fetch(`https://video.bunnycdn.com/library/${libraryId}/videos`, {

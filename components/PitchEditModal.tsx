@@ -11,12 +11,14 @@ import type {
   PitchType,
   VerificationType,
 } from '@/lib/metrics';
+import VideoUpload from '@/components/VideoUpload';
 
 interface PitchEditModalProps {
   mode: 'create' | 'edit';
   pitch: AthletePitch | null;
   slot: number;
   allPitches: AthletePitch[];
+  athleteClerkId: string;
   onClose: () => void;
   onSaved: () => void;
 }
@@ -39,7 +41,6 @@ const SELECTABLE_VERIFICATION_TYPES: VerificationType[] =
   VERIFICATION_TYPES.filter(t => t !== 'coach_verified');
 
 const MAX_SOURCE_LABEL_LEN = 200;
-const MAX_VIDEO_URL_LEN    = 500;
 
 type NumericField = 'velocity' | 'spin_rate' | 'h_break' | 'v_break' | 'extension';
 
@@ -99,7 +100,7 @@ function fieldFocusBlur(hasError: boolean) {
 // ── Component ────────────────────────────────────────────────────────────────
 
 export default function PitchEditModal({
-  mode, pitch, slot, allPitches, onClose, onSaved,
+  mode, pitch, slot, allPitches, athleteClerkId, onClose, onSaved,
 }: PitchEditModalProps) {
   const isEdit = mode === 'edit';
   const isCoachVerifiedLocked = isEdit && pitch?.verification_type === 'coach_verified';
@@ -175,17 +176,6 @@ export default function PitchEditModal({
     );
   }
 
-  function handleVideoUrlChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const v = e.target.value;
-    setVideoUrl(v);
-    setFieldError(
-      'video_url',
-      v.length > MAX_VIDEO_URL_LEN
-        ? `video_url must be ≤ ${MAX_VIDEO_URL_LEN} chars.`
-        : null,
-    );
-  }
-
   // ── Submit ─────────────────────────────────────────────────────────────────
 
   async function handleSave() {
@@ -205,9 +195,6 @@ export default function PitchEditModal({
     }
     if (sourceLabel.length > MAX_SOURCE_LABEL_LEN) {
       errs.source_label = `source_label must be ≤ ${MAX_SOURCE_LABEL_LEN} chars.`;
-    }
-    if (videoUrl.length > MAX_VIDEO_URL_LEN) {
-      errs.video_url = `video_url must be ≤ ${MAX_VIDEO_URL_LEN} chars.`;
     }
     setErrors(errs);
     if (Object.keys(errs).length > 0) return;
@@ -546,19 +533,49 @@ export default function PitchEditModal({
             <span style={helperStyle}>{sourceLabelHelper}</span>
           </div>
 
-          {/* Video URL */}
+          {/* Video — TUS upload to Bunny Stream, returns iframe embed URL */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-            <label style={labelStyle}>Video URL</label>
-            <input
-              type="text"
-              maxLength={MAX_VIDEO_URL_LEN}
-              placeholder="Bunny iframe URL, YouTube link, or direct mp4"
-              value={videoUrl}
-              onChange={handleVideoUrlChange}
-              style={inputStyle(!!errors.video_url)}
-              {...fieldFocusBlur(!!errors.video_url)}
+            <label style={labelStyle}>Video</label>
+
+            {videoUrl && (
+              <div style={{
+                display:        'flex',
+                alignItems:     'center',
+                justifyContent: 'space-between',
+                background:     'rgba(52, 211, 153, 0.08)',
+                border:         '1px solid rgba(52, 211, 153, 0.3)',
+                borderRadius:   '0.4rem',
+                padding:        '0.55rem 0.75rem',
+              }}>
+                <span style={{ color: '#34d399', fontSize: '0.82rem', fontWeight: 500 }}>
+                  &#10003; Video attached
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setVideoUrl('')}
+                  style={{
+                    background:   'transparent',
+                    border:       'none',
+                    color:        '#9ca3af',
+                    cursor:       'pointer',
+                    fontSize:     '0.82rem',
+                    padding:      '0.25rem 0.5rem',
+                    borderRadius: '0.3rem',
+                  }}
+                  aria-label="Remove video"
+                >
+                  &#x2715; Remove
+                </button>
+              </div>
+            )}
+
+            <VideoUpload
+              key={videoUrl || 'empty'}
+              athleteClerkId={athleteClerkId}
+              uploadType="pitch"
+              onUploadComplete={url => setVideoUrl(url)}
+              onError={msg => setApiError(msg)}
             />
-            {errors.video_url && <span style={errorMessageStyle}>{errors.video_url}</span>}
           </div>
         </div>
 

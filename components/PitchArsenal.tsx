@@ -11,9 +11,10 @@ const MAX_PITCH_SLOTS = 5;
 interface PitchArsenalProps {
   pitches: AthletePitch[];
   readOnly: boolean;
+  athleteClerkId: string;
 }
 
-export default function PitchArsenal({ pitches, readOnly }: PitchArsenalProps) {
+export default function PitchArsenal({ pitches, readOnly, athleteClerkId }: PitchArsenalProps) {
   const router = useRouter();
   const sorted = [...pitches].sort((a, b) => a.pitch_slot - b.pitch_slot);
 
@@ -178,6 +179,7 @@ export default function PitchArsenal({ pitches, readOnly }: PitchArsenalProps) {
           pitch={editingPitch}
           slot={modalMode === 'create' ? (createSlot ?? 1) : (editingPitch?.pitch_slot ?? 1)}
           allPitches={pitches}
+          athleteClerkId={athleteClerkId}
           onClose={handleClose}
           onSaved={handleSaved}
         />
