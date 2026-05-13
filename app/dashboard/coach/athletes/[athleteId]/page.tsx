@@ -8,7 +8,8 @@ import ExternalProfilePills from '@/components/profile/ExternalProfilePills';
 import PublicMetricsSection from '@/app/profile/[username]/PublicMetricsSection';
 import CoachActionBar from './CoachActionBar';
 import CoachAthleteEvaluation from './CoachAthleteEvaluation';
-import type { AthleteMetric } from '@/lib/metrics';
+import PitchArsenal from '@/components/PitchArsenal';
+import type { AthleteMetric, AthletePitch } from '@/lib/metrics';
 import type { SubscriptionTier } from '@/lib/subscription';
 
 export const runtime = 'nodejs';
@@ -138,7 +139,11 @@ export default async function CoachAthleteDetailPage({
   const athlete = athleteData as AthleteRow;
   const fullName = [athlete.first_name, athlete.last_name].filter(Boolean).join(' ') || 'Athlete';
   const initials = fullName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
-  const isPitcher = athlete.position?.toUpperCase() === 'P' || athlete.position?.toUpperCase() === 'TWP';
+  const isPitcher =
+    athlete.position === 'P' ||
+    athlete.position === 'TWP' ||
+    athlete.secondary_position === 'P' ||
+    athlete.secondary_position === 'TWP';
   const isVerified = (athlete.verification_tier ?? 0) > 0;
 
   // 3. Personal-best metrics (separate query, two-query merge pattern)
@@ -148,6 +153,14 @@ export default async function CoachAthleteDetailPage({
     .eq('athlete_clerk_id', athleteId)
     .eq('is_personal_best', true);
   const personalBestMetrics: AthleteMetric[] = (metricsRows ?? []) as AthleteMetric[];
+
+  // 3b. Pitching arsenal (read-only for coach view, ordered by slot)
+  const { data: pitchesData } = await db
+    .from('athlete_pitches')
+    .select('*')
+    .eq('athlete_clerk_id', athleteId)
+    .order('pitch_slot', { ascending: true });
+  const pitches: AthletePitch[] = (pitchesData ?? []) as AthletePitch[];
 
   // 4. Saved-state — coach uses internal coaches.id, not clerk_user_id, on saved_athletes.
   let initialSaved = false;
@@ -293,6 +306,14 @@ export default async function CoachAthleteDetailPage({
               )}
             </div>
           </section>
+
+          {/* Pitching Arsenal — visible to coach when athlete pitches (primary or secondary) */}
+          {isPitcher && (
+            <section style={{ marginBottom: '2.5rem' }}>
+              <SectionHeader>Pitching Arsenal</SectionHeader>
+              <PitchArsenal pitches={pitches} readOnly={true} />
+            </section>
+          )}
 
           {/* Verified Metrics */}
           <section style={{ marginBottom: '2.5rem' }}>

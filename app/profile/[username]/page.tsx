@@ -5,7 +5,8 @@ import ShareButton from './ShareButton';
 import type { DownloadPDFButtonProps } from './DownloadPDFButton';
 import PublicMetricsSection from './PublicMetricsSection';
 import VideoPlayer from '@/components/profile/VideoPlayer';
-import type { AthleteMetric } from '@/lib/metrics';
+import PitchArsenal from '@/components/PitchArsenal';
+import type { AthleteMetric, AthletePitch } from '@/lib/metrics';
 import type { SubscriptionTier } from '@/lib/subscription';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -214,6 +215,21 @@ export default async function AthleteProfilePage({
     // table may not exist yet — ignore
   }
 
+  // 4b. Fetch pitching arsenal (ordered by slot, always read-only on public profile)
+  let pitches: AthletePitch[] = [];
+  try {
+    const { data: pitchesData } = await db
+      .from('athlete_pitches')
+      .select('*')
+      .eq('athlete_clerk_id', athleteClerkId)
+      .order('pitch_slot', { ascending: true });
+    if (pitchesData) {
+      pitches = pitchesData as AthletePitch[];
+    }
+  } catch {
+    // table may not exist yet — ignore
+  }
+
   // 5. Fetch athlete positions (resilient)
   // (used for display context — not currently shown but fetched for future use)
   let athletePositions: { primary_position: string; secondary_position: string | null } | null =
@@ -241,8 +257,10 @@ export default async function AthleteProfilePage({
   const gpaLabel = 'GPA (UW)';
 
   const isPitcher =
-    athleteData.position?.toUpperCase() === 'P' ||
-    athleteData.position?.toUpperCase() === 'TWP';
+    athleteData.position === 'P' ||
+    athleteData.position === 'TWP' ||
+    athleteData.secondary_position === 'P' ||
+    athleteData.secondary_position === 'TWP';
 
   const tier = athleteData.subscription_tier ?? 'free';
   const tierLabel =
@@ -625,6 +643,27 @@ export default async function AthleteProfilePage({
           </div>
         </section>
 
+
+        {/* ── PITCHING ARSENAL ────────────────────────────────────────────────
+            Always visible (no paywall) when the athlete is a pitcher on primary
+            or secondary. Showcase data — locked-in product decision. */}
+        {isPitcher && (
+          <section style={{ marginBottom: '2.5rem' }}>
+            <h2
+              style={{
+                ...mono,
+                fontSize: '0.65rem',
+                letterSpacing: '0.18em',
+                color: colors.muted,
+                textTransform: 'uppercase',
+                margin: '0 0 1rem',
+              }}
+            >
+              Pitching Arsenal
+            </h2>
+            <PitchArsenal pitches={pitches} readOnly={true} />
+          </section>
+        )}
 
         {/* ── VERIFIED METRICS SECTION ───────────────────────────────────────── */}
         <section style={{ marginBottom: '2.5rem' }}>

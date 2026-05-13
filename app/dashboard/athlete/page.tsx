@@ -45,6 +45,13 @@ export default async function AthleteDashboard({
     .select('*', { count: 'exact', head: true })
     .eq('athlete_clerk_id', user.id);
 
+  // Fetch pitching arsenal count (0–5)
+  const { count: arsenalCount } = await db
+    .from('athlete_pitches')
+    .select('id', { count: 'exact', head: true })
+    .eq('athlete_clerk_id', user.id);
+  const arsenalY = arsenalCount ?? 0;
+
   const tier      = athlete?.subscription_tier ?? 'free';
   const tierLabel = tier === 'elite' ? 'Elite' : tier === 'verified' ? 'Verified' : 'Scout';
 
@@ -108,15 +115,15 @@ export default async function AthleteDashboard({
               highlight: false,
             },
             {
-              label: 'Verified Metrics',
-              value: String(allMetrics.filter(m => m.verification_type !== 'self_reported').length),
-              sub: 'Third-party or coach verified',
+              label: 'Metrics',
+              value: String(allMetrics.length),
+              sub: 'Total entries on file',
               highlight: false,
             },
             {
-              label: 'Total Metrics',
-              value: String(allMetrics.length),
-              sub: 'All entries on file',
+              label: 'Arsenal',
+              value: `${arsenalY} / 5`,
+              sub: 'Pitches on file',
               highlight: false,
             },
           ].map((card) => (
