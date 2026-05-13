@@ -5,6 +5,7 @@ import type { AthletePitch, PitchType, VerificationType } from '@/lib/metrics';
 interface PitchCardProps {
   pitch: AthletePitch;
   readOnly: boolean;
+  onEdit?: (pitch: AthletePitch) => void;
 }
 
 const PITCH_TYPE_LABELS: Record<PitchType, string> = {
@@ -46,7 +47,7 @@ type TelemetryField = {
   unit:  string;
 };
 
-export default function PitchCard({ pitch, readOnly }: PitchCardProps) {
+export default function PitchCard({ pitch, readOnly, onEdit }: PitchCardProps) {
   const pitchLabel = PITCH_TYPE_LABELS[pitch.pitch_type] ?? pitch.pitch_type;
 
   const badgeColor = getBadgeColor(pitch.verification_type);
@@ -196,7 +197,10 @@ export default function PitchCard({ pitch, readOnly }: PitchCardProps) {
           {!readOnly && (
             <button
               type="button"
-              onClick={() => console.log('Edit pitch:', pitch.id)}
+              onClick={() => {
+                if (onEdit) onEdit(pitch);
+                else console.log('Edit pitch:', pitch.id);
+              }}
               style={{
                 background:   'transparent',
                 border:       '1px solid #4b5563',

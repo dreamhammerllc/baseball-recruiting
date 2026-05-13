@@ -1,7 +1,10 @@
 'use client';
 
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import type { AthletePitch } from '@/lib/metrics';
 import PitchCard from './PitchCard';
+import PitchEditModal from './PitchEditModal';
 
 const MAX_PITCH_SLOTS = 5;
 
@@ -11,11 +14,42 @@ interface PitchArsenalProps {
 }
 
 export default function PitchArsenal({ pitches, readOnly }: PitchArsenalProps) {
+  const router = useRouter();
   const sorted = [...pitches].sort((a, b) => a.pitch_slot - b.pitch_slot);
 
-  // ── Empty + readOnly: muted "no pitches" message ───────────────────────────
+  // ── Modal state ────────────────────────────────────────────────────────────
+  const [modalMode, setModalMode]       = useState<'create' | 'edit' | null>(null);
+  const [editingPitch, setEditingPitch] = useState<AthletePitch | null>(null);
+  const [createSlot, setCreateSlot]     = useState<number | null>(null);
+
+  function handleAdd(slot: number) {
+    setModalMode('create');
+    setCreateSlot(slot);
+    setEditingPitch(null);
+  }
+
+  function handleEdit(pitch: AthletePitch) {
+    setModalMode('edit');
+    setEditingPitch(pitch);
+    setCreateSlot(null);
+  }
+
+  function handleClose() {
+    setModalMode(null);
+    setEditingPitch(null);
+    setCreateSlot(null);
+  }
+
+  function handleSaved() {
+    router.refresh();
+    handleClose();
+  }
+
+  // ── Body branches — pick exactly one based on emptiness + readOnly ────────
+  let body: React.ReactNode;
+
   if (sorted.length === 0 && readOnly) {
-    return (
+    body = (
       <div
         style={{
           background:    '#0f1620',
@@ -32,11 +66,8 @@ export default function PitchArsenal({ pitches, readOnly }: PitchArsenalProps) {
         This athlete has not recorded any pitches yet.
       </div>
     );
-  }
-
-  // ── Empty + editable: prominent first-pitch CTA ────────────────────────────
-  if (sorted.length === 0 && !readOnly) {
-    return (
+  } else if (sorted.length === 0 && !readOnly) {
+    body = (
       <div
         style={{
           background:    '#111827',
@@ -55,7 +86,7 @@ export default function PitchArsenal({ pitches, readOnly }: PitchArsenalProps) {
         </p>
         <button
           type="button"
-          onClick={() => console.log('Add first pitch')}
+          onClick={() => handleAdd(1)}
           style={{
             background:   '#e8a020',
             color:        '#000',
@@ -79,62 +110,78 @@ export default function PitchArsenal({ pitches, readOnly }: PitchArsenalProps) {
         </button>
       </div>
     );
+  } else {
+    const showAddSlot = !readOnly && sorted.length < MAX_PITCH_SLOTS;
+    const usedSlots   = new Set(sorted.map(p => p.pitch_slot));
+    const nextSlot    = [1, 2, 3, 4, 5].find(n => !usedSlots.has(n)) ?? 1;
+
+    body = (
+      <div
+        style={{
+          display:             'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+          gap:                 '1rem',
+        }}
+      >
+        {sorted.map(pitch => (
+          <PitchCard key={pitch.id} pitch={pitch} readOnly={readOnly} onEdit={handleEdit} />
+        ))}
+
+        {showAddSlot && (
+          <button
+            type="button"
+            onClick={() => handleAdd(nextSlot)}
+            style={{
+              background:    'transparent',
+              border:        '1px dashed #374151',
+              borderRadius:  '0.75rem',
+              padding:       '1.25rem',
+              display:       'flex',
+              flexDirection: 'column',
+              alignItems:    'center',
+              justifyContent:'center',
+              gap:           '0.4rem',
+              minHeight:     '180px',
+              cursor:        'pointer',
+              color:         '#9ca3af',
+              fontFamily:    'inherit',
+              transition:    'border-color 0.15s, background 0.15s, color 0.15s',
+            }}
+            onMouseEnter={e => {
+              (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(232,160,32,0.5)';
+              (e.currentTarget as HTMLButtonElement).style.background  = 'rgba(232,160,32,0.04)';
+              (e.currentTarget as HTMLButtonElement).style.color       = '#e8a020';
+            }}
+            onMouseLeave={e => {
+              (e.currentTarget as HTMLButtonElement).style.borderColor = '#374151';
+              (e.currentTarget as HTMLButtonElement).style.background  = 'transparent';
+              (e.currentTarget as HTMLButtonElement).style.color       = '#9ca3af';
+            }}
+          >
+            <span style={{ fontSize: '1.75rem', lineHeight: 1, fontWeight: 300 }}>+</span>
+            <span style={{ fontSize: '0.82rem', fontWeight: 600 }}>Add a pitch</span>
+            <span style={{ fontSize: '0.72rem', color: '#6b7280' }}>
+              Slot {nextSlot} of {MAX_PITCH_SLOTS} available
+            </span>
+          </button>
+        )}
+      </div>
+    );
   }
 
-  // ── Non-empty grid ─────────────────────────────────────────────────────────
-  const showAddSlot = !readOnly && sorted.length < MAX_PITCH_SLOTS;
-  const nextSlot = sorted.length + 1;
-
   return (
-    <div
-      style={{
-        display:             'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-        gap:                 '1rem',
-      }}
-    >
-      {sorted.map(pitch => (
-        <PitchCard key={pitch.id} pitch={pitch} readOnly={readOnly} />
-      ))}
-
-      {showAddSlot && (
-        <button
-          type="button"
-          onClick={() => console.log('Add pitch in slot', nextSlot)}
-          style={{
-            background:    'transparent',
-            border:        '1px dashed #374151',
-            borderRadius:  '0.75rem',
-            padding:       '1.25rem',
-            display:       'flex',
-            flexDirection: 'column',
-            alignItems:    'center',
-            justifyContent:'center',
-            gap:           '0.4rem',
-            minHeight:     '180px',
-            cursor:        'pointer',
-            color:         '#9ca3af',
-            fontFamily:    'inherit',
-            transition:    'border-color 0.15s, background 0.15s, color 0.15s',
-          }}
-          onMouseEnter={e => {
-            (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(232,160,32,0.5)';
-            (e.currentTarget as HTMLButtonElement).style.background  = 'rgba(232,160,32,0.04)';
-            (e.currentTarget as HTMLButtonElement).style.color       = '#e8a020';
-          }}
-          onMouseLeave={e => {
-            (e.currentTarget as HTMLButtonElement).style.borderColor = '#374151';
-            (e.currentTarget as HTMLButtonElement).style.background  = 'transparent';
-            (e.currentTarget as HTMLButtonElement).style.color       = '#9ca3af';
-          }}
-        >
-          <span style={{ fontSize: '1.75rem', lineHeight: 1, fontWeight: 300 }}>+</span>
-          <span style={{ fontSize: '0.82rem', fontWeight: 600 }}>Add a pitch</span>
-          <span style={{ fontSize: '0.72rem', color: '#6b7280' }}>
-            Slot {nextSlot} of {MAX_PITCH_SLOTS} available
-          </span>
-        </button>
+    <>
+      {body}
+      {modalMode !== null && (
+        <PitchEditModal
+          mode={modalMode}
+          pitch={editingPitch}
+          slot={modalMode === 'create' ? (createSlot ?? 1) : (editingPitch?.pitch_slot ?? 1)}
+          allPitches={pitches}
+          onClose={handleClose}
+          onSaved={handleSaved}
+        />
       )}
-    </div>
+    </>
   );
 }

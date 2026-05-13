@@ -7,10 +7,12 @@ import MetricsGraph from '@/components/MetricsGraph';
 import VideoUpload from '@/components/VideoUpload';
 import ThirdPartyImportModal from '@/components/ThirdPartyImportModal';
 import CoachVerificationModal from '@/components/CoachVerificationModal';
+import PitchArsenal from '@/components/PitchArsenal';
 import { getMetricsForPositions, METRIC_INFO, POSITIONS } from '@/lib/metrics';
 import { getVideoPlaybackInfo } from '@/lib/videoPlayback';
 import type {
   AthleteMetric,
+  AthletePitch,
   AthletePosition,
   HighlightVideo,
   MetricKey,
@@ -22,6 +24,7 @@ interface Props {
   position: AthletePosition | null;
   allMetrics: AthleteMetric[];
   highlights: HighlightVideo[];
+  pitches: AthletePitch[];
   highlightSlotLimit: number;
 }
 
@@ -281,6 +284,7 @@ export default function MetricsDashboardClient({
   position: initialPosition,
   allMetrics: initialMetrics,
   highlights: initialHighlights,
+  pitches,
   highlightSlotLimit,
 }: Props) {
   const router = useRouter();
@@ -477,6 +481,13 @@ export default function MetricsDashboardClient({
   const pitchingKeys = metricKeys.filter(k => PITCHING.includes(k));
   const throwingKeys = metricKeys.filter(k => THROWING.includes(k));
 
+  // Drives the Pitching Arsenal section gate. Uses currentPosition (live state)
+  // so re-keying after PositionSetup save flips the section without a refresh.
+  const isPitcher = !!currentPosition && (
+    currentPosition.primary_position   === 'P' || currentPosition.primary_position   === 'TWP' ||
+    currentPosition.secondary_position === 'P' || currentPosition.secondary_position === 'TWP'
+  );
+
   const groupStyle: React.CSSProperties = {
     marginBottom: '2rem',
   };
@@ -623,6 +634,19 @@ export default function MetricsDashboardClient({
               />
             ))}
           </div>
+        </div>
+      )}
+
+      {/* Pitching Arsenal — modal-edited 5-pitch repertoire (S32a). Sits above
+          the legacy Pitching MetricCard grid; both render until S32b retires
+          the metric-key based pitching display. */}
+      {isPitcher && (
+        <div style={groupStyle}>
+          <p style={groupHeaderStyle}>Pitching Arsenal</p>
+          <p style={{ color: '#6b7280', fontSize: '0.8rem', margin: '0 0 1rem' }}>
+            Your pitch repertoire with telemetry. Add, edit, and remove pitches here.
+          </p>
+          <PitchArsenal pitches={pitches} readOnly={false} />
         </div>
       )}
 

@@ -8,7 +8,7 @@ import { useState } from 'react';
 const NAV_ITEMS = [
   { href: '/dashboard/athlete',                label: 'Dashboard',     icon: HomeIcon },
   { href: '/dashboard/athlete/profile',        label: 'My Profile',    icon: UserIcon },
-  { href: '/dashboard/athlete/my-metrics',      label: 'My Metrics',    icon: ChartIcon },
+  { href: '/dashboard/athlete/metrics',         label: 'My Metrics',    icon: ChartIcon },
   { href: '/dashboard/athlete/find-coaches',   label: 'Find Coaches',  icon: PinIcon },
   { href: '/dashboard/athlete/school-matches', label: 'School Matches',icon: SearchIcon },
   { href: '/dashboard/athlete/upgrade',        label: 'Upgrade',       icon: StarIcon },

@@ -12,7 +12,7 @@ import { redirect } from 'next/navigation';
 import { createAdminClient } from '@/lib/supabase';
 import AthleteSidebar from '@/components/layout/AthleteSidebar';
 import MetricsDashboardClient from './MetricsDashboardClient';
-import type { AthleteMetric, AthletePosition, HighlightVideo } from '@/lib/metrics';
+import type { AthleteMetric, AthletePitch, AthletePosition, HighlightVideo } from '@/lib/metrics';
 
 export const dynamic = 'force-dynamic';
 
@@ -22,7 +22,7 @@ export default async function MetricsPage() {
 
   const db = createAdminClient();
 
-  const [positionResult, metricsResult, highlightsResult, athleteResult] = await Promise.all([
+  const [positionResult, metricsResult, highlightsResult, athleteResult, pitchesResult] = await Promise.all([
     db
       .from('athlete_positions')
       .select('*')
@@ -43,11 +43,17 @@ export default async function MetricsPage() {
       .select('subscription_tier')
       .eq('clerk_user_id', userId)
       .maybeSingle(),
+    db
+      .from('athlete_pitches')
+      .select('*')
+      .eq('athlete_clerk_id', userId)
+      .order('pitch_slot', { ascending: true }),
   ]);
 
   const position = (positionResult.data ?? null) as AthletePosition | null;
   const metrics = (metricsResult.data ?? []) as AthleteMetric[];
   const highlights = (highlightsResult.data ?? []) as HighlightVideo[];
+  const pitches = (pitchesResult.data ?? []) as AthletePitch[];
 
   const tier = athleteResult.data?.subscription_tier ?? 'free';
   const highlightSlotLimit =
@@ -70,6 +76,7 @@ export default async function MetricsPage() {
           position={position}
           allMetrics={metrics}
           highlights={highlights}
+          pitches={pitches}
           highlightSlotLimit={highlightSlotLimit}
         />
       </main>
