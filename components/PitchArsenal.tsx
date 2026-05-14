@@ -2,11 +2,16 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { PITCH_TYPE_LABELS } from '@/lib/metrics';
-import type { AthletePitch } from '@/lib/metrics';
+import {
+  PITCH_TYPE_LABELS,
+  PITCH_TYPE_TO_METRIC_KEY,
+  getHistoryForPitchType,
+} from '@/lib/metrics';
+import type { AthleteMetric, AthletePitch } from '@/lib/metrics';
 import PitchCard from './PitchCard';
 import PitchEditModal from './PitchEditModal';
 import WatchVideoModal from '@/components/WatchVideoModal';
+import MetricsGraph from '@/components/MetricsGraph';
 
 const MAX_PITCH_SLOTS = 5;
 
@@ -14,9 +19,10 @@ interface PitchArsenalProps {
   pitches: AthletePitch[];
   readOnly: boolean;
   athleteClerkId: string;
+  pitchHistory?: AthleteMetric[];
 }
 
-export default function PitchArsenal({ pitches, readOnly, athleteClerkId }: PitchArsenalProps) {
+export default function PitchArsenal({ pitches, readOnly, athleteClerkId, pitchHistory }: PitchArsenalProps) {
   const router = useRouter();
   const sorted = [...pitches].sort((a, b) => a.pitch_slot - b.pitch_slot);
 
@@ -25,6 +31,7 @@ export default function PitchArsenal({ pitches, readOnly, athleteClerkId }: Pitc
   const [editingPitch, setEditingPitch] = useState<AthletePitch | null>(null);
   const [createSlot, setCreateSlot]     = useState<number | null>(null);
   const [watchPitch, setWatchPitch]     = useState<AthletePitch | null>(null);
+  const [historyPitch, setHistoryPitch] = useState<AthletePitch | null>(null);
 
   function handleAdd(slot: number) {
     setModalMode('create');
@@ -55,6 +62,14 @@ export default function PitchArsenal({ pitches, readOnly, athleteClerkId }: Pitc
 
   function handleCloseWatch() {
     setWatchPitch(null);
+  }
+
+  function handleHistory(pitch: AthletePitch) {
+    setHistoryPitch(pitch);
+  }
+
+  function handleCloseHistory() {
+    setHistoryPitch(null);
   }
 
   // ── Body branches — pick exactly one based on emptiness + readOnly ────────
@@ -142,6 +157,8 @@ export default function PitchArsenal({ pitches, readOnly, athleteClerkId }: Pitc
             readOnly={readOnly}
             onEdit={handleEdit}
             onWatch={handleWatch}
+            pitchHistory={pitchHistory}
+            onHistory={handleHistory}
           />
         ))}
 
@@ -209,6 +226,19 @@ export default function PitchArsenal({ pitches, readOnly, athleteClerkId }: Pitc
           onClose={handleCloseWatch}
         />
       )}
+
+      {historyPitch && pitchHistory && (() => {
+        const mappedKey = PITCH_TYPE_TO_METRIC_KEY[historyPitch.pitch_type];
+        if (!mappedKey) return null;
+        const entries = getHistoryForPitchType(pitchHistory, historyPitch.pitch_type);
+        return (
+          <MetricsGraph
+            metricKey={mappedKey}
+            entries={entries}
+            onClose={handleCloseHistory}
+          />
+        );
+      })()}
     </>
   );
 }

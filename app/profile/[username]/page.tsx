@@ -230,6 +230,23 @@ export default async function AthleteProfilePage({
     // table may not exist yet — ignore
   }
 
+  // 4c. Fetch pitching velocity history for PitchArsenal History modal.
+  //     Separate from the PB query (4) — needs full history, not just is_personal_best rows.
+  let pitchMetricsHistory: AthleteMetric[] = [];
+  try {
+    const { data: pitchMetricsRows } = await db
+      .from('athlete_metrics')
+      .select('*')
+      .eq('athlete_clerk_id', athleteClerkId)
+      .in('metric_key', ['fastball_velocity', 'slider_velocity', 'curveball_velocity', 'changeup_velocity'])
+      .order('recorded_at', { ascending: false });
+    if (pitchMetricsRows) {
+      pitchMetricsHistory = pitchMetricsRows as AthleteMetric[];
+    }
+  } catch {
+    // table may not exist yet — ignore
+  }
+
   // 5. Fetch athlete positions (resilient)
   // (used for display context — not currently shown but fetched for future use)
   let athletePositions: { primary_position: string; secondary_position: string | null } | null =
@@ -661,7 +678,7 @@ export default async function AthleteProfilePage({
             >
               Pitching Arsenal
             </h2>
-            <PitchArsenal pitches={pitches} readOnly={true} athleteClerkId={athleteClerkId} />
+            <PitchArsenal pitches={pitches} readOnly={true} athleteClerkId={athleteClerkId} pitchHistory={pitchMetricsHistory} />
           </section>
         )}
 

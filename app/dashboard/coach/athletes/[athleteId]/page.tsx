@@ -162,6 +162,16 @@ export default async function CoachAthleteDetailPage({
     .order('pitch_slot', { ascending: true });
   const pitches: AthletePitch[] = (pitchesData ?? []) as AthletePitch[];
 
+  // 3c. Pitching velocity history for PitchArsenal History modal — full history,
+  //     not just personal-bests. Drives MetricsGraph when a History pill is clicked.
+  const { data: pitchMetricsRows } = await db
+    .from('athlete_metrics')
+    .select('*')
+    .eq('athlete_clerk_id', athleteId)
+    .in('metric_key', ['fastball_velocity', 'slider_velocity', 'curveball_velocity', 'changeup_velocity'])
+    .order('recorded_at', { ascending: false });
+  const pitchMetricsHistory: AthleteMetric[] = (pitchMetricsRows ?? []) as AthleteMetric[];
+
   // 4. Saved-state — coach uses internal coaches.id, not clerk_user_id, on saved_athletes.
   let initialSaved = false;
   try {
@@ -311,7 +321,7 @@ export default async function CoachAthleteDetailPage({
           {isPitcher && (
             <section style={{ marginBottom: '2.5rem' }}>
               <SectionHeader>Pitching Arsenal</SectionHeader>
-              <PitchArsenal pitches={pitches} readOnly={true} athleteClerkId={athlete.clerk_user_id} />
+              <PitchArsenal pitches={pitches} readOnly={true} athleteClerkId={athlete.clerk_user_id} pitchHistory={pitchMetricsHistory} />
             </section>
           )}
 

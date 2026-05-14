@@ -44,6 +44,28 @@ export const PITCH_TYPE_LABELS: Record<PitchType, string> = {
   splitter:       'Splitter',
 };
 
+/** Maps each PitchType to the legacy athlete_metrics MetricKey holding its history.
+ *  fastball_2seam shares fastball_velocity history with fastball_4seam.
+ *  Cutter/splitter intentionally omitted — no legacy history column. */
+export const PITCH_TYPE_TO_METRIC_KEY: Partial<Record<PitchType, MetricKey>> = {
+  fastball_4seam: 'fastball_velocity',
+  fastball_2seam: 'fastball_velocity',
+  slider:         'slider_velocity',
+  curveball:      'curveball_velocity',
+  changeup:       'changeup_velocity',
+};
+
+/** Returns the subset of athlete_metrics rows that constitute history for a
+ *  given pitch type. Returns [] for pitch types without a mapped metric_key. */
+export function getHistoryForPitchType(
+  history: AthleteMetric[],
+  pitchType: PitchType,
+): AthleteMetric[] {
+  const mapped = PITCH_TYPE_TO_METRIC_KEY[pitchType];
+  if (!mapped) return [];
+  return history.filter(m => m.metric_key === mapped);
+}
+
 // ─── Metric Info ─────────────────────────────────────────────────────────────
 
 export const METRIC_INFO: Record<MetricKey, { label: string; unit: string; lowerIsBetter: boolean; description: string }> = {

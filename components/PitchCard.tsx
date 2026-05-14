@@ -1,13 +1,15 @@
 'use client';
 
-import { PITCH_TYPE_LABELS } from '@/lib/metrics';
-import type { AthletePitch, VerificationType } from '@/lib/metrics';
+import { PITCH_TYPE_LABELS, PITCH_TYPE_TO_METRIC_KEY, getHistoryForPitchType } from '@/lib/metrics';
+import type { AthleteMetric, AthletePitch, VerificationType } from '@/lib/metrics';
 
 interface PitchCardProps {
   pitch: AthletePitch;
   readOnly: boolean;
   onEdit?: (pitch: AthletePitch) => void;
   onWatch?: (pitch: AthletePitch) => void;
+  pitchHistory?: AthleteMetric[];
+  onHistory?: (pitch: AthletePitch) => void;
 }
 
 // Fallback label when source_label is null. Humanizes the verification_type.
@@ -39,8 +41,13 @@ type TelemetryField = {
   unit:  string;
 };
 
-export default function PitchCard({ pitch, readOnly, onEdit, onWatch }: PitchCardProps) {
+export default function PitchCard({ pitch, readOnly, onEdit, onWatch, pitchHistory, onHistory }: PitchCardProps) {
   const pitchLabel = PITCH_TYPE_LABELS[pitch.pitch_type] ?? pitch.pitch_type;
+
+  // History gate — only render the button when a mapped metric_key exists for this
+  // pitch type AND the parent supplied non-empty history AND an onHistory callback.
+  const historyForThisPitch = pitchHistory ? getHistoryForPitchType(pitchHistory, pitch.pitch_type) : [];
+  const showHistoryButton   = historyForThisPitch.length > 0 && !!onHistory;
 
   const badgeColor = getBadgeColor(pitch.verification_type);
   const badgeRgb   = getBadgeRgb(pitch.verification_type);
@@ -158,9 +165,37 @@ export default function PitchCard({ pitch, readOnly, onEdit, onWatch }: PitchCar
         ))}
       </div>
 
-      {/* Footer — Watch / Edit buttons */}
-      {(pitch.video_url || !readOnly) && (
+      {/* Footer — History / Watch / Edit buttons */}
+      {(showHistoryButton || pitch.video_url || !readOnly) && (
         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginTop: '0.25rem' }}>
+          {showHistoryButton && (
+            <button
+              type="button"
+              onClick={() => onHistory!(pitch)}
+              style={{
+                background:   'transparent',
+                border:       '1px solid rgba(88,166,255,0.4)',
+                color:        '#58a6ff',
+                borderRadius: '0.4rem',
+                padding:      '0.3rem 0.75rem',
+                fontSize:     '0.78rem',
+                cursor:       'pointer',
+                fontWeight:   500,
+                transition:   'border-color 0.15s, background 0.15s',
+              }}
+              onMouseEnter={e => {
+                (e.currentTarget as HTMLButtonElement).style.background  = 'rgba(88,166,255,0.08)';
+                (e.currentTarget as HTMLButtonElement).style.borderColor = '#58a6ff';
+              }}
+              onMouseLeave={e => {
+                (e.currentTarget as HTMLButtonElement).style.background  = 'transparent';
+                (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(88,166,255,0.4)';
+              }}
+            >
+              History
+            </button>
+          )}
+
           {pitch.video_url && (
             <button
               type="button"

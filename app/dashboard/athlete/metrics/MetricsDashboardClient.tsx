@@ -478,6 +478,14 @@ export default function MetricsDashboardClient({
   const hittingKeys  = metricKeys.filter(k => HITTING.includes(k));
   const throwingKeys = metricKeys.filter(k => THROWING.includes(k));
 
+  // Subset of the athlete's full metric history that maps to pitch-type velocity
+  // keys — feeds PitchCard's History modal via PitchArsenal. Filtered client-side
+  // from the existing `metrics` state (no additional fetch needed on this page).
+  const PITCHING_VELOCITY_KEYS: MetricKey[] = [
+    'fastball_velocity', 'slider_velocity', 'curveball_velocity', 'changeup_velocity',
+  ];
+  const pitchMetricsHistory = metrics.filter(m => PITCHING_VELOCITY_KEYS.includes(m.metric_key));
+
   // Drives the Pitching Arsenal section gate. Uses currentPosition (live state)
   // so re-keying after PositionSetup save flips the section without a refresh.
   const isPitcher = !!currentPosition && (
@@ -642,7 +650,12 @@ export default function MetricsDashboardClient({
           <p style={{ color: '#6b7280', fontSize: '0.8rem', margin: '0 0 1rem' }}>
             Your pitch repertoire with telemetry. Add, edit, and remove pitches here.
           </p>
-          <PitchArsenal pitches={pitches} readOnly={false} athleteClerkId={athleteClerkId} />
+          <PitchArsenal
+            pitches={pitches}
+            readOnly={false}
+            athleteClerkId={athleteClerkId}
+            pitchHistory={pitchMetricsHistory}
+          />
         </div>
       )}
 
