@@ -20,9 +20,10 @@ interface PitchArsenalProps {
   readOnly: boolean;
   athleteClerkId: string;
   pitchHistory?: AthleteMetric[];
+  showProof?: boolean;
 }
 
-export default function PitchArsenal({ pitches, readOnly, athleteClerkId, pitchHistory }: PitchArsenalProps) {
+export default function PitchArsenal({ pitches, readOnly, athleteClerkId, pitchHistory, showProof = false }: PitchArsenalProps) {
   const router = useRouter();
   const sorted = [...pitches].sort((a, b) => a.pitch_slot - b.pitch_slot);
 
@@ -159,6 +160,7 @@ export default function PitchArsenal({ pitches, readOnly, athleteClerkId, pitchH
             onWatch={handleWatch}
             pitchHistory={pitchHistory}
             onHistory={handleHistory}
+            showProof={showProof}
           />
         ))}
 

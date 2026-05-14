@@ -13,6 +13,7 @@ import type {
   VerificationType,
 } from '@/lib/metrics';
 import VideoUpload from '@/components/VideoUpload';
+import ProofUpload from '@/components/ProofUpload';
 
 interface PitchEditModalProps {
   mode: 'create' | 'edit';
@@ -105,6 +106,7 @@ export default function PitchEditModal({
   const [verificationType, setVerificationType] = useState<VerificationType>(pitch?.verification_type ?? 'self_reported');
   const [sourceLabel, setSourceLabel]           = useState<string>(pitch?.source_label ?? '');
   const [videoUrl, setVideoUrl]                 = useState<string>(pitch?.video_url    ?? '');
+  const [proofUrl, setProofUrl]                 = useState<string>(pitch?.proof_url    ?? '');
   const [saving, setSaving]                     = useState(false);
   const [errors, setErrors]                     = useState<Record<string, string>>({});
   const [apiError, setApiError]                 = useState<string | null>(null);
@@ -202,6 +204,7 @@ export default function PitchEditModal({
       verification_type: verificationType,
       source_label:      sourceLabel === '' ? null : sourceLabel,
       video_url:         videoUrl    === '' ? null : videoUrl,
+      proof_url:         proofUrl    === '' ? null : proofUrl,
     };
 
     const url    = isEdit && pitch ? `/api/athlete/pitches/${pitch.id}` : '/api/athlete/pitches';
@@ -504,6 +507,77 @@ export default function PitchEditModal({
               </select>
             )}
           </div>
+
+          {/* Proof — only when third-party verification is selected. Switching away
+              from third_party_* hides the block but preserves the stored proof_url
+              in DB; switching back surfaces the previously attached proof. */}
+          {verificationType.startsWith('third_party_') && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+              <label style={labelStyle}>Proof</label>
+
+              {proofUrl ? (
+                <div
+                  key={proofUrl || 'empty'}
+                  style={{
+                    display:        'flex',
+                    alignItems:     'center',
+                    justifyContent: 'space-between',
+                    background:     'rgba(52, 211, 153, 0.08)',
+                    border:         '1px solid rgba(52, 211, 153, 0.3)',
+                    borderRadius:   '0.4rem',
+                    padding:        '0.55rem 0.75rem',
+                    gap:            '0.5rem',
+                    flexWrap:       'wrap',
+                  }}
+                >
+                  <span style={{ color: '#34d399', fontSize: '0.82rem', fontWeight: 500 }}>
+                    &#10003; Proof attached
+                  </span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                    <a
+                      href={proofUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{
+                        color:          '#58a6ff',
+                        fontSize:       '0.82rem',
+                        textDecoration: 'none',
+                        padding:        '0.25rem 0.5rem',
+                        borderRadius:   '0.3rem',
+                      }}
+                    >
+                      View file &#x2197;
+                    </a>
+                    <button
+                      type="button"
+                      onClick={() => setProofUrl('')}
+                      style={{
+                        background:   'transparent',
+                        border:       'none',
+                        color:        '#9ca3af',
+                        cursor:       'pointer',
+                        fontSize:     '0.82rem',
+                        padding:      '0.25rem 0.5rem',
+                        borderRadius: '0.3rem',
+                      }}
+                      aria-label="Remove proof"
+                    >
+                      &#x2715; Remove
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <ProofUpload
+                  onUploadComplete={url => setProofUrl(url)}
+                  onError={msg => setApiError(msg)}
+                />
+              )}
+
+              <span style={helperStyle}>
+                Evidence for third-party verification &mdash; e.g. Rapsodo PDF, HitTrax screenshot. Optional but recommended.
+              </span>
+            </div>
+          )}
 
           {/* Source Label */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>

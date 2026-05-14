@@ -153,6 +153,14 @@ If you skip step 1, videos will silently 403 from the new domain even though the
 - `lib/subscription.ts`'s type union stays as-is — keeps types forward-compatible.
 - `isPaidTier(tier)` helper remains correct for both athlete and coach contexts.
 
+## Pitch Proof (`athlete_pitches.proof_url`)
+
+`athlete_pitches.proof_url` is intentionally OPTIONAL at save. No cross-field invariant enforces that `third_party_*` verifications must have proof. This will tighten to a hard requirement when AI auto-verification (#25) ships and consumes proof as input. Do not propose enforcing required-proof until then.
+
+Storage flow: athlete uploads PDF/image via `POST /api/upload-pitch-proof` → file lands in the existing `documents` Supabase Storage bucket at path `${userId}/pitch_proof/${timestamp}_${safeName}` → public URL is returned to the client → client saves URL via `POST`/`PATCH /api/athlete/pitches`. The `documents` bucket is still created manually via Supabase Dashboard (the upload-document route comment documents the setup); pitch proofs reuse the same bucket — no new storage resources required.
+
+Read-only surfacing: coach detail page (`app/dashboard/coach/athletes/[athleteId]/page.tsx`) passes `showProof={true}` to `PitchArsenal`, which surfaces a "View Proof" button per pitch in `PitchCard`. Public profile (`app/profile/[username]/page.tsx`) leaves `showProof` at its `false` default — proof is intentionally NOT surfaced on the public profile. Switching pitch verification away from `third_party_*` in the edit modal hides the proof UI but preserves the stored `proof_url` in DB (matches `source_label` / `video_url` precedent).
+
 ## "Verified" Naming Gotcha
 
 Two distinct concepts in this codebase share the word "verified":

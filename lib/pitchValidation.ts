@@ -17,6 +17,7 @@ export const UPDATEABLE_FIELDS = [
   'verification_type',
   'source_label',
   'video_url',
+  'proof_url',
 ] as const;
 export type UpdateableField = typeof UPDATEABLE_FIELDS[number];
 
@@ -28,6 +29,7 @@ export const REQUIRED_ON_CREATE: UpdateableField[] = [
 
 const MAX_SOURCE_LABEL_LEN = 200;
 const MAX_VIDEO_URL_LEN    = 500;
+const MAX_PROOF_URL_LEN    = 500;
 
 const NUMERIC_RANGES: Record<string, [number, number]> = {
   velocity:  [0, 110],
@@ -89,6 +91,13 @@ export function validatePitchField(field: UpdateableField, value: unknown): stri
     if (value === null) return null;
     if (typeof value !== 'string' || value.length > MAX_VIDEO_URL_LEN) {
       return `video_url must be a string (max ${MAX_VIDEO_URL_LEN} chars) or null.`;
+    }
+    return null;
+  }
+  if (field === 'proof_url') {
+    if (value === null) return null;
+    if (typeof value !== 'string' || value.length > MAX_PROOF_URL_LEN) {
+      return `proof_url must be a string (max ${MAX_PROOF_URL_LEN} chars) or null.`;
     }
     return null;
   }

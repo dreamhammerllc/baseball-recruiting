@@ -243,6 +243,7 @@ export interface AthletePitch {
   source_label: string | null;
   ai_confidence: number | null;
   video_url: string | null;
+  proof_url: string | null;
   last_updated_at: string;
   created_at: string;
 }

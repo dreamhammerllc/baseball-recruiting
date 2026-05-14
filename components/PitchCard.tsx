@@ -10,6 +10,7 @@ interface PitchCardProps {
   onWatch?: (pitch: AthletePitch) => void;
   pitchHistory?: AthleteMetric[];
   onHistory?: (pitch: AthletePitch) => void;
+  showProof?: boolean;
 }
 
 // Fallback label when source_label is null. Humanizes the verification_type.
@@ -41,7 +42,7 @@ type TelemetryField = {
   unit:  string;
 };
 
-export default function PitchCard({ pitch, readOnly, onEdit, onWatch, pitchHistory, onHistory }: PitchCardProps) {
+export default function PitchCard({ pitch, readOnly, onEdit, onWatch, pitchHistory, onHistory, showProof = false }: PitchCardProps) {
   const pitchLabel = PITCH_TYPE_LABELS[pitch.pitch_type] ?? pitch.pitch_type;
 
   // History gate — only render the button when a mapped metric_key exists for this
@@ -165,8 +166,8 @@ export default function PitchCard({ pitch, readOnly, onEdit, onWatch, pitchHisto
         ))}
       </div>
 
-      {/* Footer — History / Watch / Edit buttons */}
-      {(showHistoryButton || pitch.video_url || !readOnly) && (
+      {/* Footer — History / Watch / View Proof / Edit buttons */}
+      {(showHistoryButton || pitch.video_url || (showProof && pitch.proof_url) || !readOnly) && (
         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginTop: '0.25rem' }}>
           {showHistoryButton && (
             <button
@@ -221,6 +222,45 @@ export default function PitchCard({ pitch, readOnly, onEdit, onWatch, pitchHisto
               }}
             >
               Watch
+            </button>
+          )}
+
+          {showProof && pitch.proof_url && (
+            <button
+              type="button"
+              onClick={() => {
+                if (pitch.proof_url) {
+                  window.open(pitch.proof_url, '_blank', 'noopener,noreferrer');
+                }
+              }}
+              style={{
+                background:   'transparent',
+                border:       '1px solid rgba(88,166,255,0.4)',
+                color:        '#58a6ff',
+                borderRadius: '0.4rem',
+                padding:      '0.3rem 0.75rem',
+                fontSize:     '0.78rem',
+                cursor:       'pointer',
+                fontWeight:   500,
+                transition:   'border-color 0.15s, background 0.15s',
+                display:      'inline-flex',
+                alignItems:   'center',
+                gap:          '0.35rem',
+              }}
+              onMouseEnter={e => {
+                (e.currentTarget as HTMLButtonElement).style.background  = 'rgba(88,166,255,0.08)';
+                (e.currentTarget as HTMLButtonElement).style.borderColor = '#58a6ff';
+              }}
+              onMouseLeave={e => {
+                (e.currentTarget as HTMLButtonElement).style.background  = 'transparent';
+                (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(88,166,255,0.4)';
+              }}
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+                <polyline points="14 2 14 8 20 8" />
+              </svg>
+              View Proof
             </button>
           )}
 

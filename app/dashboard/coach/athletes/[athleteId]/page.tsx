@@ -321,7 +321,7 @@ export default async function CoachAthleteDetailPage({
           {isPitcher && (
             <section style={{ marginBottom: '2.5rem' }}>
               <SectionHeader>Pitching Arsenal</SectionHeader>
-              <PitchArsenal pitches={pitches} readOnly={true} athleteClerkId={athlete.clerk_user_id} pitchHistory={pitchMetricsHistory} />
+              <PitchArsenal pitches={pitches} readOnly={true} athleteClerkId={athlete.clerk_user_id} pitchHistory={pitchMetricsHistory} showProof={true} />
             </section>
           )}
 
