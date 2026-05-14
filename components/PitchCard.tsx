@@ -1,22 +1,14 @@
 'use client';
 
-import type { AthletePitch, PitchType, VerificationType } from '@/lib/metrics';
+import { PITCH_TYPE_LABELS } from '@/lib/metrics';
+import type { AthletePitch, VerificationType } from '@/lib/metrics';
 
 interface PitchCardProps {
   pitch: AthletePitch;
   readOnly: boolean;
   onEdit?: (pitch: AthletePitch) => void;
+  onWatch?: (pitch: AthletePitch) => void;
 }
-
-const PITCH_TYPE_LABELS: Record<PitchType, string> = {
-  fastball_4seam: '4-Seam Fastball',
-  fastball_2seam: '2-Seam Fastball',
-  slider:         'Slider',
-  curveball:      'Curveball',
-  changeup:       'Changeup',
-  cutter:         'Cutter',
-  splitter:       'Splitter',
-};
 
 // Fallback label when source_label is null. Humanizes the verification_type.
 const VERIFICATION_FALLBACK_LABELS: Record<VerificationType, string> = {
@@ -47,7 +39,7 @@ type TelemetryField = {
   unit:  string;
 };
 
-export default function PitchCard({ pitch, readOnly, onEdit }: PitchCardProps) {
+export default function PitchCard({ pitch, readOnly, onEdit, onWatch }: PitchCardProps) {
   const pitchLabel = PITCH_TYPE_LABELS[pitch.pitch_type] ?? pitch.pitch_type;
 
   const badgeColor = getBadgeColor(pitch.verification_type);
@@ -90,6 +82,7 @@ export default function PitchCard({ pitch, readOnly, onEdit }: PitchCardProps) {
 
         {badgeLabel && (
           <span
+            title={badgeLabel}
             style={{
               background:   `rgba(${badgeRgb}, 0.12)`,
               border:       `1px solid rgba(${badgeRgb}, 0.3)`,
@@ -100,6 +93,10 @@ export default function PitchCard({ pitch, readOnly, onEdit }: PitchCardProps) {
               fontWeight:   600,
               whiteSpace:   'nowrap',
               cursor:       'default',
+              maxWidth:     '60%',
+              minWidth:     0,
+              overflow:     'hidden',
+              textOverflow: 'ellipsis',
             }}
           >
             {badgeLabel}
@@ -167,9 +164,7 @@ export default function PitchCard({ pitch, readOnly, onEdit }: PitchCardProps) {
           {pitch.video_url && (
             <button
               type="button"
-              onClick={() => {
-                if (pitch.video_url) window.open(pitch.video_url, '_blank', 'noopener,noreferrer');
-              }}
+              onClick={() => { if (onWatch) onWatch(pitch); }}
               style={{
                 background:   'transparent',
                 border:       '1px solid rgba(88,166,255,0.4)',

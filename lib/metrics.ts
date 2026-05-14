@@ -34,6 +34,16 @@ export const PITCH_TYPES = [
 ] as const;
 export type PitchType = typeof PITCH_TYPES[number];
 
+export const PITCH_TYPE_LABELS: Record<PitchType, string> = {
+  fastball_4seam: '4-Seam Fastball',
+  fastball_2seam: '2-Seam Fastball',
+  slider:         'Slider',
+  curveball:      'Curveball',
+  changeup:       'Changeup',
+  cutter:         'Cutter',
+  splitter:       'Splitter',
+};
+
 // ─── Metric Info ─────────────────────────────────────────────────────────────
 
 export const METRIC_INFO: Record<MetricKey, { label: string; unit: string; lowerIsBetter: boolean; description: string }> = {

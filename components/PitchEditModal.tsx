@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import {
   PITCH_TYPES,
+  PITCH_TYPE_LABELS,
   VERIFICATION_TYPES,
   VERIFICATION_LABELS,
 } from '@/lib/metrics';
@@ -24,18 +25,6 @@ interface PitchEditModalProps {
 }
 
 // ── Local constants ──────────────────────────────────────────────────────────
-// Duplicated from PitchCard.tsx rather than added to lib/metrics.ts so this
-// file is self-contained (Phase B scope forbids lib/metrics.ts changes).
-
-const PITCH_TYPE_LABELS: Record<PitchType, string> = {
-  fastball_4seam: '4-Seam Fastball',
-  fastball_2seam: '2-Seam Fastball',
-  slider:         'Slider',
-  curveball:      'Curveball',
-  changeup:       'Changeup',
-  cutter:         'Cutter',
-  splitter:       'Splitter',
-};
 
 const SELECTABLE_VERIFICATION_TYPES: VerificationType[] =
   VERIFICATION_TYPES.filter(t => t !== 'coach_verified');

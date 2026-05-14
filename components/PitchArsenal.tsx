@@ -2,9 +2,11 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { PITCH_TYPE_LABELS } from '@/lib/metrics';
 import type { AthletePitch } from '@/lib/metrics';
 import PitchCard from './PitchCard';
 import PitchEditModal from './PitchEditModal';
+import WatchVideoModal from '@/components/WatchVideoModal';
 
 const MAX_PITCH_SLOTS = 5;
 
@@ -22,6 +24,7 @@ export default function PitchArsenal({ pitches, readOnly, athleteClerkId }: Pitc
   const [modalMode, setModalMode]       = useState<'create' | 'edit' | null>(null);
   const [editingPitch, setEditingPitch] = useState<AthletePitch | null>(null);
   const [createSlot, setCreateSlot]     = useState<number | null>(null);
+  const [watchPitch, setWatchPitch]     = useState<AthletePitch | null>(null);
 
   function handleAdd(slot: number) {
     setModalMode('create');
@@ -44,6 +47,14 @@ export default function PitchArsenal({ pitches, readOnly, athleteClerkId }: Pitc
   function handleSaved() {
     router.refresh();
     handleClose();
+  }
+
+  function handleWatch(pitch: AthletePitch) {
+    setWatchPitch(pitch);
+  }
+
+  function handleCloseWatch() {
+    setWatchPitch(null);
   }
 
   // ── Body branches — pick exactly one based on emptiness + readOnly ────────
@@ -125,7 +136,13 @@ export default function PitchArsenal({ pitches, readOnly, athleteClerkId }: Pitc
         }}
       >
         {sorted.map(pitch => (
-          <PitchCard key={pitch.id} pitch={pitch} readOnly={readOnly} onEdit={handleEdit} />
+          <PitchCard
+            key={pitch.id}
+            pitch={pitch}
+            readOnly={readOnly}
+            onEdit={handleEdit}
+            onWatch={handleWatch}
+          />
         ))}
 
         {showAddSlot && (
@@ -182,6 +199,14 @@ export default function PitchArsenal({ pitches, readOnly, athleteClerkId }: Pitc
           athleteClerkId={athleteClerkId}
           onClose={handleClose}
           onSaved={handleSaved}
+        />
+      )}
+
+      {watchPitch && (
+        <WatchVideoModal
+          title={PITCH_TYPE_LABELS[watchPitch.pitch_type]}
+          videoUrl={watchPitch.video_url}
+          onClose={handleCloseWatch}
         />
       )}
     </>

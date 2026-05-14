@@ -8,8 +8,8 @@ import VideoUpload from '@/components/VideoUpload';
 import ThirdPartyImportModal from '@/components/ThirdPartyImportModal';
 import CoachVerificationModal from '@/components/CoachVerificationModal';
 import PitchArsenal from '@/components/PitchArsenal';
+import WatchVideoModal from '@/components/WatchVideoModal';
 import { getMetricsForPositions, METRIC_INFO, POSITIONS } from '@/lib/metrics';
-import { getVideoPlaybackInfo } from '@/lib/videoPlayback';
 import type {
   AthleteMetric,
   AthletePitch,
@@ -467,18 +467,15 @@ export default function MetricsDashboardClient({
     setHighlights(prev => prev.filter(h => h.id !== id));
   }
 
-  // ── UNIVERSAL / PITCHING / THROWING grouping ──────────────────────────────
+  // ── UNIVERSAL / HITTING / THROWING grouping ───────────────────────────────
+  // Legacy PITCHING grid retired in S32b Phase H — pitching data now lives in
+  // athlete_pitches via the Pitching Arsenal section above.
   const UNIVERSAL: MetricKey[] = ['sixty_yard_dash', 'vertical_jump', 'bat_speed'];
   const HITTING:  MetricKey[] = ['exit_velocity', 'launch_angle', 'distance'];
-  const PITCHING: MetricKey[] = [
-    'fastball_velocity', 'curveball_velocity', 'slider_velocity', 'changeup_velocity',
-    'spin_rate', 'vertical_break', 'horizontal_break',
-  ];
   const THROWING: MetricKey[] = ['pop_time', 'catcher_throwing_velocity', 'infield_throwing_velocity', 'outfield_throwing_velocity'];
 
   const universalKeys = metricKeys.filter(k => UNIVERSAL.includes(k));
   const hittingKeys  = metricKeys.filter(k => HITTING.includes(k));
-  const pitchingKeys = metricKeys.filter(k => PITCHING.includes(k));
   const throwingKeys = metricKeys.filter(k => THROWING.includes(k));
 
   // Drives the Pitching Arsenal section gate. Uses currentPosition (live state)
@@ -637,9 +634,8 @@ export default function MetricsDashboardClient({
         </div>
       )}
 
-      {/* Pitching Arsenal — modal-edited 5-pitch repertoire (S32a). Sits above
-          the legacy Pitching MetricCard grid; both render until S32b retires
-          the metric-key based pitching display. */}
+      {/* Pitching Arsenal — modal-edited 5-pitch repertoire. Replaced the legacy
+          metric-key-based Pitching MetricCard grid in S32b Phase H. */}
       {isPitcher && (
         <div style={groupStyle}>
           <p style={groupHeaderStyle}>Pitching Arsenal</p>
@@ -647,29 +643,6 @@ export default function MetricsDashboardClient({
             Your pitch repertoire with telemetry. Add, edit, and remove pitches here.
           </p>
           <PitchArsenal pitches={pitches} readOnly={false} athleteClerkId={athleteClerkId} />
-        </div>
-      )}
-
-      {/* Pitching metrics */}
-      {pitchingKeys.length > 0 && (
-        <div style={groupStyle}>
-          <p style={groupHeaderStyle}>Pitching</p>
-          <div style={gridStyle}>
-            {pitchingKeys.map(key => (
-              <MetricCard
-                key={key}
-                metricKey={key}
-                personalBest={getPersonalBest(key)}
-                allEntries={getAllEntries(key)}
-                onShowGraph={setGraphMetricKey}
-                onUploadVideo={openMetricUploadModal}
-                onEnterValue={openMetricValueModal}
-                onWatchVideo={openWatchVideoModal}
-                onViewCoachVerification={setCoachVerificationMetricKey}
-                showUploadControls
-              />
-            ))}
-          </div>
         </div>
       )}
 
@@ -861,128 +834,16 @@ export default function MetricsDashboardClient({
         </div>
       )}
 
-      {/* Watch video modal */}
-      {watchVideoMetricKey !== null && (() => {
-        const pb = getPersonalBest(watchVideoMetricKey);
-        const videoUrl = pb?.video_url ?? null;
-        const metricLabel = METRIC_INFO[watchVideoMetricKey].label;
-        return (
-          <div
-            style={{
-              position: 'fixed',
-              inset: 0,
-              backgroundColor: 'rgba(13,17,23,0.90)',
-              zIndex: 100,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              padding: '1.5rem',
-            }}
-            onClick={closeWatchVideoModal}
-          >
-            <div
-              onClick={e => e.stopPropagation()}
-              style={{
-                width: '100%',
-                maxWidth: '720px',
-                background: '#111827',
-                border: '1px solid #1e2530',
-                borderRadius: '0.75rem',
-              }}
-            >
-              {/* Modal header */}
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: '1rem 1.25rem',
-                borderBottom: '1px solid #1e2530',
-              }}>
-                <span style={{
-                  color: '#f0f6fc',
-                  fontWeight: 700,
-                  fontSize: '1rem',
-                  fontFamily: 'Georgia, serif',
-                }}>
-                  {metricLabel}
-                </span>
-                <button
-                  onClick={closeWatchVideoModal}
-                  style={{
-                    background: 'transparent',
-                    border: 'none',
-                    color: '#6b7280',
-                    fontSize: '1.25rem',
-                    lineHeight: 1,
-                    cursor: 'pointer',
-                    padding: '0.25rem 0.5rem',
-                    borderRadius: '0.375rem',
-                    transition: 'color 0.15s',
-                  }}
-                  onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = '#f0f6fc'; }}
-                  onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = '#6b7280'; }}
-                  aria-label="Close video player"
-                >
-                  &#x2715;
-                </button>
-              </div>
-
-              {/* Video player */}
-              <div style={{ backgroundColor: '#000' }}>
-                {videoUrl ? (() => {
-                  const playback = getVideoPlaybackInfo(videoUrl);
-                  if (playback.kind === 'mp4') {
-                    return (
-                      <video
-                        src={playback.src}
-                        controls
-                        autoPlay
-                        style={{ display: 'block', width: '100%', height: '300px', background: '#000', border: 'none' }}
-                      />
-                    );
-                  }
-                  if (playback.kind === 'iframe') {
-                    return (
-                      <iframe
-                        src={playback.src}
-                        width="100%"
-                        height="300"
-                        loading="lazy"
-                        style={{ border: 'none', display: 'block' }}
-                        allow="autoplay; fullscreen"
-                        allowFullScreen
-                      />
-                    );
-                  }
-                  return (
-                    <div style={{ padding: '2.5rem', textAlign: 'center', backgroundColor: '#0d1117' }}>
-                      <p style={{ color: '#9ca3af', fontSize: '0.875rem', margin: '0 0 1rem', lineHeight: 1.6 }}>
-                        Video format not supported — please re-upload this video.
-                      </p>
-                      <button
-                        onClick={() => { closeWatchVideoModal(); openMetricUploadModal(watchVideoMetricKey!); }}
-                        style={{ backgroundColor: '#e8a020', color: '#000', border: 'none', borderRadius: '0.5rem', padding: '0.5rem 1.25rem', fontSize: '0.875rem', fontWeight: 700, cursor: 'pointer' }}
-                      >
-                        Upload Video
-                      </button>
-                    </div>
-                  );
-                })() : (
-                  <div style={{
-                    padding: '3rem',
-                    textAlign: 'center',
-                    color: '#4b5563',
-                    fontSize: '0.875rem',
-                    lineHeight: 1.5,
-                  }}>
-                    No video available for this metric.
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        );
-      })()}
+      {/* Watch video modal — shared component used by both PitchCard (in PitchArsenal)
+          and the metric-card grids on this page. */}
+      {watchVideoMetricKey !== null && (
+        <WatchVideoModal
+          title={METRIC_INFO[watchVideoMetricKey].label}
+          videoUrl={getPersonalBest(watchVideoMetricKey)?.video_url ?? null}
+          onClose={closeWatchVideoModal}
+          onReUpload={() => { closeWatchVideoModal(); openMetricUploadModal(watchVideoMetricKey!); }}
+        />
+      )}
 
       {/* Video upload modal for highlight */}
       {highlightUploadSlot !== null && (
