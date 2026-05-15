@@ -88,9 +88,9 @@ export const METRIC_INFO: Record<MetricKey, { label: string; unit: string; lower
   horizontal_break:           { label: 'Pitch Movement (Horiz)',         unit: 'in',  lowerIsBetter: false, description: 'Horizontal movement on pitch' },
   extension:                  { label: 'Extension',                      unit: 'ft',  lowerIsBetter: false, description: 'Pitcher release point extension' },
   pop_time:                   { label: 'Pop Time',                       unit: 's',   lowerIsBetter: true,  description: 'Time from catch to tag at second base' },
-  catcher_throwing_velocity:  { label: 'Arm Strength',                   unit: 'mph', lowerIsBetter: false, description: 'Catcher arm strength throwing to second' },
-  infield_throwing_velocity:  { label: 'Arm Strength',                   unit: 'mph', lowerIsBetter: false, description: 'Infield arm strength across the diamond' },
-  outfield_throwing_velocity: { label: 'Arm Strength',                   unit: 'mph', lowerIsBetter: false, description: 'Outfield arm strength throwing to home' },
+  catcher_throwing_velocity:  { label: 'Catcher Arm Strength',           unit: 'mph', lowerIsBetter: false, description: 'Catcher arm strength throwing to second' },
+  infield_throwing_velocity:  { label: 'Infield Arm Strength',           unit: 'mph', lowerIsBetter: false, description: 'Infield arm strength across the diamond' },
+  outfield_throwing_velocity: { label: 'Outfield Arm Strength',          unit: 'mph', lowerIsBetter: false, description: 'Outfield arm strength throwing to home' },
 };
 
 // ─── Universal metrics (all positions) ───────────────────────────────────────
