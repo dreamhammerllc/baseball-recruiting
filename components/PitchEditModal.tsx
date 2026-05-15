@@ -545,7 +545,7 @@ export default function PitchEditModal({
                 >
                   {VERIFICATION_LABELS.coach_verified.label}
                 </div>
-                <span style={{ ...helperStyle, fontStyle: 'italic' }}>
+                <span style={helperStyle}>
                   Only Diamond Verified coaches can change this.
                 </span>
               </>
