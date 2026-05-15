@@ -282,7 +282,7 @@ export default function PitchEditModal({
   // Source-label helper text
   let sourceLabelHelper: string;
   if (isCoachVerifiedLocked) {
-    sourceLabelHelper = 'Locked. Only Diamond Verified coaches can change this.';
+    sourceLabelHelper = LOCKED_HELPER_TEXT;
   } else if (verificationType.startsWith('third_party')) {
     sourceLabelHelper = "Recommended — e.g. 'Rapsodo Import 4/15/26'";
   } else {
