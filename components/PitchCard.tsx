@@ -11,6 +11,9 @@ interface PitchCardProps {
   pitchHistory?: AthleteMetric[];
   onHistory?: (pitch: AthletePitch) => void;
   showProof?: boolean;
+  canMoveUp?: boolean;
+  canMoveDown?: boolean;
+  onMove?: (pitch: AthletePitch, direction: 'up' | 'down') => void;
 }
 
 // Fallback label when source_label is null. Humanizes the verification_type.
@@ -42,7 +45,7 @@ type TelemetryField = {
   unit:  string;
 };
 
-export default function PitchCard({ pitch, readOnly, onEdit, onWatch, pitchHistory, onHistory, showProof = false }: PitchCardProps) {
+export default function PitchCard({ pitch, readOnly, onEdit, onWatch, pitchHistory, onHistory, showProof = false, canMoveUp = false, canMoveDown = false, onMove }: PitchCardProps) {
   const pitchLabel = PITCH_TYPE_LABELS[pitch.pitch_type] ?? pitch.pitch_type;
 
   // History gate — only render the button when a mapped metric_key exists for this
@@ -169,6 +172,69 @@ export default function PitchCard({ pitch, readOnly, onEdit, onWatch, pitchHisto
       {/* Footer — History / Watch / View Proof / Edit buttons */}
       {(showHistoryButton || pitch.video_url || (showProof && pitch.proof_url) || !readOnly) && (
         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginTop: '0.25rem' }}>
+          {!readOnly && onMove && (
+            <div style={{ display: 'flex', gap: '0.35rem', marginRight: 'auto' }}>
+              <button
+                type="button"
+                aria-label="Move up"
+                disabled={!canMoveUp}
+                onClick={() => { if (canMoveUp && onMove) onMove(pitch, 'up'); }}
+                style={{
+                  background:   'transparent',
+                  border:       `1px solid ${canMoveUp ? '#4b5563' : '#374151'}`,
+                  color:        canMoveUp ? '#9ca3af' : '#4b5563',
+                  borderRadius: '0.4rem',
+                  padding:      '0.3rem 0.5rem',
+                  cursor:       canMoveUp ? 'pointer' : 'default',
+                  display:      'inline-flex',
+                  alignItems:   'center',
+                  transition:   'border-color 0.15s, color 0.15s',
+                }}
+                onMouseEnter={canMoveUp ? (e) => {
+                  (e.currentTarget as HTMLButtonElement).style.borderColor = '#6b7280';
+                  (e.currentTarget as HTMLButtonElement).style.color       = '#f0f6fc';
+                } : undefined}
+                onMouseLeave={canMoveUp ? (e) => {
+                  (e.currentTarget as HTMLButtonElement).style.borderColor = '#4b5563';
+                  (e.currentTarget as HTMLButtonElement).style.color       = '#9ca3af';
+                } : undefined}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <polyline points="18 15 12 9 6 15" />
+                </svg>
+              </button>
+              <button
+                type="button"
+                aria-label="Move down"
+                disabled={!canMoveDown}
+                onClick={() => { if (canMoveDown && onMove) onMove(pitch, 'down'); }}
+                style={{
+                  background:   'transparent',
+                  border:       `1px solid ${canMoveDown ? '#4b5563' : '#374151'}`,
+                  color:        canMoveDown ? '#9ca3af' : '#4b5563',
+                  borderRadius: '0.4rem',
+                  padding:      '0.3rem 0.5rem',
+                  cursor:       canMoveDown ? 'pointer' : 'default',
+                  display:      'inline-flex',
+                  alignItems:   'center',
+                  transition:   'border-color 0.15s, color 0.15s',
+                }}
+                onMouseEnter={canMoveDown ? (e) => {
+                  (e.currentTarget as HTMLButtonElement).style.borderColor = '#6b7280';
+                  (e.currentTarget as HTMLButtonElement).style.color       = '#f0f6fc';
+                } : undefined}
+                onMouseLeave={canMoveDown ? (e) => {
+                  (e.currentTarget as HTMLButtonElement).style.borderColor = '#4b5563';
+                  (e.currentTarget as HTMLButtonElement).style.color       = '#9ca3af';
+                } : undefined}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
+              </button>
+            </div>
+          )}
+
           {showHistoryButton && (
             <button
               type="button"

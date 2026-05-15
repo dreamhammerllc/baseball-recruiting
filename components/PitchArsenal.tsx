@@ -33,6 +33,8 @@ export default function PitchArsenal({ pitches, readOnly, athleteClerkId, pitchH
   const [createSlot, setCreateSlot]     = useState<number | null>(null);
   const [watchPitch, setWatchPitch]     = useState<AthletePitch | null>(null);
   const [historyPitch, setHistoryPitch] = useState<AthletePitch | null>(null);
+  const [moveError, setMoveError]       = useState<string | null>(null);
+  const [movingId, setMovingId]         = useState<string | null>(null);
 
   function handleAdd(slot: number) {
     setModalMode('create');
@@ -71,6 +73,29 @@ export default function PitchArsenal({ pitches, readOnly, athleteClerkId, pitchH
 
   function handleCloseHistory() {
     setHistoryPitch(null);
+  }
+
+  async function handleMove(pitch: AthletePitch, direction: 'up' | 'down') {
+    if (movingId) return; // ignore rapid re-clicks while a move is in flight
+    setMovingId(pitch.id);
+    setMoveError(null);
+    try {
+      const res = await fetch(`/api/athlete/pitches/${pitch.id}/move`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ direction }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({} as { error?: string }));
+        setMoveError(data?.error ?? 'Failed to move pitch.');
+        return;
+      }
+      router.refresh();
+    } catch {
+      setMoveError('Failed to move pitch.');
+    } finally {
+      setMovingId(null);
+    }
   }
 
   // ── Body branches — pick exactly one based on emptiness + readOnly ────────
@@ -151,7 +176,7 @@ export default function PitchArsenal({ pitches, readOnly, athleteClerkId, pitchH
           gap:                 '1rem',
         }}
       >
-        {sorted.map(pitch => (
+        {sorted.map((pitch, idx) => (
           <PitchCard
             key={pitch.id}
             pitch={pitch}
@@ -161,6 +186,9 @@ export default function PitchArsenal({ pitches, readOnly, athleteClerkId, pitchH
             pitchHistory={pitchHistory}
             onHistory={handleHistory}
             showProof={showProof}
+            canMoveUp={idx > 0}
+            canMoveDown={idx < sorted.length - 1}
+            onMove={readOnly ? undefined : handleMove}
           />
         ))}
 
@@ -208,6 +236,21 @@ export default function PitchArsenal({ pitches, readOnly, athleteClerkId, pitchH
 
   return (
     <>
+      {moveError && (
+        <div
+          style={{
+            background:   'rgba(248,81,73,0.08)',
+            border:       '1px solid rgba(248,81,73,0.35)',
+            color:        '#f85149',
+            borderRadius: '0.5rem',
+            padding:      '0.6rem 0.9rem',
+            fontSize:     '0.8rem',
+            marginBottom: '0.75rem',
+          }}
+        >
+          {moveError}
+        </div>
+      )}
       {body}
       {modalMode !== null && (
         <PitchEditModal
