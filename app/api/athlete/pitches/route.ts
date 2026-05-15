@@ -53,6 +53,18 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  // Athletes can't self-assign coach_verified; only a Diamond Verified coach can.
+  // Kept out of the shared validator so PATCH can resend it as a no-op.
+  if (body.verification_type === 'coach_verified') {
+    return NextResponse.json(
+      {
+        error:   'verification_type_forbidden',
+        message: 'Coach-verified pitches can only be created by a Diamond Verified coach.',
+      },
+      { status: 403 },
+    );
+  }
+
   // Per-field validation. Optional fields not in body are written as explicit null.
   const payload: Record<string, unknown> = {
     athlete_clerk_id: userId,
