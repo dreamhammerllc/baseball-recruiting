@@ -11,10 +11,19 @@ interface Props {
   initialMetrics: AthleteMetric[];
 }
 
+// Owned by the pitching arsenal (athlete_pitches table) since S32 Phase H —
+// intentionally excluded from this mini-view even if historical athlete_metrics
+// rows still exist under these keys.
+const LEGACY_PITCHING_KEYS: ReadonlySet<MetricKey> = new Set([
+  'fastball_velocity',
+  'slider_velocity',
+  'curveball_velocity',
+  'changeup_velocity',
+]);
+
 // A compact subset of metrics shown on the main dashboard (not the full metrics page)
 const DASHBOARD_METRIC_KEYS: MetricKey[] = [
   'exit_velocity',
-  'fastball_velocity',
   'sixty_yard_dash',
   'infield_throwing_velocity',
   'outfield_throwing_velocity',
@@ -27,11 +36,13 @@ export default function AthleteDashboardMetrics({ initialMetrics }: Props) {
   const [showModal, setShowModal] = useState(false);
   const [modalDefault, setModalDefault] = useState<MetricKey | undefined>(undefined);
 
-  // Only show metrics the athlete has data for, plus the standard dashboard set
-  const keysWithData = Array.from(new Set([
+  // Only show metrics the athlete has data for, plus the standard dashboard set.
+  // Legacy pitching keys are filtered out even if historical data still exists
+  // under them — those belong to the pitching arsenal surface.
+  const keysWithData = (Array.from(new Set([
     ...DASHBOARD_METRIC_KEYS,
     ...metrics.map(m => m.metric_key),
-  ])) as MetricKey[];
+  ])) as MetricKey[]).filter(k => !LEGACY_PITCHING_KEYS.has(k));
 
   function getPersonalBest(key: MetricKey): AthleteMetric | null {
     return metrics.find(m => m.metric_key === key && m.is_personal_best) ?? null;
