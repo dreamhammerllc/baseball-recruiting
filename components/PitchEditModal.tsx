@@ -169,6 +169,12 @@ export default function PitchEditModal({
 
   // ── Submit ─────────────────────────────────────────────────────────────────
 
+  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (saving || hasErrors) return;
+    void handleSave();
+  }
+
   async function handleSave() {
     // Final validation sweep — gate against stale errors that never opened.
     const errs: Record<string, string> = {};
@@ -276,8 +282,10 @@ export default function PitchEditModal({
       }}
       onClick={onClose}
     >
-      <div
+      <form
         onClick={e => e.stopPropagation()}
+        onSubmit={handleSubmit}
+        noValidate
         style={{
           width:           '100%',
           maxWidth:        '520px',
@@ -738,8 +746,7 @@ export default function PitchEditModal({
               Cancel
             </button>
             <button
-              type="button"
-              onClick={handleSave}
+              type="submit"
               disabled={saving || hasErrors}
               style={{
                 background:   saving || hasErrors ? '#374151' : '#e8a020',
@@ -756,7 +763,7 @@ export default function PitchEditModal({
             </button>
           </div>
         </div>
-      </div>
+      </form>
     </div>
   );
 }
