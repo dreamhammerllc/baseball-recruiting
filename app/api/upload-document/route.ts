@@ -1,19 +1,12 @@
 /**
- * BEFORE THIS ROUTE WILL WORK — two manual setup steps in Supabase:
+ * Storage bucket 'documents' and the athletes.transcript_url /
+ * athletes.test_scores_url columns are created by Supabase migration
+ * 008_documents_bucket_and_url_columns.sql. No manual setup required.
  *
- * 1. CREATE THE STORAGE BUCKET
- *    In the Supabase dashboard → Storage → New bucket:
- *      Name:   documents
- *      Public: true   (so we can derive a stable public URL without signed links)
- *    Or run in the SQL editor:
- *      INSERT INTO storage.buckets (id, name, public)
- *      VALUES ('documents', 'documents', true)
- *      ON CONFLICT (id) DO NOTHING;
- *
- * 2. ADD COLUMNS TO THE ATHLETES TABLE
- *    Run in the Supabase SQL editor:
- *      ALTER TABLE athletes ADD COLUMN IF NOT EXISTS transcript_url  text;
- *      ALTER TABLE athletes ADD COLUMN IF NOT EXISTS test_scores_url text;
+ * Bucket-level enforcement: 10 MB file size limit, allowlist of
+ * application/pdf and 5 image types. The MAX_BYTES and ALLOWED_MIME_TYPES
+ * constants below mirror that enforcement at the application layer; keep
+ * them in sync with the migration if either is ever changed.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
