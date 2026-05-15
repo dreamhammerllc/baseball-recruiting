@@ -42,6 +42,23 @@ const NUMERIC_RANGES: Record<NumericField, [number, number]> = {
   extension: [4, 7],
 };
 
+// Mirrors the server lock in app/api/athlete/pitches/[id]/route.ts.
+// Only pitch_slot stays athlete-editable on coach_verified rows.
+const LOCKED_ON_COACH_VERIFIED = [
+  'pitch_type',
+  'velocity',
+  'spin_rate',
+  'h_break',
+  'v_break',
+  'extension',
+  'video_url',
+  'proof_url',
+  'verification_type',
+  'source_label',
+] as const;
+
+const LOCKED_HELPER_TEXT = 'Locked. Only Diamond Verified coaches can change this.';
+
 // ── Shared style helpers ─────────────────────────────────────────────────────
 
 const labelStyle: React.CSSProperties = {
@@ -199,7 +216,7 @@ export default function PitchEditModal({
     setSaving(true);
     setApiError(null);
 
-    const body = {
+    const body: Record<string, unknown> = {
       pitch_slot:        pitchSlot,
       pitch_type:        pitchType,
       velocity:          velocity  === '' ? null : Number(velocity),
@@ -212,6 +229,12 @@ export default function PitchEditModal({
       video_url:         videoUrl    === '' ? null : videoUrl,
       proof_url:         proofUrl    === '' ? null : proofUrl,
     };
+
+    // Server rejects locked-field writes on coach_verified rows; strip them
+    // client-side so a slot-only reorder doesn't 403 on no-op resends.
+    if (isCoachVerifiedLocked) {
+      for (const k of LOCKED_ON_COACH_VERIFIED) delete body[k];
+    }
 
     const url    = isEdit && pitch ? `/api/athlete/pitches/${pitch.id}` : '/api/athlete/pitches';
     const method = isEdit && pitch ? 'PATCH' : 'POST';
@@ -385,14 +408,18 @@ export default function PitchEditModal({
             <label style={labelStyle}>Pitch Type</label>
             <select
               value={pitchType}
+              disabled={isCoachVerifiedLocked}
               onChange={e => setPitchType(e.target.value as PitchType)}
-              style={inputStyle(false)}
+              style={inputStyle(false, isCoachVerifiedLocked)}
               {...fieldFocusBlur(false)}
             >
               {PITCH_TYPES.map(t => (
                 <option key={t} value={t}>{PITCH_TYPE_LABELS[t]}</option>
               ))}
             </select>
+            {isCoachVerifiedLocked && (
+              <span style={helperStyle}>{LOCKED_HELPER_TEXT}</span>
+            )}
           </div>
 
           {/* Telemetry — 2-column grid */}
@@ -410,11 +437,15 @@ export default function PitchEditModal({
                 max={110}
                 placeholder="e.g. 88.5"
                 value={velocity}
+                disabled={isCoachVerifiedLocked}
                 onChange={handleNumericChange('velocity', setVelocity)}
-                style={inputStyle(!!errors.velocity)}
+                style={inputStyle(!!errors.velocity, isCoachVerifiedLocked)}
                 {...fieldFocusBlur(!!errors.velocity)}
               />
               {errors.velocity && <span style={errorMessageStyle}>{errors.velocity}</span>}
+              {isCoachVerifiedLocked && (
+                <span style={helperStyle}>{LOCKED_HELPER_TEXT}</span>
+              )}
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
@@ -426,11 +457,15 @@ export default function PitchEditModal({
                 max={3500}
                 placeholder="e.g. 2400"
                 value={spinRate}
+                disabled={isCoachVerifiedLocked}
                 onChange={handleNumericChange('spin_rate', setSpinRate)}
-                style={inputStyle(!!errors.spin_rate)}
+                style={inputStyle(!!errors.spin_rate, isCoachVerifiedLocked)}
                 {...fieldFocusBlur(!!errors.spin_rate)}
               />
               {errors.spin_rate && <span style={errorMessageStyle}>{errors.spin_rate}</span>}
+              {isCoachVerifiedLocked && (
+                <span style={helperStyle}>{LOCKED_HELPER_TEXT}</span>
+              )}
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
@@ -442,11 +477,15 @@ export default function PitchEditModal({
                 max={25}
                 placeholder="e.g. 12.3 or -5"
                 value={hBreak}
+                disabled={isCoachVerifiedLocked}
                 onChange={handleNumericChange('h_break', setHBreak)}
-                style={inputStyle(!!errors.h_break)}
+                style={inputStyle(!!errors.h_break, isCoachVerifiedLocked)}
                 {...fieldFocusBlur(!!errors.h_break)}
               />
               {errors.h_break && <span style={errorMessageStyle}>{errors.h_break}</span>}
+              {isCoachVerifiedLocked && (
+                <span style={helperStyle}>{LOCKED_HELPER_TEXT}</span>
+              )}
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
@@ -458,11 +497,15 @@ export default function PitchEditModal({
                 max={25}
                 placeholder="e.g. -8.5"
                 value={vBreak}
+                disabled={isCoachVerifiedLocked}
                 onChange={handleNumericChange('v_break', setVBreak)}
-                style={inputStyle(!!errors.v_break)}
+                style={inputStyle(!!errors.v_break, isCoachVerifiedLocked)}
                 {...fieldFocusBlur(!!errors.v_break)}
               />
               {errors.v_break && <span style={errorMessageStyle}>{errors.v_break}</span>}
+              {isCoachVerifiedLocked && (
+                <span style={helperStyle}>{LOCKED_HELPER_TEXT}</span>
+              )}
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
@@ -474,11 +517,15 @@ export default function PitchEditModal({
                 max={7}
                 placeholder="e.g. 6.2"
                 value={extension}
+                disabled={isCoachVerifiedLocked}
                 onChange={handleNumericChange('extension', setExtension)}
-                style={inputStyle(!!errors.extension)}
+                style={inputStyle(!!errors.extension, isCoachVerifiedLocked)}
                 {...fieldFocusBlur(!!errors.extension)}
               />
               {errors.extension && <span style={errorMessageStyle}>{errors.extension}</span>}
+              {isCoachVerifiedLocked && (
+                <span style={helperStyle}>{LOCKED_HELPER_TEXT}</span>
+              )}
             </div>
           </div>
 
@@ -624,14 +671,16 @@ export default function PitchEditModal({
                 <button
                   type="button"
                   onClick={() => setVideoUrl('')}
+                  disabled={isCoachVerifiedLocked}
                   style={{
                     background:   'transparent',
                     border:       'none',
                     color:        '#9ca3af',
-                    cursor:       'pointer',
+                    cursor:       isCoachVerifiedLocked ? 'not-allowed' : 'pointer',
                     fontSize:     '0.82rem',
                     padding:      '0.25rem 0.5rem',
                     borderRadius: '0.3rem',
+                    opacity:      isCoachVerifiedLocked ? 0.6 : 1,
                   }}
                   aria-label="Remove video"
                 >
@@ -640,13 +689,19 @@ export default function PitchEditModal({
               </div>
             )}
 
-            <VideoUpload
-              key={videoUrl || 'empty'}
-              athleteClerkId={athleteClerkId}
-              uploadType="pitch"
-              onUploadComplete={url => setVideoUrl(url)}
-              onError={msg => setApiError(msg)}
-            />
+            {!isCoachVerifiedLocked && (
+              <VideoUpload
+                key={videoUrl || 'empty'}
+                athleteClerkId={athleteClerkId}
+                uploadType="pitch"
+                onUploadComplete={url => setVideoUrl(url)}
+                onError={msg => setApiError(msg)}
+              />
+            )}
+
+            {isCoachVerifiedLocked && (
+              <span style={helperStyle}>{LOCKED_HELPER_TEXT}</span>
+            )}
           </div>
         </div>
 
