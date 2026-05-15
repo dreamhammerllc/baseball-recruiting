@@ -134,7 +134,7 @@ If you skip step 1, videos will silently 403 from the new domain even though the
 
 ### Launch Billing Strategy (as of 2026-05-10)
 
-**Active in live Stripe (4 SKUs):**
+**Active in live Stripe (4 SKUs — all athlete plans; no coach SKUs):**
 - Verified Monthly
 - Verified Yearly
 - Elite Monthly
@@ -144,7 +144,7 @@ If you skip step 1, videos will silently 403 from the new domain even though the
 
 - **Pro tier** — DB constraint allows `'pro'` and the webhook code (`app/api/stripe/webhook/route.ts`) has env-gated Pro mapping controlled by `STRIPE_PRO_MONTHLY_PRICE_ID` / `STRIPE_PRO_YEARLY_PRICE_ID`. Pro will activate automatically when those env vars are set and corresponding Stripe products exist. For launch: env vars not set, Pro not in live Stripe products, Pro not in pricing UI. `SubscriptionTier` type union retains `'pro'` for forward compatibility.
 
-- **Coach billing** — `coaches.subscription_tier` column exists with NOT NULL default `'free'` and the same constraint as athletes (`free | verified | elite | pro`). No code path writes to it. No Stripe flow for coaches at launch. **Do not propose coach billing flows.** Coaches are intentionally free at launch to drive adoption — coach acquisition is a critical product priority in early stages. Future possibility: charge coaches once athlete base reaches critical mass. No decision yet on tier structure, pricing, or timing.
+- **Coach billing — intentionally disabled.** `coaches.subscription_tier` column exists with NOT NULL default `'free'` and the same constraint as athletes (`free | verified | elite | pro`), but it is **NOT wired to Stripe** — no code path writes to it and no Stripe flow exists for coaches. **Coaches are FREE at launch and through the early stages.** This is a deliberate strategic choice: coaches are the **distribution engine**, so coach adoption is the priority over coach revenue. The four live Stripe SKUs are all athlete plans (Verified Monthly/Yearly, Elite Monthly/Yearly) — **no coach SKUs exist and none should be added.** **Do NOT propose coach billing flows, coach pricing tiers, or coach payment endpoints, and do NOT wire `coaches.subscription_tier` to Stripe, unless this policy is explicitly changed.** Future possibility: charge coaches once the athlete base reaches critical mass — no decision yet on tier structure, pricing, or timing.
 
 **Implications for code:**
 
