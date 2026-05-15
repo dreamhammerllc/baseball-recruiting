@@ -5,7 +5,9 @@ import AthleteSidebar from '@/components/layout/AthleteSidebar';
 import VerificationDocuments from './VerificationDocuments';
 import AthleteDashboardMetrics from '@/components/AthleteDashboardMetrics';
 import AthleteConnectCard from '@/components/AthleteConnectCard';
-import type { AthleteMetric } from '@/lib/metrics';
+import TopPitchVelocityCard from './TopPitchVelocityCard';
+import { getHistoryForPitchType, PITCH_TYPE_TO_METRIC_KEY } from '@/lib/metrics';
+import type { AthleteMetric, AthletePitch, MetricKey } from '@/lib/metrics';
 
 
 export default async function AthleteDashboard({
@@ -45,12 +47,37 @@ export default async function AthleteDashboard({
     .select('*', { count: 'exact', head: true })
     .eq('athlete_clerk_id', user.id);
 
-  // Fetch pitching arsenal count (0–5)
-  const { count: arsenalCount } = await db
+  // Fetch pitching arsenal (full rows feed the Top Pitch Velocity card; the
+  // Arsenal stat tile derives its count from the same fetch).
+  type TopPitch = Pick<
+    AthletePitch,
+    'id' | 'pitch_slot' | 'pitch_type' | 'velocity' | 'verification_type' | 'source_label'
+  >;
+  const { data: pitchesData } = await db
     .from('athlete_pitches')
-    .select('id', { count: 'exact', head: true })
-    .eq('athlete_clerk_id', user.id);
-  const arsenalY = arsenalCount ?? 0;
+    .select('id, pitch_slot, pitch_type, velocity, verification_type, source_label')
+    .eq('athlete_clerk_id', user.id)
+    .order('pitch_slot', { ascending: true });
+  const pitches = (pitchesData ?? []) as TopPitch[];
+  const arsenalY = pitches.length;
+
+  // Top pitch by velocity; ties broken by lowest pitch_slot (display priority).
+  const pitchesWithVelocity = pitches.filter(p => p.velocity != null);
+  const topPitch: TopPitch | null = pitchesWithVelocity.length > 0
+    ? pitchesWithVelocity.reduce((best, p) =>
+        p.velocity! > best.velocity! ||
+        (p.velocity! === best.velocity! && p.pitch_slot < best.pitch_slot)
+          ? p
+          : best,
+      )
+    : null;
+
+  const topPitchMetricKey: MetricKey | null = topPitch
+    ? (PITCH_TYPE_TO_METRIC_KEY[topPitch.pitch_type] ?? null)
+    : null;
+  const topPitchHistory: AthleteMetric[] = topPitch
+    ? getHistoryForPitchType(allMetrics, topPitch.pitch_type)
+    : [];
 
   const tier      = athlete?.subscription_tier ?? 'free';
   const tierLabel = tier === 'elite' ? 'Elite' : tier === 'verified' ? 'Verified' : 'Scout';
@@ -202,6 +229,17 @@ export default async function AthleteDashboard({
         {/* My Metrics — client component with Add/Update modal */}
         <div style={{ backgroundColor: '#111827', border: '1px solid #1e2530', borderRadius: '0.75rem', padding: '1.5rem', marginBottom: '1.25rem' }}>
           <AthleteDashboardMetrics initialMetrics={allMetrics} />
+        </div>
+
+        {/* Pitching — Top Pitch Velocity headline card. Parallel to My Metrics:
+            athlete_pitches-driven, independent of athlete_metrics presence. */}
+        <div style={{ backgroundColor: '#111827', border: '1px solid #1e2530', borderRadius: '0.75rem', padding: '1.5rem', marginBottom: '1.25rem' }}>
+          <TopPitchVelocityCard
+            topPitch={topPitch}
+            arsenalCount={arsenalY}
+            historyMetricKey={topPitchMetricKey}
+            historyEntries={topPitchHistory}
+          />
         </div>
 
         <AthleteConnectCard athleteId={user.id} />
