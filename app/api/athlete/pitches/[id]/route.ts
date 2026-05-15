@@ -6,6 +6,21 @@ import { createAdminClient } from '@/lib/supabase';
 import type { AthletePitch } from '@/lib/metrics';
 import { UPDATEABLE_FIELDS, validatePitchField } from '@/lib/pitchValidation';
 
+// Fields blocked from athlete-side updates once a pitch is coach-verified.
+// Only pitch_slot (display ordering) remains athlete-editable on these rows.
+const LOCKED_ON_COACH_VERIFIED = new Set<string>([
+  'pitch_type',
+  'velocity',
+  'spin_rate',
+  'h_break',
+  'v_break',
+  'extension',
+  'video_url',
+  'proof_url',
+  'verification_type',
+  'source_label',
+]);
+
 // ── PATCH /api/athlete/pitches/[id] ──────────────────────────────────────────
 // Update a subset of fields on an existing pitch. Athlete must own the pitch.
 // Slot-conflict detection runs only when the slot actually changes.
@@ -36,7 +51,7 @@ export async function PATCH(
   // 1. Fetch — confirms existence and ownership before any write.
   const { data: current, error: fetchErr } = await db
     .from('athlete_pitches')
-    .select('id, athlete_clerk_id, pitch_slot')
+    .select('id, athlete_clerk_id, pitch_slot, verification_type')
     .eq('id', id)
     .maybeSingle();
 
@@ -45,9 +60,21 @@ export async function PATCH(
     return NextResponse.json({ error: 'Database error.' }, { status: 500 });
   }
   if (!current) return NextResponse.json({ error: 'Pitch not found.' }, { status: 404 });
-  const currentRow = current as { athlete_clerk_id: string; pitch_slot: number };
+  const currentRow = current as { athlete_clerk_id: string; pitch_slot: number; verification_type: string };
   if (currentRow.athlete_clerk_id !== userId) {
     return NextResponse.json({ error: 'Forbidden.' }, { status: 403 });
+  }
+
+  // Block athlete edits to verification-claim fields on coach-verified rows.
+  if (currentRow.verification_type === 'coach_verified') {
+    for (const field of presentFields) {
+      if (LOCKED_ON_COACH_VERIFIED.has(field)) {
+        return NextResponse.json(
+          { error: 'field_locked', message: 'This field is locked on coach-verified pitches.', field },
+          { status: 403 },
+        );
+      }
+    }
   }
 
   // 2. Validate per-field, building the update payload.
