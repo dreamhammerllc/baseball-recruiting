@@ -42,6 +42,11 @@ export async function GET(req: NextRequest) {
     // ── Filters mapped to athletes columns ───────────────────────────────────
     const colFilters = {
       position:        sp.get('position')?.trim() || null,
+      // gradYearMin / gradYearMax intentionally keep their gradYear* names (not
+      // graduationYear*). DiscoverClient serializes its Filters object straight to
+      // URL query params via Object.entries(filters); these keys plus the
+      // sp.get('gradYearMin'|'gradYearMax') reads ARE that URL contract — renaming
+      // them would break the client→API wire contract (fetch URL params). See #5.
       gradYearMin:     n(sp.get('gradYearMin')),
       gradYearMax:     n(sp.get('gradYearMax')),
       state:           sp.get('state')?.trim().toUpperCase() || null,

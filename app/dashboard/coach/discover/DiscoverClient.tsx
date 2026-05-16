@@ -32,6 +32,11 @@ interface ApiResponse {
 
 // All filter values are kept as strings in draft state (raw input forms).
 // Empty string ⇒ filter omitted from the request.
+//
+// The gradYearMin / gradYearMax field names are intentionally NOT renamed to
+// graduationYear*. These fields are serialized directly to URL query parameters
+// via Object.entries(filters); renaming them would break the client→API wire
+// contract (fetch URL params). See #5 for rename scope rationale.
 interface Filters {
   // primary
   position:        string;
