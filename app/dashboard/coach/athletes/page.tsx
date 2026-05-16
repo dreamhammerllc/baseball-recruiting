@@ -22,8 +22,8 @@ interface ConnectedAthlete {
 }
 
 type SortKey = 'name' | 'gradYearAsc' | 'connectedDesc';
-interface Filters { position: string; gradYear: string }
-const EMPTY_FILTERS: Filters = { position: '', gradYear: '' };
+interface Filters { position: string; graduationYear: string }
+const EMPTY_FILTERS: Filters = { position: '', graduationYear: '' };
 
 const RECENT_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
 
@@ -75,8 +75,8 @@ export default function MyAthletesPage() {
     if (filters.position) {
       r = r.filter(a => a.position === filters.position);
     }
-    if (filters.gradYear) {
-      const y = Number(filters.gradYear);
+    if (filters.graduationYear) {
+      const y = Number(filters.graduationYear);
       r = r.filter(a => a.graduationYear === y);
     }
     if (recentlyActive) {
@@ -205,8 +205,8 @@ export default function MyAthletesPage() {
               </select>
 
               <select
-                value={filters.gradYear}
-                onChange={e => setFilters(f => ({ ...f, gradYear: e.target.value }))}
+                value={filters.graduationYear}
+                onChange={e => setFilters(f => ({ ...f, graduationYear: e.target.value }))}
                 style={selectStyle}
                 aria-label="Filter by grad year"
               >
@@ -412,7 +412,7 @@ export default function MyAthletesPage() {
               name: athlete.name,
               photo: athlete.photo,
               position: athlete.position,
-              graduationYear: athlete.gradYear,
+              graduationYear: athlete.graduationYear,
               state: null,
               updatedAt: null,
               username: null,

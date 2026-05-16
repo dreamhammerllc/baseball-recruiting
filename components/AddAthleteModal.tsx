@@ -7,7 +7,7 @@ type FoundAthlete = {
   name: string;
   photo: string | null;
   position: string | null;
-  gradYear: number | null;
+  graduationYear: number | null;
 };
 
 interface Props {
@@ -233,9 +233,9 @@ export default function AddAthleteModal({ onClose, onConnected }: Props) {
                 <p style={{ color: '#ffffff', fontWeight: 600, fontSize: '0.95rem', margin: 0 }}>
                   {found.name}
                 </p>
-                {(found.position || found.gradYear) && (
+                {(found.position || found.graduationYear) && (
                   <p style={{ color: '#6b7280', fontSize: '0.78rem', margin: '0.1rem 0 0' }}>
-                    {[found.position, found.gradYear ? `Class of ${found.gradYear}` : null]
+                    {[found.position, found.graduationYear ? `Class of ${found.graduationYear}` : null]
                       .filter(Boolean).join(' · ')}
                   </p>
                 )}

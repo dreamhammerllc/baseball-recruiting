@@ -35,14 +35,14 @@ const SORT_LABELS: Record<SortKey, string> = {
 
 interface Filters {
   position:  string;
-  gradYear:  string;
+  graduationYear:  string;
   minRating: string;
   search:    string;
 }
 
 const EMPTY_FILTERS: Filters = {
   position:  '',
-  gradYear:  '',
+  graduationYear:  '',
   minRating: '',
   search:    '',
 };
@@ -110,8 +110,8 @@ export default function CoachEvaluationsPage() {
     if (filters.position) {
       rows = rows.filter(e => e.athlete.position === filters.position);
     }
-    if (filters.gradYear) {
-      rows = rows.filter(e => String(e.athlete.graduationYear ?? '') === filters.gradYear);
+    if (filters.graduationYear) {
+      rows = rows.filter(e => String(e.athlete.graduationYear ?? '') === filters.graduationYear);
     }
     if (filters.minRating) {
       const min = Number(filters.minRating);
@@ -202,8 +202,8 @@ export default function CoachEvaluationsPage() {
               </select>
 
               <select
-                value={filters.gradYear}
-                onChange={e => setFilters(f => ({ ...f, gradYear: e.target.value }))}
+                value={filters.graduationYear}
+                onChange={e => setFilters(f => ({ ...f, graduationYear: e.target.value }))}
                 style={selectStyle}
                 aria-label="Filter by graduation year"
               >

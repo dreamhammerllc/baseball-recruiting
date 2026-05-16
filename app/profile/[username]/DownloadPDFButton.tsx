@@ -29,7 +29,7 @@ export interface PDFDevelopmentRoadmap {
 export interface DownloadPDFButtonProps {
   athleteName: string;
   position?: string | null;
-  gradYear?: string | null;
+  graduationYear?: string | null;
   homeState?: string | null;
   gpa?: number | null;
   sat?: number | null;
@@ -392,7 +392,7 @@ function AthleteDocument(props: DownloadPDFButtonProps) {
   const subtitle = [
     props.position,
     props.homeState,
-    props.gradYear ? `Class of ${props.gradYear}` : null,
+    props.graduationYear ? `Class of ${props.graduationYear}` : null,
   ].filter(Boolean).join('  ·  ');
 
   return (

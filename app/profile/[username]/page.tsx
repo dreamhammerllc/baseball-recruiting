@@ -291,7 +291,7 @@ export default async function AthleteProfilePage({
   const pdfProps: DownloadPDFButtonProps = {
     athleteName: fullName,
     position: athleteData.position,
-    gradYear: athleteData.grad_year,
+    graduationYear: athleteData.grad_year,
     homeState: athleteData.home_state,
     gpa,
     sat: athleteData.sat_score,

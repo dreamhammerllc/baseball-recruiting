@@ -8,14 +8,14 @@ interface ShareProfileBody {
   athleteName: string;
   profileUrl: string;
   position: string | null;
-  gradYear: string | null;
+  graduationYear: string | null;
   fitScore: number | null;
 }
 
 function buildEmailHtml(body: ShareProfileBody): string {
-  const { athleteName, position, gradYear, profileUrl, fitScore } = body;
+  const { athleteName, position, graduationYear, profileUrl, fitScore } = body;
 
-  const positionLine = [position, gradYear ? `Class of ${gradYear}` : null]
+  const positionLine = [position, graduationYear ? `Class of ${graduationYear}` : null]
     .filter(Boolean)
     .join('  ·  ');
 
@@ -131,7 +131,7 @@ export async function POST(req: NextRequest) {
   try {
     const body = (await req.json()) as ShareProfileBody;
 
-    const { coachEmail, athleteName, position, gradYear } = body;
+    const { coachEmail, athleteName, position, graduationYear } = body;
 
     if (!coachEmail || !athleteName) {
       return NextResponse.json({ error: 'Missing required fields.' }, { status: 400 });
@@ -146,7 +146,7 @@ export async function POST(req: NextRequest) {
       'Recruit Profile:',
       athleteName,
       position ? `| ${position}` : null,
-      gradYear ? `| Class of ${gradYear}` : null,
+      graduationYear ? `| Class of ${graduationYear}` : null,
     ].filter(Boolean).join(' ');
 
     const { error } = await resend.emails.send({

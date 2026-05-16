@@ -12,7 +12,7 @@ type Region = 'Northeast' | 'Southeast' | 'Midwest' | 'Southwest' | 'West' | 'An
 type CampusSize = 'small' | 'medium' | 'large' | 'any';
 
 interface FormData {
-  gradYear: string; state: string; gpa: string; testType: 'SAT' | 'ACT'; testScore: string;
+  graduationYear: string; state: string; gpa: string; testType: 'SAT' | 'ACT'; testScore: string;
   position: Position | '';
   velocity: string; secondaryPitch: string; inningsPitched: string; era: string;
   popTime: string; catcherExitVelo: string; catcherAvg: string; armStrength: string;
@@ -32,7 +32,7 @@ interface SavedMatch {
 }
 
 const EMPTY: FormData = {
-  gradYear: '', state: '', gpa: '', testType: 'SAT', testScore: '',
+  graduationYear: '', state: '', gpa: '', testType: 'SAT', testScore: '',
   position: '',
   velocity: '', secondaryPitch: '', inningsPitched: '', era: '',
   popTime: '', catcherExitVelo: '', catcherAvg: '', armStrength: '',
@@ -340,7 +340,7 @@ function Round1({ data, patch, onNext }: RoundProps) {
     <div style={fieldStack}>
       <Row>
         <Field label="Graduation Year" required>
-          <Select value={data.gradYear} onChange={v => patch({ gradYear: v })} placeholder="Select year">
+          <Select value={data.graduationYear} onChange={v => patch({ graduationYear: v })} placeholder="Select year">
             {years.map(y => <option key={y} value={y}>{y}</option>)}
           </Select>
         </Field>
@@ -364,7 +364,7 @@ function Round1({ data, patch, onNext }: RoundProps) {
           <Input type="text" inputMode="numeric" placeholder={data.testType === 'SAT' ? 'e.g. 1150' : 'e.g. 24'} value={data.testScore} onChange={v => patch({ testScore: v })} />
         </Field>
       </Row>
-      <NextBtn onClick={onNext} disabled={!data.gradYear || !data.state || !data.gpa} />
+      <NextBtn onClick={onNext} disabled={!data.graduationYear || !data.state || !data.gpa} />
     </div>
   );
 }

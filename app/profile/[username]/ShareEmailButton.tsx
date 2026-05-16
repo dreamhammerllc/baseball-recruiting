@@ -5,7 +5,7 @@ import { useState, useRef, useEffect } from 'react';
 interface Props {
   athleteName: string;
   position: string | null;
-  gradYear: string | null;
+  graduationYear: string | null;
   profileUrl: string;
   topFitScore: number | null;
 }
@@ -15,7 +15,7 @@ type Status = 'idle' | 'loading' | 'success' | 'error';
 export default function ShareEmailButton({
   athleteName,
   position,
-  gradYear,
+  graduationYear,
   profileUrl,
   topFitScore,
 }: Props) {
@@ -55,7 +55,7 @@ export default function ShareEmailButton({
           athleteName,
           profileUrl,
           position,
-          gradYear,
+          graduationYear,
           fitScore: topFitScore,
         }),
       });

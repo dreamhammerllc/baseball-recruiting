@@ -44,7 +44,7 @@ export async function GET(req: NextRequest) {
         name:      [athlete.first_name, athlete.last_name].filter(Boolean).join(' ') || 'Unknown Athlete',
         photo:     athlete.photo_url ?? null,
         position:  null,
-        gradYear:  null,
+        graduationYear:  null,
       });
     }
 
@@ -69,7 +69,7 @@ export async function GET(req: NextRequest) {
       name:      [athlete.first_name, athlete.last_name].filter(Boolean).join(' ') || 'Unknown Athlete',
       photo:     athlete.photo_url ?? null,
       position:  null,
-      gradYear:  null,
+      graduationYear:  null,
     });
 
   } catch (err: unknown) {

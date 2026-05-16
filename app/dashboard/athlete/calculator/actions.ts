@@ -13,7 +13,7 @@ export interface SchoolMatch {
 }
 
 export interface MatchInput {
-  gradYear: string;
+  graduationYear: string;
   state: string;
   gpa: string;
   testType: string;
@@ -58,7 +58,7 @@ function buildPrompt(d: MatchInput): string {
   return `You are a college baseball recruiting expert. Based on the following athlete profile, recommend exactly 20 real NCAA/NAIA/JUCO college baseball programs that would be a strong fit.
 
 ATHLETE PROFILE:
-- Graduation year: ${d.gradYear}
+- Graduation year: ${d.graduationYear}
 - Home state: ${d.state}
 - GPA: ${d.gpa} | ${d.testType}: ${d.testScore || 'Not provided'}
 - Position: ${d.position}
@@ -104,7 +104,7 @@ async function saveToSupabase(
 
   console.log('[upsert] input fields:', {
     fullName: input.fullName,
-    gradYear: input.gradYear,
+    graduationYear: input.graduationYear,
     state: input.state,
     position: input.position,
     fieldingPosition: input.fieldingPosition,
@@ -120,7 +120,7 @@ async function saveToSupabase(
       email,
       first_name: firstName,
       last_name: lastName,
-      grad_year: input.gradYear,
+      grad_year: input.graduationYear,
       position: positionLabel,
       home_state: input.state || null,
       fastball_velocity_mph: input.velocity ? parseFloat(input.velocity) : null,
