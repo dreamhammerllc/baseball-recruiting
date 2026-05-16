@@ -3,17 +3,10 @@ export const runtime = 'nodejs';
 import { auth } from '@clerk/nextjs/server';
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase';
+import { apiError } from '@/lib/apiError';
 
 const MAX_LIMIT = 50;
 const DEFAULT_LIMIT = 20;
-
-function err500(e: unknown) {
-  const x = e as { message?: string; code?: string; hint?: string; details?: string; stack?: string };
-  return NextResponse.json(
-    { error: x?.message ?? 'Unknown error', code: x?.code, hint: x?.hint, details: x?.details, stack: x?.stack },
-    { status: 500 },
-  );
-}
 
 function n(v: string | null): number | null {
   if (v == null || v === '') return null;
@@ -202,6 +195,6 @@ export async function GET(req: NextRequest) {
     });
   } catch (e) {
     console.error('[GET /api/coach/discover]', e);
-    return err500(e);
+    return apiError('Failed to discover athletes.', e);
   }
 }

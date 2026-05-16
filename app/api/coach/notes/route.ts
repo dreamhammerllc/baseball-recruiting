@@ -3,6 +3,7 @@ export const runtime = 'nodejs';
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { createAdminClient } from '@/lib/supabase';
+import { apiError } from '@/lib/apiError';
 
 // ── Shared helper ─────────────────────────────────────────────────────────────
 // Resolves the signed-in coach's internal uuid from their Clerk id.
@@ -24,20 +25,12 @@ async function resolveCoach(): Promise<
     .maybeSingle();
 
   if (error) {
-    return { ok: false, response: errorResponse(error) };
+    return { ok: false, response: apiError('Failed to resolve coach profile.', error) };
   }
   if (!coach) {
     return { ok: false, response: NextResponse.json({ error: 'Coach profile not found.' }, { status: 403 }) };
   }
   return { ok: true, coachId: coach.id as string };
-}
-
-function errorResponse(e: unknown): NextResponse {
-  const x = e as { message?: string; code?: string; hint?: string; details?: string; stack?: string };
-  return NextResponse.json(
-    { error: x?.message ?? 'Unknown error', code: x?.code, hint: x?.hint, details: x?.details, stack: x?.stack },
-    { status: 500 },
-  );
 }
 
 type NoteRow = {
@@ -131,7 +124,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ notes });
   } catch (e) {
     console.error('[GET /api/coach/notes]', e);
-    return errorResponse(e);
+    return apiError('Failed to fetch notes.', e);
   }
 }
 
@@ -220,7 +213,7 @@ export async function PUT(req: NextRequest) {
     return NextResponse.json({ note: shapeNote(row as NoteRow) });
   } catch (e) {
     console.error('[PUT /api/coach/notes]', e);
-    return errorResponse(e);
+    return apiError('Failed to save note.', e);
   }
 }
 
@@ -247,6 +240,6 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ deleted: true, athleteId });
   } catch (e) {
     console.error('[DELETE /api/coach/notes]', e);
-    return errorResponse(e);
+    return apiError('Failed to delete note.', e);
   }
 }

@@ -13,6 +13,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClerkClient } from '@clerk/backend';
 import { createClient } from '@supabase/supabase-js';
+import { apiError } from '@/lib/apiError';
 
 function getAdminClient() {
   const url = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? '').replace(/\/rest\/v1\/?$/, '');
@@ -96,7 +97,7 @@ export async function POST(req: NextRequest) {
     db = getAdminClient();
   } catch (err) {
     console.error('[upload-pitch-proof] admin client init failed:', err);
-    return NextResponse.json({ error: 'Server configuration error.' }, { status: 500 });
+    return apiError('Server configuration error.', err);
   }
 
   const fileBuffer = await file.arrayBuffer();
@@ -110,10 +111,7 @@ export async function POST(req: NextRequest) {
 
   if (uploadError) {
     console.error('[upload-pitch-proof] storage upload failed:', uploadError.message);
-    return NextResponse.json(
-      { error: 'File upload failed. Please try again.' },
-      { status: 500 },
-    );
+    return apiError('File upload failed. Please try again.', uploadError);
   }
 
   // ── Derive the public URL ───────────────────────────────────────────────────

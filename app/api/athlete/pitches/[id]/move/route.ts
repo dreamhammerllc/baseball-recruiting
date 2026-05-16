@@ -3,6 +3,7 @@ export const runtime = 'nodejs';
 import { auth } from '@clerk/nextjs/server';
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase';
+import { apiError } from '@/lib/apiError';
 import type { AthletePitch } from '@/lib/metrics';
 
 // ── POST /api/athlete/pitches/[id]/move ──────────────────────────────────────
@@ -50,7 +51,7 @@ export async function POST(
 
   if (fetchErr) {
     console.error('[athlete/pitches/:id/move] fetch error:', fetchErr.message);
-    return NextResponse.json({ error: 'Database error.' }, { status: 500 });
+    return apiError('Database error.', fetchErr);
   }
   if (!current) return NextResponse.json({ error: 'Pitch not found.' }, { status: 404 });
 
@@ -85,16 +86,7 @@ export async function POST(
     // The pre-checks above should have caught every mappable case; anything
     // surfacing here is unexpected -> 500 with the standard error shape.
     console.error('[athlete/pitches/:id/move] rpc error:', rpcErr.message);
-    return NextResponse.json(
-      {
-        error:   'Failed to move pitch.',
-        code:    rpcErr.code ?? null,
-        hint:    rpcErr.hint ?? null,
-        details: rpcErr.details ?? null,
-        stack:   rpcErr.message ?? null,
-      },
-      { status: 500 },
-    );
+    return apiError('Failed to move pitch.', rpcErr);
   }
 
   return NextResponse.json({

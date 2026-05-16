@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClerkClient } from '@clerk/backend';
 import { createAdminClient } from '@/lib/supabase';
+import { apiError } from '@/lib/apiError';
 import type { AthletePitch } from '@/lib/metrics';
 
 export const runtime = 'nodejs';
@@ -62,11 +63,7 @@ export async function GET(
 
     return NextResponse.json({ pitches: (data ?? []) as AthletePitch[] });
   } catch (e) {
-    const x = e as { message?: string; code?: string; hint?: string; details?: string; stack?: string };
     console.error('[GET /api/coach/athletes/[athleteId]/pitches]', e);
-    return NextResponse.json(
-      { error: x?.message ?? 'Unknown error', code: x?.code, hint: x?.hint, details: x?.details, stack: x?.stack },
-      { status: 500 },
-    );
+    return apiError('Failed to fetch athlete pitches.', e);
   }
 }

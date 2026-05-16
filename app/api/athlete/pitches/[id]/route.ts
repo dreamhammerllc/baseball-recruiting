@@ -3,6 +3,7 @@ export const runtime = 'nodejs';
 import { auth } from '@clerk/nextjs/server';
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase';
+import { apiError } from '@/lib/apiError';
 import type { AthletePitch } from '@/lib/metrics';
 import { UPDATEABLE_FIELDS, validatePitchField } from '@/lib/pitchValidation';
 
@@ -57,7 +58,7 @@ export async function PATCH(
 
   if (fetchErr) {
     console.error('[athlete/pitches/:id] PATCH fetch error:', fetchErr.message);
-    return NextResponse.json({ error: 'Database error.' }, { status: 500 });
+    return apiError('Database error.', fetchErr);
   }
   if (!current) return NextResponse.json({ error: 'Pitch not found.' }, { status: 404 });
   const currentRow = current as { athlete_clerk_id: string; pitch_slot: number; verification_type: string };
@@ -98,7 +99,7 @@ export async function PATCH(
 
     if (conflictErr) {
       console.error('[athlete/pitches/:id] PATCH conflict-check error:', conflictErr.message);
-      return NextResponse.json({ error: 'Database error.' }, { status: 500 });
+      return apiError('Database error.', conflictErr);
     }
     if (conflict) {
       return NextResponse.json(
@@ -128,7 +129,7 @@ export async function PATCH(
       );
     }
     console.error('[athlete/pitches/:id] PATCH update error:', updateErr.message);
-    return NextResponse.json({ error: 'Failed to update pitch.' }, { status: 500 });
+    return apiError('Failed to update pitch.', updateErr);
   }
 
   return NextResponse.json({ success: true, pitch: updated as AthletePitch });
@@ -157,7 +158,7 @@ export async function DELETE(
 
   if (fetchErr) {
     console.error('[athlete/pitches/:id] DELETE fetch error:', fetchErr.message);
-    return NextResponse.json({ error: 'Database error.' }, { status: 500 });
+    return apiError('Database error.', fetchErr);
   }
   if (!row) return NextResponse.json({ error: 'Pitch not found.' }, { status: 404 });
   if ((row as { athlete_clerk_id: string }).athlete_clerk_id !== userId) {
@@ -172,7 +173,7 @@ export async function DELETE(
 
   if (deleteErr) {
     console.error('[athlete/pitches/:id] DELETE error:', deleteErr.message);
-    return NextResponse.json({ error: 'Failed to delete pitch.' }, { status: 500 });
+    return apiError('Failed to delete pitch.', deleteErr);
   }
 
   return new NextResponse(null, { status: 204 });

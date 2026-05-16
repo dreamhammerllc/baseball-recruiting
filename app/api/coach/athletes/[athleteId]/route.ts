@@ -3,20 +3,7 @@ export const runtime = 'nodejs';
 import { auth } from '@clerk/nextjs/server';
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase';
-
-function err500(e: unknown) {
-  const x = e as { message?: string; code?: string; hint?: string; details?: string; stack?: string };
-  return NextResponse.json(
-    {
-      error:   x?.message ?? 'Unknown error',
-      code:    x?.code,
-      hint:    x?.hint,
-      details: x?.details,
-      stack:   x?.stack,
-    },
-    { status: 500 },
-  );
-}
+import { apiError } from '@/lib/apiError';
 
 // ── Access check ───────────────────────────────────────────────────────────────
 // Coach has access to an athlete IF connected via coach_athlete_connections,
@@ -118,7 +105,7 @@ export async function GET(
     });
   } catch (e) {
     console.error('[GET /api/coach/athletes/[athleteId]]', e);
-    return err500(e);
+    return apiError('Failed to fetch athlete.', e);
   }
 }
 
@@ -147,6 +134,6 @@ export async function DELETE(
     return NextResponse.json({ success: true });
   } catch (e) {
     console.error('[DELETE /api/coach/athletes/[athleteId]]', e);
-    return err500(e);
+    return apiError('Failed to remove athlete.', e);
   }
 }

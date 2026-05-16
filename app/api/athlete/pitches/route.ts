@@ -3,6 +3,7 @@ export const runtime = 'nodejs';
 import { auth } from '@clerk/nextjs/server';
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase';
+import { apiError } from '@/lib/apiError';
 import type { AthletePitch } from '@/lib/metrics';
 import {
   UPDATEABLE_FIELDS,
@@ -25,7 +26,7 @@ export async function GET() {
 
   if (error) {
     console.error('[athlete/pitches] GET error:', error.message);
-    return NextResponse.json({ error: 'Failed to fetch pitches.' }, { status: 500 });
+    return apiError('Failed to fetch pitches.', error);
   }
 
   return NextResponse.json({ pitches: (data ?? []) as AthletePitch[] });
@@ -95,7 +96,7 @@ export async function POST(req: NextRequest) {
       );
     }
     console.error('[athlete/pitches] POST error:', error.message);
-    return NextResponse.json({ error: 'Failed to create pitch.' }, { status: 500 });
+    return apiError('Failed to create pitch.', error);
   }
 
   return NextResponse.json({ success: true, pitch: data as AthletePitch }, { status: 201 });
