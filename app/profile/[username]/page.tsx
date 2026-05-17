@@ -8,6 +8,7 @@ import VideoPlayer from '@/components/profile/VideoPlayer';
 import PitchArsenal from '@/components/PitchArsenal';
 import type { AthleteMetric, AthletePitch } from '@/lib/metrics';
 import type { SubscriptionTier } from '@/lib/subscription';
+import type { Metadata } from 'next';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -76,6 +77,111 @@ function FitRing({ score }: { score: number }) {
       </text>
     </svg>
   );
+}
+
+// ─── Metadata (Open Graph / Twitter) ─────────────────────────────────────────
+
+interface OgAthlete {
+  first_name: string | null;
+  last_name: string | null;
+  position: string | null;
+  grad_year: string | null;
+  photo_url: string | null;
+  username: string | null;
+}
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ username: string }>;
+}): Promise<Metadata> {
+  const { username } = await params;
+
+  // Scoped, read-only lookup of just the OG fields. Next invokes
+  // generateMetadata separately from the page render, so the page's existing
+  // multi-query data flow can't be shared without wrapping it in React cache()
+  // and refactoring the working public-profile query — out of scope. A small
+  // dedicated select is the lower-risk choice. Mirrors the page's
+  // username-first / clerk_user_id-fallback resolution.
+  const db = createAdminClient();
+  const OG_COLS = 'first_name, last_name, position, grad_year, photo_url, username';
+
+  let athlete: OgAthlete | null = null;
+  {
+    const { data } = await db
+      .from('athletes')
+      .select(OG_COLS)
+      .eq('username', username)
+      .maybeSingle();
+    if (data) athlete = data as unknown as OgAthlete;
+  }
+  if (!athlete) {
+    const { data } = await db
+      .from('athletes')
+      .select(OG_COLS)
+      .eq('clerk_user_id', username)
+      .maybeSingle();
+    if (data) athlete = data as unknown as OgAthlete;
+  }
+
+  const base = new URL('https://diamondverified.app');
+
+  // Not found / sparse → generic but valid metadata. Never throw from here:
+  // a thrown generateMetadata would take down the whole page render.
+  if (!athlete) {
+    const title = 'Diamond Verified';
+    const description = 'Verified baseball recruiting profile on Diamond Verified.';
+    return {
+      metadataBase: base,
+      title,
+      description,
+      openGraph: { title, description, siteName: 'Diamond Verified' },
+      twitter: { card: 'summary_large_image', title, description },
+    };
+  }
+
+  const handle = athlete.username ?? username;
+  const name = [athlete.first_name, athlete.last_name].filter(Boolean).join(' ');
+  const url = `https://diamondverified.app/profile/${handle}`;
+
+  const titleSegments = [
+    name || handle,
+    athlete.grad_year ? `Class of ${athlete.grad_year}` : null,
+    athlete.position || null,
+  ].filter(Boolean);
+  const title = `${titleSegments.join(' • ')} | Diamond Verified`;
+
+  const description = name
+    ? `Verified baseball recruiting profile for ${name}` +
+      `${athlete.position ? `, ${athlete.position}` : ''}` +
+      `${athlete.grad_year ? `, Class of ${athlete.grad_year}` : ''}.`
+    : 'Verified baseball recruiting profile on Diamond Verified.';
+
+  // TODO(asset): public/og-default.png does not exist yet — drop in a 1200×630
+  // branded fallback image. Athletes WITH a photo_url use it directly; only
+  // photo-less athletes fall back to this path.
+  const imageUrl = athlete.photo_url || '/og-default.png';
+  const imageAlt = `${name || handle} — Diamond Verified`;
+
+  return {
+    metadataBase: base,
+    title,
+    description,
+    alternates: { canonical: url },
+    openGraph: {
+      title,
+      description,
+      url,
+      siteName: 'Diamond Verified',
+      images: [{ url: imageUrl, width: 1200, height: 630, alt: imageAlt }],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title,
+      description,
+      images: [imageUrl],
+    },
+  };
 }
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
