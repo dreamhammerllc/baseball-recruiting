@@ -16,6 +16,7 @@ const POSITIONS  = ['P','C','1B','2B','3B','SS','LF','CF','RF','DH'];
 const GRAD_YEARS = ['2025','2026','2027','2028','2029','2030','2031'];
 
 interface Profile {
+  username:            string;
   full_name:           string;
   grad_year:           string;
   position:            string;
@@ -37,6 +38,7 @@ interface Profile {
 }
 
 const EMPTY: Profile = {
+  username: '',
   full_name: '', grad_year: '', position: '', secondary_position: '',
   height_feet: '', height_in: '', weight_lbs: '', throws: '', bats: '',
   gpa_weighted: '', gpa_unweighted: '', home_state: '',
@@ -90,6 +92,10 @@ export default function AthleteProfilePage() {
   const fileInputRef              = useRef<HTMLInputElement>(null);
 
   const userId = user?.id ?? '';
+  // Shareable profile slug: prefer the clean username, fall back to the Clerk
+  // id. Uses `||` not `??` because this page coerces an absent username to ''
+  // in state, and '' must still fall through to the id.
+  const profileSlug = profile.username || userId;
 
   useEffect(() => {
     fetch('/api/athlete/profile')
@@ -97,6 +103,7 @@ export default function AthleteProfilePage() {
       .then(({ profile: p }) => {
         if (p) {
           setProfile({
+            username:            p.username            ?? '',
             full_name:           p.full_name           ?? '',
             grad_year:           p.grad_year           ?? '',
             position:            p.position            ?? '',
@@ -191,7 +198,7 @@ export default function AthleteProfilePage() {
   }
 
   async function handleCopyLink() {
-    const url = `https://diamondverified.app/profile/${userId}`;
+    const url = `https://diamondverified.app/profile/${profileSlug}`;
     try {
       await navigator.clipboard.writeText(url);
       setCopied(true);
@@ -516,7 +523,7 @@ export default function AthleteProfilePage() {
               whiteSpace: 'nowrap',
               display: 'block',
             }}>
-              diamondverified.app/profile/{userId}
+              diamondverified.app/profile/{profileSlug}
             </code>
             <button
               type="button"

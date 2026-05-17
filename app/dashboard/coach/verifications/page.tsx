@@ -121,7 +121,7 @@ export default function CoachEvaluationsPage() {
                     Athlete
                   </p>
                   <a
-                    href={`/profile/${ev.athleteClerkId}`}
+                    href={`/profile/${ev.athleteUsername ?? ev.athleteClerkId}`}
                     style={{ color: '#f0f6fc', fontSize: '0.9rem', fontWeight: 600, textDecoration: 'none' }}
                     onMouseEnter={e => { (e.currentTarget as HTMLAnchorElement).style.color = '#e8a020'; }}
                     onMouseLeave={e => { (e.currentTarget as HTMLAnchorElement).style.color = '#f0f6fc'; }}

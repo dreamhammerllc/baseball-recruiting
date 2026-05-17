@@ -11,6 +11,7 @@ export interface Evaluation {
   value:           number;
   athleteName:     string;
   athleteClerkId:  string;
+  athleteUsername: string | null;
   status:          string;
   aiConfidence:    number | null;
   videoUrl:        string | null;
@@ -51,16 +52,18 @@ export async function GET(req: NextRequest) {
   // Second query: look up athlete names by clerk_user_id
   const athleteIds = [...new Set((data ?? []).map(r => r.athlete_clerk_id))];
   const nameMap: Record<string, string> = {};
+  const usernameMap: Record<string, string | null> = {};
 
   if (athleteIds.length > 0) {
     const { data: athleteRows } = await db
       .from('athletes')
-      .select('clerk_user_id, first_name, last_name')
+      .select('clerk_user_id, first_name, last_name, username')
       .in('clerk_user_id', athleteIds);
 
     for (const a of athleteRows ?? []) {
       const name = [a.first_name, a.last_name].filter(Boolean).join(' ') || 'Unknown Athlete';
       nameMap[a.clerk_user_id] = name;
+      usernameMap[a.clerk_user_id] = a.username ?? null;
     }
   }
 
@@ -76,6 +79,7 @@ export async function GET(req: NextRequest) {
       value:          Number(row.value),
       athleteName:    nameMap[row.athlete_clerk_id] ?? 'Unknown Athlete',
       athleteClerkId: row.athlete_clerk_id,
+      athleteUsername: usernameMap[row.athlete_clerk_id] ?? null,
       status:         row.status,
       aiConfidence:   null,
       videoUrl:       row.video_url ?? null,

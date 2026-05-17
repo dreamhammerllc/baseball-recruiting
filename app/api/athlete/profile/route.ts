@@ -34,6 +34,7 @@ async function getAuthenticatedUserId(req: NextRequest): Promise<string | null> 
 
 const PROFILE_FIELDS = [
   'clerk_user_id',
+  'username',
   'full_name',
   'grad_year',
   'position',
