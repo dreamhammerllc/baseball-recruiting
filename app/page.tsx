@@ -443,8 +443,8 @@ export default function HomePage() {
           <Label>Pricing</Label>
           <SectionHeading>Free to start for everyone</SectionHeading>
           <p style={{ color: MUTED, fontSize: '0.95rem', maxWidth: '480px', margin: '0 auto', lineHeight: 1.7 }}>
-            Athletes and coaches both get a powerful free tier.
-            Upgrade when you are ready to go further.
+            Coaches are free at launch.
+            Athletes can upgrade when they are ready to go further.
           </p>
         </div>
 
@@ -510,11 +510,11 @@ export default function HomePage() {
         </p>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem' }}>
 
-          {/* Coach Free */}
+          {/* Coaches */}
           <PricingCard
-            title="Coach Free"
+            title="Coaches"
             price="$0"
-            period="forever"
+            period="free at launch"
             accent={BLUE}
             highlight={false}
             features={[
@@ -523,24 +523,6 @@ export default function HomePage() {
               'Set your own session prices',
               'Video recording via dashboard',
               'Basic prospect search',
-            ]}
-          />
-
-          {/* Coach Dashboard */}
-          <PricingCard
-            title="Coach Dashboard"
-            price="$149.99"
-            period="per month"
-            accent={BLUE}
-            highlight={false}
-            badge="Unlimited"
-            features={[
-              'Everything in Coach Free',
-              'Unlimited test slots per month',
-              'Daily retesting per athlete',
-              'Advanced prospect search filters',
-              'Save and track prospect lists',
-              'Priority placement in Coach Finder',
             ]}
           />
 

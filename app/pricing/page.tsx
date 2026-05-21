@@ -46,21 +46,6 @@ const plans = [
     tier: 'athlete_pro',
     popular: true,
   },
-  {
-    name: 'Team / Coach',
-    price: 149,
-    description: 'Full recruiting portal for coaches',
-    features: [
-      'Coach dashboard',
-      'Advanced prospect search',
-      'Save & bookmark athletes',
-      'Athlete management tools',
-      'Evaluation tools',
-    ],
-    priceId: process.env.NEXT_PUBLIC_STRIPE_PRICE_COACH,
-    tier: 'coach',
-    popular: false,
-  },
 ]
 
 export default function PricingPage() {
