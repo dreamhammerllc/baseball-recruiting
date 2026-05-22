@@ -1,6 +1,6 @@
-export const SUBSCRIPTION_TIERS = ['free', 'verified', 'elite', 'pro'] as const;
-export type SubscriptionTier = typeof SUBSCRIPTION_TIERS[number];
+// Pricing/tier definitions now live in lib/pricing.ts (single source of truth).
+// This module re-exports the subscription primitives so existing
+// `@/lib/subscription` imports keep working.
 
-export function isPaidTier(tier: SubscriptionTier | null | undefined): boolean {
-  return tier != null && tier !== 'free';
-}
+export type { SubscriptionTier } from './pricing';
+export { SUBSCRIPTION_TIERS, isPaidTier } from './pricing';

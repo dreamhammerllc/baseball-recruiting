@@ -2,16 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import Stripe from 'stripe'
 import { createAdminClient } from '@/lib/supabase'
+import { getPriceId } from '@/lib/pricing'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
-
-const PRICE_MAP: Record<string, string | undefined> = {
-  'verified:monthly': process.env.STRIPE_VERIFIED_MONTHLY_PRICE_ID,
-  'verified:yearly':  process.env.STRIPE_VERIFIED_YEARLY_PRICE_ID,
-  'elite:monthly':    process.env.STRIPE_ELITE_MONTHLY_PRICE_ID,
-  'elite:yearly':     process.env.STRIPE_ELITE_YEARLY_PRICE_ID,
-}
 
 export async function POST(req: NextRequest) {
   try {
@@ -25,8 +19,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'tier and period are required' }, { status: 400 })
     }
 
-    const priceId = PRICE_MAP[`${tier}:${period}`]
-    if (!priceId) {
+    let priceId: string
+    try {
+      priceId = getPriceId(tier, period)
+    } catch {
       return NextResponse.json({ error: `No price configured for ${tier}:${period}` }, { status: 400 })
     }
 
