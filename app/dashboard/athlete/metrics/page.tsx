@@ -57,7 +57,7 @@ export default async function MetricsPage() {
 
   const tier = athleteResult.data?.subscription_tier ?? 'free';
   const highlightSlotLimit =
-    tier === 'athlete_pro' ? 6 : tier === 'athlete' ? 3 : 0;
+    (tier === 'elite' || tier === 'pro') ? 6 : tier === 'verified' ? 3 : 0;
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#0d1117' }}>

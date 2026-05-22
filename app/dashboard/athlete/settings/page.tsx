@@ -8,10 +8,10 @@ import PushNotificationToggle from '@/components/PushNotificationToggle';
 export const dynamic = 'force-dynamic';
 
 const TIER_META: Record<string, { label: string; color: string; desc: string }> = {
-  free:        { label: 'Free',        color: '#6b7280', desc: 'Basic profile + public metrics page' },
-  athlete:     { label: 'Athlete',     color: '#e8a020', desc: 'Coach verifications + school matching' },
-  athlete_pro: { label: 'Athlete Pro', color: '#a855f7', desc: 'Priority matching + advanced analytics' },
-  coach:       { label: 'Coach',       color: '#58a6ff', desc: 'Coach portal access' },
+  free:     { label: 'Free',     color: '#6b7280', desc: 'Basic profile + public metrics page' },
+  verified: { label: 'Verified', color: '#e8a020', desc: 'Verified badge + unblurred public metrics' },
+  elite:    { label: 'Elite',    color: '#a855f7', desc: 'Verified badge, unblurred metrics + School Matches' },
+  pro:      { label: 'Pro',      color: '#22d3ee', desc: 'Everything in Elite' },
 };
 
 interface NotifPrefs {

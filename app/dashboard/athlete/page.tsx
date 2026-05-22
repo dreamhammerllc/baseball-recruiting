@@ -80,7 +80,10 @@ export default async function AthleteDashboard({
     : [];
 
   const tier      = athlete?.subscription_tier ?? 'free';
-  const tierLabel = tier === 'elite' ? 'Elite' : tier === 'verified' ? 'Verified' : 'Scout';
+  const tierLabel =
+    tier === 'pro'      ? 'Pro'      :
+    tier === 'elite'    ? 'Elite'    :
+    tier === 'verified' ? 'Verified' : 'Scout';
 
   // Profile completion scoring
   const completionFields = [

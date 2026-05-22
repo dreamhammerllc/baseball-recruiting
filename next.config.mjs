@@ -8,6 +8,15 @@ const nextConfig = {
       bodySizeLimit: '500mb',
     },
   },
+  async redirects() {
+    return [
+      {
+        source: '/pricing',
+        destination: '/dashboard/athlete/upgrade',
+        permanent: true,
+      },
+    ];
+  },
 };
 
 export default nextConfig;
