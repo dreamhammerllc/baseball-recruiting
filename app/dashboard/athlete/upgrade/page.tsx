@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import AthleteSidebar from '@/components/layout/AthleteSidebar'
+import { TIERS, TIER_FEATURES } from '@/lib/pricing'
 
 
 const colors = {
@@ -83,17 +84,17 @@ export default function UpgradePage() {
 
             <div>
               <p style={{ color: colors.text, fontSize: '2rem', fontWeight: 800, margin: '0 0 0.1rem', fontFamily: 'monospace' }}>
-                $9.99<span style={{ fontSize: '1rem', fontWeight: 400, color: colors.muted }}>/mo</span>
+                ${TIERS.verified.monthlyPrice}<span style={{ fontSize: '1rem', fontWeight: 400, color: colors.muted }}>/mo</span>
               </p>
-              <p style={{ color: colors.muted, fontSize: '0.75rem', margin: 0 }}>or $79/year (save 34%)</p>
+              <p style={{ color: colors.muted, fontSize: '0.75rem', margin: 0 }}>or ${TIERS.verified.yearlyPrice}/year (save {TIERS.verified.savingsPct}%)</p>
             </div>
 
             <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
               {[
                 'Verified badge on your public profile',
-                'All coach-verified metrics display publicly',
-                'Verification videos on public profile',
-                'Found by college coaches searching Diamond Verified',
+                'Coach-verified metrics shown publicly',
+                'Verification proof videos',
+                `${TIER_FEATURES.verified.highlightSlots} highlight reel slots`,
               ].map((feat) => (
                 <li key={feat} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', fontSize: '0.85rem', color: colors.text }}>
                   <span style={{ color: colors.gold, flexShrink: 0, marginTop: '0.1rem' }}>&#10003;</span>
@@ -120,7 +121,7 @@ export default function UpgradePage() {
                   letterSpacing:   '0.04em',
                 }}
               >
-                {loading === 'verified:monthly' ? 'Redirecting...' : 'Start Monthly - $9.99/mo'}
+                {loading === 'verified:monthly' ? 'Redirecting...' : `Start Monthly - $${TIERS.verified.monthlyPrice}/mo`}
               </button>
               <button
                 type="button"
@@ -139,7 +140,7 @@ export default function UpgradePage() {
                   letterSpacing:   '0.04em',
                 }}
               >
-                {loading === 'verified:yearly' ? 'Redirecting...' : 'Start Yearly - $79/yr'}
+                {loading === 'verified:yearly' ? 'Redirecting...' : `Start Yearly - $${TIERS.verified.yearlyPrice}/yr`}
               </button>
             </div>
           </div>
@@ -164,17 +165,16 @@ export default function UpgradePage() {
 
             <div>
               <p style={{ color: colors.text, fontSize: '2rem', fontWeight: 800, margin: '0 0 0.1rem', fontFamily: 'monospace' }}>
-                $19.99<span style={{ fontSize: '1rem', fontWeight: 400, color: colors.muted }}>&#47;mo</span>
+                ${TIERS.elite.monthlyPrice}<span style={{ fontSize: '1rem', fontWeight: 400, color: colors.muted }}>&#47;mo</span>
               </p>
-              <p style={{ color: colors.muted, fontSize: '0.75rem', margin: 0 }}>or $159/year (save 34%)</p>
+              <p style={{ color: colors.muted, fontSize: '0.75rem', margin: 0 }}>or ${TIERS.elite.yearlyPrice}/year (save {TIERS.elite.savingsPct}%)</p>
             </div>
 
             <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
               {[
                 'Everything in Verified',
-                'School Matches calculator unlocked',
-                'Save up to 50 school matches',
-                'Priority profile placement',
+                `${TIER_FEATURES.elite.highlightSlots} highlight reel slots`,
+                'School Matches unlocked',
               ].map((feat) => (
                 <li key={feat} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', fontSize: '0.85rem', color: colors.text }}>
                   <span style={{ color: colors.blue, flexShrink: 0, marginTop: '0.1rem' }}>&#10003;</span>
@@ -201,7 +201,7 @@ export default function UpgradePage() {
                   letterSpacing:   '0.04em',
                 }}
               >
-                {loading === 'elite:monthly' ? 'Redirecting...' : 'Start Monthly - $19.99/mo'}
+                {loading === 'elite:monthly' ? 'Redirecting...' : `Start Monthly - $${TIERS.elite.monthlyPrice}/mo`}
               </button>
               <button
                 type="button"
@@ -220,7 +220,7 @@ export default function UpgradePage() {
                   letterSpacing:   '0.04em',
                 }}
               >
-                {loading === 'elite:yearly' ? 'Redirecting...' : 'Start Yearly - $159/yr'}
+                {loading === 'elite:yearly' ? 'Redirecting...' : `Start Yearly - $${TIERS.elite.yearlyPrice}/yr`}
               </button>
             </div>
           </div>
@@ -229,7 +229,7 @@ export default function UpgradePage() {
 
         {/* Free tier note */}
         <p style={{ color: colors.muted, fontSize: '0.8rem', marginTop: '2rem', fontFamily: 'monospace' }}>
-          &#9670; All plans include a basic profile and coach connections. Cancel anytime.
+          &#9670; All plans include a basic profile and coach verification. Cancel anytime.
         </p>
       </main>
     </div>

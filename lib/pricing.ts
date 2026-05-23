@@ -82,7 +82,7 @@ export interface TierInfo {
 
 export const TIERS: Record<SubscriptionTier, TierInfo> = {
   free: {
-    name: 'Free',
+    name: 'Scout',
     monthlyPrice: 0,
     yearlyPrice: 0,
   },

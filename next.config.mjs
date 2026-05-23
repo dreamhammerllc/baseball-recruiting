@@ -11,9 +11,13 @@ const nextConfig = {
   async redirects() {
     return [
       {
+        // /pricing now points logged-out visitors at the homepage pricing
+        // section instead of bouncing them into the dashboard auth wall.
+        // permanent: false (307) so the old permanent 308 doesn't keep
+        // sending cached browsers to the dashboard upgrade page.
         source: '/pricing',
-        destination: '/dashboard/athlete/upgrade',
-        permanent: true,
+        destination: '/#pricing',
+        permanent: false,
       },
     ];
   },

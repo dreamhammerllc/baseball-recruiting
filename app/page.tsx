@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useAuth } from '@clerk/nextjs';
 import Link from 'next/link';
+import { TIERS, TIER_FEATURES } from '@/lib/pricing';
 
 // ── Shared tokens ─────────────────────────────────────────────────────────────
 const BG        = '#0d1117';
@@ -437,7 +438,7 @@ export default function HomePage() {
       <Divider />
 
       {/* ── PRICING ──────────────────────────────────────────────────────── */}
-      <section style={{ maxWidth: '1100px', margin: '0 auto', padding: 'clamp(3rem, 6vw, 5rem) 1.5rem' }}>
+      <section id="pricing" style={{ maxWidth: '1100px', margin: '0 auto', padding: 'clamp(3rem, 6vw, 5rem) 1.5rem' }}>
 
         <div style={{ textAlign: 'center', marginBottom: '3rem' }}>
           <Label>Pricing</Label>
@@ -448,57 +449,57 @@ export default function HomePage() {
           </p>
         </div>
 
-        {/* Athlete plans */}
+        {/* Athlete plans. Prices + savings come from TIERS (lib/pricing.ts) so
+            the homepage cannot drift from the live Stripe-backed values. The
+            highlight-slot counts come from TIER_FEATURES so the bullet copy
+            stays in lockstep with the actual paywall in HighlightReel etc. */}
         <p style={{ fontFamily: MONO, fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.1em', color: GOLD, marginBottom: '1rem' }}>
           ATHLETE PLANS
         </p>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem', marginBottom: '2.5rem' }}>
 
-          {/* Athlete Free */}
+          {/* Scout (free) */}
           <PricingCard
-            title="Athlete Free"
-            price="$0"
+            title={TIERS.free.name}
+            price={`$${TIERS.free.monthlyPrice}`}
             period="forever"
             accent={GOLD}
             highlight={false}
             features={[
-              'Public profile page',
+              'Public athlete profile',
               'Self-reported stats',
               'School match calculator',
-              'Share profile with coaches',
             ]}
           />
 
-          {/* Athlete */}
+          {/* Verified */}
           <PricingCard
-            title="Athlete"
-            price="$29.99"
-            period="per month"
+            title={TIERS.verified.name}
+            price={`$${TIERS.verified.monthlyPrice}`}
+            period={`per month — $${TIERS.verified.yearlyPrice}/yr (save ${TIERS.verified.savingsPct}%)`}
+            accent={GOLD}
+            highlight={false}
+            features={[
+              'Everything in Scout',
+              'Verified badge on your profile',
+              'Coach-verified metrics shown publicly',
+              'Verification proof videos',
+              `${TIER_FEATURES.verified.highlightSlots} highlight reel slots`,
+            ]}
+          />
+
+          {/* Elite */}
+          <PricingCard
+            title={TIERS.elite.name}
+            price={`$${TIERS.elite.monthlyPrice}`}
+            period={`per month — $${TIERS.elite.yearlyPrice}/yr (save ${TIERS.elite.savingsPct}%)`}
             accent={GOLD}
             highlight={true}
             badge="Most Popular"
             features={[
-              'Everything in Free',
-              'Upload transcript and test scores',
-              'AI scout assessment on profile',
-              'AI development roadmap',
-              'Appear in college coach searches',
-            ]}
-          />
-
-          {/* Athlete Pro */}
-          <PricingCard
-            title="Athlete Pro"
-            price="$59.99"
-            period="per month"
-            accent={GOLD}
-            highlight={false}
-            features={[
-              'Everything in Athlete',
-              'Priority in coach search results',
-              'Email when a coach views profile',
-              'Advanced school matching filters',
-              'Direct message with coaches',
+              'Everything in Verified',
+              `${TIER_FEATURES.elite.highlightSlots} highlight reel slots`,
+              'School Matches unlocked',
             ]}
           />
 
