@@ -447,7 +447,12 @@ export default function MetricsDashboardClient({
     }
   }
 
-  function handleHighlightUploaded(videoUrl: string, slot: number, title?: string) {
+  async function handleHighlightUploaded(videoUrl: string, slot: number, title?: string) {
+    // Capture the prior slot occupant (if any) so we can roll back the
+    // optimistic update if the server-side persist fails. Slot is unique per
+    // athlete (UNIQUE(athlete_clerk_id, slot_number)), so at most one row.
+    const priorHighlight = highlights.find(h => h.slot_number === slot) ?? null;
+
     const newHighlight: HighlightVideo = {
       id: `temp-${Date.now()}`,
       athlete_clerk_id: athleteClerkId,
@@ -460,7 +465,35 @@ export default function MetricsDashboardClient({
       const filtered = prev.filter(h => h.slot_number !== slot);
       return [...filtered, newHighlight].sort((a, b) => a.slot_number - b.slot_number);
     });
-    setHighlightUploadSlot(null);
+
+    // Persist to highlight_videos. The Bunny Stream TUS upload finished in
+    // VideoUpload; this is the DB-write step the legacy multipart route used
+    // to handle. Mirrors the metric path's POST to /api/save-video-url.
+    try {
+      const res = await fetch('/api/highlight-videos', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ slotNumber: slot, videoUrl, title }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({} as { error?: string }));
+        throw new Error(data.error ?? `Failed to save highlight (HTTP ${res.status}).`);
+      }
+      // Server confirmed the write — close the upload modal and refresh server
+      // data so the slot resolves to the real row id on next render.
+      setHighlightUploadSlot(null);
+      router.refresh();
+    } catch (err) {
+      // Revert the optimistic update so the slot does not falsely show "Active".
+      setHighlights(prev => {
+        const filtered = prev.filter(h => h.slot_number !== slot);
+        return priorHighlight
+          ? [...filtered, priorHighlight].sort((a, b) => a.slot_number - b.slot_number)
+          : filtered;
+      });
+      setVideoUploadError(err instanceof Error ? err.message : 'Failed to save highlight.');
+      // Keep the upload modal open so the error is visible to the user.
+    }
   }
 
   function handleHighlightDeleted(id: string) {

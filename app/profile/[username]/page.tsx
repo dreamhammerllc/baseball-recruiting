@@ -5,8 +5,9 @@ import ShareButton from './ShareButton';
 import type { DownloadPDFButtonProps } from './DownloadPDFButton';
 import PublicMetricsSection from './PublicMetricsSection';
 import VideoPlayer from '@/components/profile/VideoPlayer';
+import HighlightReel from '@/components/profile/HighlightReel';
 import PitchArsenal from '@/components/PitchArsenal';
-import type { AthleteMetric, AthletePitch } from '@/lib/metrics';
+import type { AthleteMetric, AthletePitch, HighlightVideo } from '@/lib/metrics';
 import type { SubscriptionTier } from '@/lib/subscription';
 import type { Metadata } from 'next';
 
@@ -348,6 +349,23 @@ export default async function AthleteProfilePage({
       .order('recorded_at', { ascending: false });
     if (pitchMetricsRows) {
       pitchMetricsHistory = pitchMetricsRows as AthleteMetric[];
+    }
+  } catch {
+    // table may not exist yet — ignore
+  }
+
+  // 4d. Fetch Phase 8 highlight-reel slot clips (separate from the legacy single
+  //     athletes.highlight_video_url, which is still rendered above as
+  //     "Recruiting Video"). Keyed on clerk_user_id, NOT the uuid athletes.id.
+  let highlightVideos: HighlightVideo[] = [];
+  try {
+    const { data: highlightRows } = await db
+      .from('highlight_videos')
+      .select('*')
+      .eq('athlete_clerk_id', athleteClerkId)
+      .order('slot_number', { ascending: true });
+    if (highlightRows) {
+      highlightVideos = highlightRows as HighlightVideo[];
     }
   } catch {
     // table may not exist yet — ignore
@@ -985,6 +1003,9 @@ export default async function AthleteProfilePage({
         )}
         {/* ── RECRUITING VIDEO ───────────────────────────────────────────────── */}
         <VideoPlayer url={athleteData.highlight_video_url} title="Recruiting Video" showPlaceholder={false} />
+
+        {/* ── HIGHLIGHT REEL ─────────────────────────────────────────────────── */}
+        <HighlightReel highlights={highlightVideos} ownerTier={tier} />
 
         {/* ── EXTERNAL PROFILES ──────────────────────────────────────────────── */}
         {(athleteData.gamechanger_url || athleteData.iscore_url || athleteData.perfectgame_url) && (
