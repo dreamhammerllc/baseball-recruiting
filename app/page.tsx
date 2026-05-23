@@ -251,7 +251,7 @@ export default function HomePage() {
               <Bullet color={GOLD}>Build a free profile with stats, GPA, and video</Bullet>
               <Bullet color={GOLD}>Book a testing session with a Diamond Verified coach</Bullet>
               <Bullet color={GOLD}>Earn a Coach Verified badge after AI review</Bullet>
-              <Bullet color={GOLD}>Appear in college coach prospect searches</Bullet>
+              <Bullet color={GOLD}>A verified profile to share with college coaches</Bullet>
             </ul>
             <GoldBtn href="/sign-up">Create Athlete Profile &rarr;</GoldBtn>
           </div>
@@ -276,7 +276,7 @@ export default function HomePage() {
               <Bullet color={BLUE}>Search verified athletes by position, stats, and GPA</Bullet>
               <Bullet color={BLUE}>View AI-generated scout assessments for each prospect</Bullet>
               <Bullet color={BLUE}>Run testing sessions and record metrics on video</Bullet>
-              <Bullet color={BLUE}>10 free test slots per month to get started</Bullet>
+              <Bullet color={BLUE}>Free for coaches at launch</Bullet>
             </ul>
             <BlueBtn href="/sign-up">Create Coach Account &rarr;</BlueBtn>
           </div>
@@ -312,7 +312,7 @@ export default function HomePage() {
               Recorded in person
             </p>
             <p style={{ color: MUTED, fontSize: '0.88rem', lineHeight: 1.65, margin: 0 }}>
-              A Diamond Verified coach captured each test on video in 90-second increments.
+              A Diamond Verified coach captured each test on video.
               AI reviewed the footage for legitimacy before the badge was issued.
               Highest trust level available on the platform.
             </p>
@@ -381,15 +381,15 @@ export default function HomePage() {
             />
             <Step n={2} color={GOLD}
               title="Book a testing session"
-              body="Find a Diamond Verified coach near you and book a session. Coaches set their own prices and availability."
+              body="Find a Diamond Verified coach near you and book a session. Coaches set their own availability."
             />
             <Step n={3} color={GOLD}
               title="Get tested on video"
-              body="Your coach records each test in 90-second increments. AI reviews the footage within 72 hours."
+              body="Your coach records each test on video, and AI reviews the footage to confirm your verified metrics."
             />
             <Step n={4} color={GOLD}
               title="Earn your Coach Verified badge"
-              body="Verified metrics populate your profile automatically. College coaches searching the platform can now find you."
+              body="Verified metrics populate your profile automatically — a credible, shareable profile to send to college coaches."
             />
           </div>
 
@@ -406,19 +406,19 @@ export default function HomePage() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
             <Step n={1} color={BLUE}
               title="Register as a Diamond Verified coach"
-              body="Create your coach profile, set your prices, and publish your scheduling link. Free to join."
+              body="Create your coach profile and set your availability so nearby athletes can book you. Free to join."
             />
             <Step n={2} color={BLUE}
-              title="Appear in the Coach Finder"
-              body="Athletes searching for testing near them will see your profile. Free coaches get 10 test slots per month."
+              title="Get found by athletes searching for a coach nearby"
+              body="Athletes searching for testing near them will see your profile. Free for coaches at launch."
             />
             <Step n={3} color={BLUE}
               title="Run sessions and record metrics"
-              body="Use the coach dashboard to record each test in 90-second video increments. The platform handles the rest."
+              body="Use the coach dashboard to record each test on video. The platform handles the rest."
             />
             <Step n={4} color={BLUE}
               title="Browse and save verified prospects"
-              body="College coaches on the platform can search all verified athletes by position, stats, GPA, and location."
+              body="Search all verified athletes by position, stats, GPA, and location, and save the ones you're tracking."
             />
           </div>
 
@@ -427,7 +427,7 @@ export default function HomePage() {
             <SectionHeading>For coaches</SectionHeading>
             <p style={{ color: MUTED, fontSize: '0.95rem', lineHeight: 1.7, margin: '0 0 2rem' }}>
               Run a legitimate testing business and help athletes get real opportunities.
-              Start with 10 free sessions per month.
+              Free for coaches at launch.
             </p>
             <BlueBtn href="/sign-up">Create Coach Account &rarr;</BlueBtn>
           </div>
@@ -519,11 +519,11 @@ export default function HomePage() {
             accent={BLUE}
             highlight={false}
             features={[
-              'Listed in Coach Finder',
-              '10 test slots per month',
-              'Set your own session prices',
-              'Video recording via dashboard',
-              'Basic prospect search',
+              'Filterable athlete search — position, stats, GPA, grad year, location',
+              'Verify athlete metrics with video, AI-reviewed',
+              'Record on-device or upload via the dashboard',
+              'Get found by athletes booking testing sessions nearby',
+              'Save and track prospects',
             ]}
           />
 
