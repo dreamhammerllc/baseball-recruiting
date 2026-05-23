@@ -1,6 +1,7 @@
 import { auth } from '@clerk/nextjs/server';
 import { redirect } from 'next/navigation';
 import { createAdminClient } from '@/lib/supabase';
+import { TIER_FEATURES, normalizeTier } from '@/lib/pricing';
 import SchoolMatchesClient from './SchoolMatchesClient';
 import Link from 'next/link';
 
@@ -26,9 +27,10 @@ export default async function SchoolMatchesPage() {
     .eq('clerk_user_id', userId)
     .single();
 
-  const tier = athleteRow?.subscription_tier ?? 'free';
+  const tier = normalizeTier(athleteRow?.subscription_tier);
+  const hasAccess = TIER_FEATURES[tier].schoolMatches;
 
-  if (tier !== 'elite' && tier !== 'athlete_pro') {
+  if (!hasAccess) {
     return (
       <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#0d1117' }}>
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '2rem', gap: '1.5rem', textAlign: 'center' }}>
