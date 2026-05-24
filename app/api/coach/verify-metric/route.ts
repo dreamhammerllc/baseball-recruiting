@@ -106,12 +106,30 @@ export async function POST(req: NextRequest) {
   }
 
   // ── Claude AI plausibility review ─────────────────────────────────────────
+  //
+  // Fail-closed policy:
+  //   - AI call throws / returns unparseable JSON  → flagged (every environment)
+  //   - AI key missing in production               → flagged
+  //   - AI key missing in development              → approved as a dev convenience,
+  //                                                  with notes marking it
+  //   - AI returns confidence                      → status = confidence >= 70
+  //
+  // Never auto-approve in production without a real review.
   const info = METRIC_INFO[metricKey];
-  let aiConfidence = 80;
+  let aiConfidence = 0;
   let aiNotes = '';
+  let aiStatus: 'approved' | 'flagged';
 
   const apiKey = process.env.ANTHROPIC_API_KEY ?? process.env.APP_AI_KEY;
-  if (apiKey) {
+  if (!apiKey) {
+    if (process.env.NODE_ENV === 'development') {
+      aiStatus = 'approved';
+      aiNotes  = 'DEV: AI review skipped (no key).';
+    } else {
+      aiStatus = 'flagged';
+      aiNotes  = 'AI review unavailable.';
+    }
+  } else {
     try {
       const client = new Anthropic({ apiKey });
       const message = await client.messages.create({
@@ -127,23 +145,28 @@ export async function POST(req: NextRequest) {
       const jsonStart = raw.indexOf('{');
       const jsonEnd   = raw.lastIndexOf('}');
 
-      if (jsonStart !== -1 && jsonEnd !== -1) {
-        const parsed = JSON.parse(raw.slice(jsonStart, jsonEnd + 1)) as {
-          plausible: boolean;
-          confidence: number;
-          notes: string;
-        };
-        aiNotes = parsed.notes ?? '';
-        aiConfidence = parsed.plausible
-          ? (parsed.confidence ?? 80)
-          : Math.min(parsed.confidence ?? 40, 50);
+      if (jsonStart === -1 || jsonEnd === -1) {
+        throw new Error('No JSON object found in Claude response.');
       }
+
+      const parsed = JSON.parse(raw.slice(jsonStart, jsonEnd + 1)) as {
+        plausible: boolean;
+        confidence: number;
+        notes: string;
+      };
+      aiNotes = parsed.notes ?? '';
+      aiConfidence = parsed.plausible
+        ? (parsed.confidence ?? 80)
+        : Math.min(parsed.confidence ?? 40, 50);
+      aiStatus = aiConfidence >= 70 ? 'approved' : 'flagged';
     } catch (err) {
-      console.error('[verify-metric] Claude review failed — defaulting to approved:', err);
+      console.error('[verify-metric] Claude review failed — flagging:', err);
+      aiStatus     = 'flagged';
+      aiConfidence = 0;
+      aiNotes      = 'Automated review failed — not auto-approved.';
     }
   }
 
-  const aiStatus = aiConfidence >= 70 ? 'approved' : 'flagged';
   const now = new Date().toISOString();
   const recordedAtValue = recordedAt ?? now;
 
@@ -165,52 +188,60 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Failed to record verification.' }, { status: 500 });
   }
 
-  // ── Always write to athlete_metrics ───────────────────────────────────────
-  const { data: existingBest } = await db
-    .from('athlete_metrics')
-    .select('id, value')
-    .eq('athlete_clerk_id', athleteClerkId)
-    .eq('metric_key', metricKey)
-    .eq('is_personal_best', true)
-    .maybeSingle();
-
-  const lowerIsBetter = info.lowerIsBetter;
-  const isPersonalBest = !existingBest ||
-    (lowerIsBetter
-      ? value < Number(existingBest.value)
-      : value > Number(existingBest.value));
-
-  const { data: newRow, error: insertError } = await db
-    .from('athlete_metrics')
-    .insert({
-      athlete_clerk_id:  athleteClerkId,
-      metric_key:        metricKey,
-      value,
-      unit:              info.unit,
-      verification_type: 'coach_verified',
-      source_label:      `${coach.full_name} - ${coach.organization}`,
-      ai_confidence:     aiConfidence,
-      is_personal_best:  isPersonalBest,
-      video_url:         isPersonalBest ? (videoUrl ?? null) : null,
-      recorded_at:       recordedAtValue,
-    })
-    .select('id')
-    .single();
-
-  if (insertError) {
-    console.error('[verify-metric] athlete_metrics insert error:', insertError.message);
-  }
-
-  if (isPersonalBest && existingBest && newRow) {
-    const { error: clearError } = await db
+  // ── Write to athlete_metrics ONLY when the verification was approved ──────
+  //
+  // Flagged verifications still get a coach_verifications row above (coach's
+  // record of the attempt) but must NOT publish to athlete_metrics — that's
+  // the table the public profile + coach Discover read from. We also skip the
+  // personal-best demotion step: with no new metric inserted, there's nothing
+  // to demote the prior PB in favor of.
+  if (aiStatus === 'approved') {
+    const { data: existingBest } = await db
       .from('athlete_metrics')
-      .update({ is_personal_best: false })
+      .select('id, value')
       .eq('athlete_clerk_id', athleteClerkId)
       .eq('metric_key', metricKey)
-      .neq('id', newRow.id);
+      .eq('is_personal_best', true)
+      .maybeSingle();
 
-    if (clearError) {
-      console.error('[verify-metric] clear old PB error:', clearError.message);
+    const lowerIsBetter = info.lowerIsBetter;
+    const isPersonalBest = !existingBest ||
+      (lowerIsBetter
+        ? value < Number(existingBest.value)
+        : value > Number(existingBest.value));
+
+    const { data: newRow, error: insertError } = await db
+      .from('athlete_metrics')
+      .insert({
+        athlete_clerk_id:  athleteClerkId,
+        metric_key:        metricKey,
+        value,
+        unit:              info.unit,
+        verification_type: 'coach_verified',
+        source_label:      `${coach.full_name} - ${coach.organization}`,
+        ai_confidence:     aiConfidence,
+        is_personal_best:  isPersonalBest,
+        video_url:         isPersonalBest ? (videoUrl ?? null) : null,
+        recorded_at:       recordedAtValue,
+      })
+      .select('id')
+      .single();
+
+    if (insertError) {
+      console.error('[verify-metric] athlete_metrics insert error:', insertError.message);
+    }
+
+    if (isPersonalBest && existingBest && newRow) {
+      const { error: clearError } = await db
+        .from('athlete_metrics')
+        .update({ is_personal_best: false })
+        .eq('athlete_clerk_id', athleteClerkId)
+        .eq('metric_key', metricKey)
+        .neq('id', newRow.id);
+
+      if (clearError) {
+        console.error('[verify-metric] clear old PB error:', clearError.message);
+      }
     }
   }
 

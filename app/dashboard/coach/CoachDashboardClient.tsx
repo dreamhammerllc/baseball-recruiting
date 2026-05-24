@@ -226,7 +226,7 @@ export default function CoachDashboardClient() {
         approved: data.status === 'approved',
         message:  data.status === 'approved'
           ? `Metric verified and saved to ${selectedAthlete.fullName}'s profile.`
-          : `Metric saved to ${selectedAthlete.fullName}'s profile with a low-confidence tag. AI couldn't fully verify the measurement.`,
+          : `Submitted, but our AI couldn't verify this measurement, so it was not added to ${selectedAthlete.fullName}'s profile. Double-check the value or resubmit with clearer video/evidence.`,
       });
       setValue('');
       setVideoFile(null);
@@ -726,7 +726,7 @@ export default function CoachDashboardClient() {
               fontSize: '0.95rem',
               margin: '0 0 0.4rem',
             }}>
-              {result.approved ? 'Verification Approved' : 'Verification Submitted'}
+              {result.approved ? 'Verification Approved' : 'Not Added to Profile'}
             </p>
             <p style={{ color: '#6b7280', fontSize: '0.875rem', margin: '0 0 1.25rem' }}>
               {result.message}
