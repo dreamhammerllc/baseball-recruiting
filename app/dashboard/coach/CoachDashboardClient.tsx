@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import * as tus from 'tus-js-client';
 import CoachSidebar from '@/components/layout/CoachSidebar';
 import AddAthleteModal from '@/components/AddAthleteModal';
+import ReadoutUpload from '@/components/ReadoutUpload';
 import { METRIC_KEYS, METRIC_INFO, type MetricKey } from '@/lib/metrics';
 import type { CoachProfile } from '@/app/api/coach/setup/route';
 import type { AthleteSearchResult } from '@/app/api/coach/athletes/search/route';
@@ -43,6 +44,11 @@ export default function CoachDashboardClient() {
   const [uploadError, setUploadError]     = useState<string | null>(null);
   const fileInputRef                      = useRef<HTMLInputElement>(null);
   const captureInputRef                   = useRef<HTMLInputElement>(null);
+
+  // Device-readout upload state (optional — image/PDF goes to Supabase
+  // Storage via /api/coach/upload-readout; URL rides along in the
+  // verify-metric POST body for a future server-side consumer).
+  const [readoutUrl, setReadoutUrl]       = useState<string | null>(null);
 
   // Submit state
   const [submitting, setSubmitting]       = useState(false);
@@ -138,6 +144,7 @@ export default function CoachDashboardClient() {
     setValue('');
     setVideoFile(null);
     setVideoUrl(null);
+    setReadoutUrl(null);
     setUploadError(null);
     setMetricKey(METRIC_KEYS[0]);
     setRecordedAt(today);
@@ -217,6 +224,7 @@ export default function CoachDashboardClient() {
           metricKey,
           value:          numVal,
           videoUrl:       videoUrl ?? null,
+          readoutUrl:     readoutUrl ?? null,
           recordedAt:     recordedAt ? new Date(recordedAt).toISOString() : null,
         }),
       });
@@ -231,6 +239,7 @@ export default function CoachDashboardClient() {
       setValue('');
       setVideoFile(null);
       setVideoUrl(null);
+      setReadoutUrl(null);
       setRecordedAt(today);
     } catch (err: unknown) {
       setSubmitError(err instanceof Error ? err.message : 'An error occurred.');
@@ -669,6 +678,21 @@ export default function CoachDashboardClient() {
                 )}
               </div>
 
+              {/* Device readout (optional — image/PDF goes to Supabase Storage; URL rides in the verify-metric body) */}
+              <div>
+                <label style={labelStyle}>
+                  Device Readout (optional)
+                </label>
+                <p style={{ color: '#6b7280', fontSize: '0.78rem', margin: '0 0 0.5rem', lineHeight: 1.45 }}>
+                  Optional &mdash; HitTrax / Rapsodo / Blast / Trackman screenshot or PDF.
+                </p>
+                <ReadoutUpload
+                  onUploadComplete={(url) => setReadoutUrl(url)}
+                  onError={(m) => setSubmitError(m)}
+                  onRemove={() => setReadoutUrl(null)}
+                />
+              </div>
+
               {/* Error + submit */}
               {submitError && (
                 <p style={{ color: '#f87171', fontSize: '0.875rem', margin: 0 }}>{submitError}</p>
@@ -733,7 +757,7 @@ export default function CoachDashboardClient() {
             </p>
             <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
               <button
-                onClick={() => { setResult(null); setValue(''); setRecordedAt(today); setVideoFile(null); setVideoUrl(null); }}
+                onClick={() => { setResult(null); setValue(''); setRecordedAt(today); setVideoFile(null); setVideoUrl(null); setReadoutUrl(null); }}
                 style={{
                   backgroundColor: '#e8a020',
                   color: '#000000',
@@ -748,7 +772,7 @@ export default function CoachDashboardClient() {
                 Verify Another Metric
               </button>
               <button
-                onClick={() => { setSelectedAthlete(null); setResult(null); setSearchResults(null); setSearchQuery(''); }}
+                onClick={() => { setSelectedAthlete(null); setResult(null); setSearchResults(null); setSearchQuery(''); setReadoutUrl(null); }}
                 style={{
                   backgroundColor: 'transparent',
                   border: '1px solid #1e2530',
