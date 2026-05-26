@@ -2,8 +2,26 @@
 
 import { useState, useRef } from 'react';
 
+interface ReadoutUploadResult {
+  url:          string;
+  extractionId: string | null;
+  extracted:    { value: number | null; confidence: number; notes: string | null } | null;
+}
+
 interface ReadoutUploadProps {
-  onUploadComplete: (url: string) => void;
+  /**
+   * The metric the coach is currently verifying. Sent with the upload so the
+   * server can run Vision extraction targeted at this metric's label/unit and
+   * record the result in the readout_extractions ledger.
+   */
+  metricKey: string;
+  /**
+   * Optional Clerk id of the athlete the verification is for. Sent so the
+   * ledger row can be associated with the athlete; not required for the
+   * upload itself.
+   */
+  athleteClerkId?: string;
+  onUploadComplete: (result: ReadoutUploadResult) => void;
   onError: (msg: string) => void;
   /**
    * Optional — called when the user clicks Remove on the success state, so the
@@ -24,7 +42,13 @@ const ALLOWED_MIME = new Set([
   'image/heif',
 ]);
 
-export default function ReadoutUpload({ onUploadComplete, onError, onRemove }: ReadoutUploadProps) {
+export default function ReadoutUpload({
+  metricKey,
+  athleteClerkId,
+  onUploadComplete,
+  onError,
+  onRemove,
+}: ReadoutUploadProps) {
   const [dragOver, setDragOver]             = useState(false);
   const [, setSelectedFile]                 = useState<File | null>(null);
   const [isUploading, setIsUploading]       = useState(false);
@@ -91,6 +115,8 @@ export default function ReadoutUpload({ onUploadComplete, onError, onRemove }: R
 
     const formData = new FormData();
     formData.append('file', file);
+    formData.append('metricKey', metricKey);
+    if (athleteClerkId) formData.append('athleteClerkId', athleteClerkId);
 
     const xhr = new XMLHttpRequest();
     xhr.open('POST', '/api/coach/upload-readout');
@@ -103,11 +129,21 @@ export default function ReadoutUpload({ onUploadComplete, onError, onRemove }: R
 
     xhr.onload = () => {
       try {
-        const data = JSON.parse(xhr.responseText) as { success?: boolean; url?: string; error?: string };
+        const data = JSON.parse(xhr.responseText) as {
+          success?:      boolean;
+          url?:          string;
+          extractionId?: string | null;
+          extracted?:    { value: number | null; confidence: number; notes: string | null } | null;
+          error?:        string;
+        };
         if (xhr.status >= 200 && xhr.status < 300 && data.success && data.url) {
           setUploadComplete(true);
           setIsUploading(false);
-          onUploadComplete(data.url);
+          onUploadComplete({
+            url:          data.url,
+            extractionId: data.extractionId ?? null,
+            extracted:    data.extracted ?? null,
+          });
         } else {
           const msg = data.error ?? `Upload failed (HTTP ${xhr.status}).`;
           setError(msg);

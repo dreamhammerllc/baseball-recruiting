@@ -7,6 +7,7 @@ import CoachSidebar from '@/components/layout/CoachSidebar';
 import AddAthleteModal from '@/components/AddAthleteModal';
 import ReadoutUpload from '@/components/ReadoutUpload';
 import { METRIC_KEYS, METRIC_INFO, type MetricKey } from '@/lib/metrics';
+import { isWithinCorroborationTolerance } from '@/lib/corroborationTolerance';
 import type { CoachProfile } from '@/app/api/coach/setup/route';
 import type { AthleteSearchResult } from '@/app/api/coach/athletes/search/route';
 
@@ -49,6 +50,12 @@ export default function CoachDashboardClient() {
   // Storage via /api/coach/upload-readout; URL rides along in the
   // verify-metric POST body for a future server-side consumer).
   const [readoutUrl, setReadoutUrl]       = useState<string | null>(null);
+  // Server-side extraction outcome from the same upload route. `extractionId`
+  // is the readout_extractions row id (passed to verify-metric for server-side
+  // corroboration); `readoutExtracted` is the displayed extraction summary.
+  const [extractionId, setExtractionId]   = useState<string | null>(null);
+  const [readoutExtracted, setReadoutExtracted] =
+    useState<{ value: number | null; confidence: number; notes: string | null } | null>(null);
 
   // Submit state
   const [submitting, setSubmitting]       = useState(false);
@@ -145,6 +152,8 @@ export default function CoachDashboardClient() {
     setVideoFile(null);
     setVideoUrl(null);
     setReadoutUrl(null);
+    setExtractionId(null);
+    setReadoutExtracted(null);
     setUploadError(null);
     setMetricKey(METRIC_KEYS[0]);
     setRecordedAt(today);
@@ -225,6 +234,7 @@ export default function CoachDashboardClient() {
           value:          numVal,
           videoUrl:       videoUrl ?? null,
           readoutUrl:     readoutUrl ?? null,
+          extractionId:   extractionId ?? null,
           recordedAt:     recordedAt ? new Date(recordedAt).toISOString() : null,
         }),
       });
@@ -240,6 +250,8 @@ export default function CoachDashboardClient() {
       setVideoFile(null);
       setVideoUrl(null);
       setReadoutUrl(null);
+      setExtractionId(null);
+      setReadoutExtracted(null);
       setRecordedAt(today);
     } catch (err: unknown) {
       setSubmitError(err instanceof Error ? err.message : 'An error occurred.');
@@ -493,6 +505,13 @@ export default function CoachDashboardClient() {
                     setVideoFile(null);
                     setVideoUrl(null);
                     setUploadError(null);
+                    // Readout extracted for the previous metric must not
+                    // carry over. The <ReadoutUpload key={metricKey}> below
+                    // also remounts so its internal "Upload complete" UI
+                    // resets in lockstep.
+                    setReadoutUrl(null);
+                    setExtractionId(null);
+                    setReadoutExtracted(null);
                   }}
                   style={{ ...inputStyle, appearance: 'none', cursor: 'pointer' }}
                 >
@@ -519,6 +538,53 @@ export default function CoachDashboardClient() {
                   required
                   style={inputStyle}
                 />
+
+                {/* Live device-readout corroboration warning. Non-blocking —
+                    never disables submit. Shown only after a readout has
+                    been uploaded for this metric. */}
+                {readoutExtracted && readoutExtracted.value != null && (
+                  <div style={{ marginTop: '0.5rem' }}>
+                    <p style={{ color: '#9ca3af', fontSize: '0.78rem', margin: 0 }}>
+                      Device reads:{' '}
+                      <span style={{ color: '#f0f6fc', fontWeight: 600 }}>
+                        {readoutExtracted.value} {METRIC_INFO[metricKey].unit}
+                      </span>
+                    </p>
+                    {(() => {
+                      const claimedNum = parseFloat(value);
+                      if (value === '' || !isFinite(claimedNum)) return null;
+                      const unit = METRIC_INFO[metricKey].unit;
+                      const extractedVal = readoutExtracted.value as number;
+                      if (isWithinCorroborationTolerance(unit, claimedNum, extractedVal)) {
+                        return null;
+                      }
+                      return (
+                        <div style={{
+                          marginTop:    '0.4rem',
+                          borderLeft:   '3px solid #e8a020',
+                          background:   'rgba(232,160,32,0.06)',
+                          borderRadius: '0 0.4rem 0.4rem 0',
+                          padding:      '0.5rem 0.75rem',
+                          color:        '#d4911c',
+                          fontSize:     '0.78rem',
+                          lineHeight:   1.5,
+                        }}>
+                          Your entry ({value}) differs from the device reading ({extractedVal}). You can still submit.
+                        </div>
+                      );
+                    })()}
+                  </div>
+                )}
+                {readoutExtracted && readoutExtracted.value == null && (
+                  <p style={{
+                    color:      '#d4911c',
+                    fontSize:   '0.78rem',
+                    margin:     '0.5rem 0 0',
+                    lineHeight: 1.5,
+                  }}>
+                    Couldn&apos;t auto-read this file, so it won&apos;t be auto-verified. Use a PNG, JPG, or PDF screenshot for automatic verification.
+                  </p>
+                )}
               </div>
 
               {/* Date */}
@@ -687,9 +753,20 @@ export default function CoachDashboardClient() {
                   Optional &mdash; HitTrax / Rapsodo / Blast / Trackman screenshot or PDF.
                 </p>
                 <ReadoutUpload
-                  onUploadComplete={(url) => setReadoutUrl(url)}
+                  key={metricKey}
+                  metricKey={metricKey}
+                  athleteClerkId={selectedAthlete.clerkId}
+                  onUploadComplete={({ url, extractionId, extracted }) => {
+                    setReadoutUrl(url);
+                    setExtractionId(extractionId);
+                    setReadoutExtracted(extracted);
+                  }}
                   onError={(m) => setSubmitError(m)}
-                  onRemove={() => setReadoutUrl(null)}
+                  onRemove={() => {
+                    setReadoutUrl(null);
+                    setExtractionId(null);
+                    setReadoutExtracted(null);
+                  }}
                 />
               </div>
 
@@ -757,7 +834,7 @@ export default function CoachDashboardClient() {
             </p>
             <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
               <button
-                onClick={() => { setResult(null); setValue(''); setRecordedAt(today); setVideoFile(null); setVideoUrl(null); setReadoutUrl(null); }}
+                onClick={() => { setResult(null); setValue(''); setRecordedAt(today); setVideoFile(null); setVideoUrl(null); setReadoutUrl(null); setExtractionId(null); setReadoutExtracted(null); }}
                 style={{
                   backgroundColor: '#e8a020',
                   color: '#000000',
@@ -772,7 +849,7 @@ export default function CoachDashboardClient() {
                 Verify Another Metric
               </button>
               <button
-                onClick={() => { setSelectedAthlete(null); setResult(null); setSearchResults(null); setSearchQuery(''); setReadoutUrl(null); }}
+                onClick={() => { setSelectedAthlete(null); setResult(null); setSearchResults(null); setSearchQuery(''); setReadoutUrl(null); setExtractionId(null); setReadoutExtracted(null); }}
                 style={{
                   backgroundColor: 'transparent',
                   border: '1px solid #1e2530',
