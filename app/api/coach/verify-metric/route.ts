@@ -3,7 +3,8 @@ import { createClerkClient } from '@clerk/backend';
 import Anthropic from '@anthropic-ai/sdk';
 import { createAdminClient } from '@/lib/supabase';
 import { METRIC_KEYS, METRIC_INFO, type MetricKey } from '@/lib/metrics';
-import { extractReadoutValue } from '@/lib/visionExtract';
+import { computeVerificationTier } from '@/lib/verificationTier';
+import { isWithinCorroborationTolerance } from '@/lib/corroborationTolerance';
 
 const clerk = createClerkClient({
   secretKey:      process.env.CLERK_SECRET_KEY,
@@ -30,33 +31,8 @@ interface VerifyBody {
   value: number;
   videoUrl?: string | null;
   readoutUrl?: string | null;
+  extractionId?: string | null;
   recordedAt?: string | null;
-}
-
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-
-// Fallback when a Supabase Storage public URL's HEAD/GET doesn't carry a usable
-// Content-Type header — infer from the path extension. Only the MIME types the
-// upload route accepts (PDF + the six image variants) are mapped; everything
-// else returns null so the extractor's unsupported-type branch fires.
-function inferMimeFromUrl(url: string): string | null {
-  try {
-    const pathname = new URL(url).pathname.toLowerCase();
-    const ext = pathname.slice(pathname.lastIndexOf('.'));
-    switch (ext) {
-      case '.pdf':  return 'application/pdf';
-      case '.jpg':
-      case '.jpeg': return 'image/jpeg';
-      case '.png':  return 'image/png';
-      case '.gif':  return 'image/gif';
-      case '.webp': return 'image/webp';
-      case '.heic': return 'image/heic';
-      case '.heif': return 'image/heif';
-      default:      return null;
-    }
-  } catch {
-    return null;
-  }
 }
 
 // ─── POST /api/coach/verify-metric ───────────────────────────────────────────
@@ -76,7 +52,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid JSON body.' }, { status: 400 });
   }
 
-  const { athleteClerkId, metricKey, value, videoUrl, readoutUrl, recordedAt } = body;
+  const { athleteClerkId, metricKey, value, videoUrl, readoutUrl, extractionId, recordedAt } = body;
 
   if (!athleteClerkId) {
     return NextResponse.json({ error: 'athleteClerkId is required.' }, { status: 400 });
@@ -143,137 +119,172 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // ── Claude AI plausibility review ─────────────────────────────────────────
+  // ── Decision: device reading (when present) overrides AI plausibility ────
   //
-  // Fail-closed policy:
-  //   - AI call throws / returns unparseable JSON  → flagged (every environment)
-  //   - AI key missing in production               → flagged
-  //   - AI key missing in development              → approved as a dev convenience,
-  //                                                  with notes marking it
-  //   - AI returns confidence                      → status = confidence >= 70
+  // Trust ordering:
+  //   1. If the server has a readout_extractions row for this submission
+  //      (looked up by extractionId, scoped to this coach + this metric),
+  //      the device reading drives approve/flag through a tolerance check
+  //      against the coach's typed value. The AI plausibility model is NOT
+  //      called — the device IS the verification.
+  //   2. Otherwise, fall back to the existing Claude plausibility flow.
+  //      This is byte-for-byte the behavior shipped before 2b-i (fail-closed
+  //      on missing key / parse error, >=70 confidence threshold).
   //
-  // Never auto-approve in production without a real review.
+  // aiStatus / aiConfidence / aiNotes are filled in by whichever branch runs
+  // so the response shape and the metric_sessions bundle stay uniform.
   const info = METRIC_INFO[metricKey];
   let aiConfidence = 0;
   let aiNotes = '';
   let aiStatus: 'approved' | 'flagged';
-  // Non-null when the decision came from a fail-closed path (no key / parse
-  // error) rather than the >=70 threshold. Used only to label the evidence
-  // bundle's decision_reason — does not influence aiStatus.
+  // Used only in the AI-plausibility fallback to label decision_reason.
   let aiFailClosedReason: string | null = null;
+  let decisionReason     = '';
+  let deviceCorroborated = false;
 
-  const apiKey = process.env.ANTHROPIC_API_KEY ?? process.env.APP_AI_KEY;
-  if (!apiKey) {
-    if (process.env.NODE_ENV === 'development') {
-      aiStatus = 'approved';
-      aiNotes  = 'DEV: AI review skipped (no key).';
-      aiFailClosedReason = 'AI review skipped (no key, dev environment).';
-    } else {
-      aiStatus = 'flagged';
-      aiNotes  = 'AI review unavailable.';
-      aiFailClosedReason = 'AI review unavailable.';
-    }
-  } else {
+  // ── Server-authoritative ledger lookup ────────────────────────────────────
+  //
+  // The extracted value lives in readout_extractions, written by the upload
+  // route. The decision reads it back BY ID here — verify-metric never trusts
+  // a value the client put in the request body.
+  let ledgerValue:      number | null = null;
+  let ledgerConfidence: number | null = null;
+  let ledgerReadoutUrl: string | null = null;
+
+  if (typeof extractionId === 'string' && extractionId.length > 0) {
     try {
-      const client = new Anthropic({ apiKey });
-      const message = await client.messages.create({
-        model:      'claude-sonnet-4-6',
-        max_tokens: 200,
-        messages: [{
-          role:    'user',
-          content: `Evaluate whether this baseball performance metric is realistic for a competitive high school or college player.\n\nMetric: ${info.label} (${info.unit})\nValue: ${value}\nSubmitted by: ${coach.full_name}, ${coach.title} at ${coach.organization}\n\nRespond ONLY with valid JSON (no markdown, no extra text):\n{"plausible":true,"confidence":85,"notes":"brief reason"}`,
-        }],
-      });
+      const { data: ledgerRow } = await db
+        .from('readout_extractions')
+        .select('extracted_value, confidence, readout_url')
+        .eq('id', extractionId)
+        .eq('coach_clerk_id', userId)
+        .eq('metric_key', metricKey)
+        .maybeSingle();
 
-      const raw = message.content[0]?.type === 'text' ? message.content[0].text.trim() : '';
-      const jsonStart = raw.indexOf('{');
-      const jsonEnd   = raw.lastIndexOf('}');
+      if (ledgerRow) {
+        ledgerValue =
+          ledgerRow.extracted_value != null
+            ? Number(ledgerRow.extracted_value)
+            : null;
+        ledgerConfidence =
+          ledgerRow.confidence != null ? Number(ledgerRow.confidence) : null;
+        ledgerReadoutUrl = ledgerRow.readout_url ?? null;
 
-      if (jsonStart === -1 || jsonEnd === -1) {
-        throw new Error('No JSON object found in Claude response.');
+        // Best-effort audit stamp. We do NOT filter on consumed_at being
+        // null — re-consumes are allowed and simply re-stamp.
+        try {
+          await db
+            .from('readout_extractions')
+            .update({ consumed_at: new Date().toISOString() })
+            .eq('id', extractionId);
+        } catch (stampErr) {
+          console.error('[verify-metric] readout_extractions consumed_at stamp skipped:', stampErr);
+        }
       }
-
-      const parsed = JSON.parse(raw.slice(jsonStart, jsonEnd + 1)) as {
-        plausible: boolean;
-        confidence: number;
-        notes: string;
-      };
-      aiNotes = parsed.notes ?? '';
-      aiConfidence = parsed.plausible
-        ? (parsed.confidence ?? 80)
-        : Math.min(parsed.confidence ?? 40, 50);
-      aiStatus = aiConfidence >= 70 ? 'approved' : 'flagged';
     } catch (err) {
-      console.error('[verify-metric] Claude review failed — flagging:', err);
-      aiStatus     = 'flagged';
-      aiConfidence = 0;
-      aiNotes      = 'Automated review failed — not auto-approved.';
-      aiFailClosedReason = 'Automated review failed.';
+      console.error('[verify-metric] readout_extractions lookup failed:', err);
+      // ledgerValue stays null — flow falls through to the AI branch.
     }
+  }
+
+  if (ledgerValue !== null) {
+    // ── Device branch — server-extracted reading is the source of truth ────
+    deviceCorroborated = isWithinCorroborationTolerance(info.unit, value, ledgerValue);
+    aiStatus       = deviceCorroborated ? 'approved' : 'flagged';
+    aiConfidence   = ledgerConfidence ?? 0;
+    aiNotes        = `Device reading ${ledgerValue} ${info.unit} ${
+      deviceCorroborated ? 'corroborates' : 'differs from'
+    } the entered ${value} ${info.unit}.`;
+    decisionReason = deviceCorroborated ? 'device_corroborated' : 'device_divergence';
+  } else {
+    // ── Fallback: Claude AI plausibility review (pre-2b-i behavior) ────────
+    //
+    // Fail-closed policy:
+    //   - AI call throws / returns unparseable JSON  → flagged (every environment)
+    //   - AI key missing in production               → flagged
+    //   - AI key missing in development              → approved as a dev convenience,
+    //                                                  with notes marking it
+    //   - AI returns confidence                      → status = confidence >= 70
+    //
+    // Never auto-approve in production without a real review.
+    const apiKey = process.env.ANTHROPIC_API_KEY ?? process.env.APP_AI_KEY;
+    if (!apiKey) {
+      if (process.env.NODE_ENV === 'development') {
+        aiStatus = 'approved';
+        aiNotes  = 'DEV: AI review skipped (no key).';
+        aiFailClosedReason = 'AI review skipped (no key, dev environment).';
+      } else {
+        aiStatus = 'flagged';
+        aiNotes  = 'AI review unavailable.';
+        aiFailClosedReason = 'AI review unavailable.';
+      }
+    } else {
+      try {
+        const client = new Anthropic({ apiKey });
+        const message = await client.messages.create({
+          model:      'claude-sonnet-4-6',
+          max_tokens: 200,
+          messages: [{
+            role:    'user',
+            content: `Evaluate whether this baseball performance metric is realistic for a competitive high school or college player.\n\nMetric: ${info.label} (${info.unit})\nValue: ${value}\nSubmitted by: ${coach.full_name}, ${coach.title} at ${coach.organization}\n\nRespond ONLY with valid JSON (no markdown, no extra text):\n{"plausible":true,"confidence":85,"notes":"brief reason"}`,
+          }],
+        });
+
+        const raw = message.content[0]?.type === 'text' ? message.content[0].text.trim() : '';
+        const jsonStart = raw.indexOf('{');
+        const jsonEnd   = raw.lastIndexOf('}');
+
+        if (jsonStart === -1 || jsonEnd === -1) {
+          throw new Error('No JSON object found in Claude response.');
+        }
+
+        const parsed = JSON.parse(raw.slice(jsonStart, jsonEnd + 1)) as {
+          plausible: boolean;
+          confidence: number;
+          notes: string;
+        };
+        aiNotes = parsed.notes ?? '';
+        aiConfidence = parsed.plausible
+          ? (parsed.confidence ?? 80)
+          : Math.min(parsed.confidence ?? 40, 50);
+        aiStatus = aiConfidence >= 70 ? 'approved' : 'flagged';
+      } catch (err) {
+        console.error('[verify-metric] Claude review failed — flagging:', err);
+        aiStatus     = 'flagged';
+        aiConfidence = 0;
+        aiNotes      = 'Automated review failed — not auto-approved.';
+        aiFailClosedReason = 'Automated review failed.';
+      }
+    }
+
+    // Decision-reason derivation stays scoped to this branch so it doesn't
+    // overwrite the device branch's label.
+    decisionReason = aiFailClosedReason
+      ? `fail-closed: ${aiFailClosedReason}`
+      : (aiStatus === 'approved'
+          ? `ai_confidence ${aiConfidence} >= 70`
+          : `ai_confidence ${aiConfidence} < 70`);
   }
 
   const now = new Date().toISOString();
   const recordedAtValue = recordedAt ?? now;
 
-  // ── Readout extraction (best-effort, fail-safe) ───────────────────────────
-  //
-  // If a device-readout file (HitTrax / Rapsodo / Blast / Trackman / etc.)
-  // was uploaded, ask Claude Vision what value it shows for the metric being
-  // verified. The extracted number is captured into the evidence bundle but
-  // is intentionally NEVER consumed by the decision: aiStatus, aiConfidence,
-  // the >=70 threshold, approve/flag, the 72h cooldown, and the response
-  // shape all remain driven solely by the existing plausibility review.
-  //
-  // Any failure here (no file, fetch error, unsupported type, Vision error,
-  // parse error) leaves readoutExtractedValue = null and is logged. It must
-  // never throw out of this block.
-  let readoutExtractedValue: number | null = null;
-  if (typeof readoutUrl === 'string' && readoutUrl) {
-    try {
-      const fileRes = await fetch(readoutUrl);
-      if (!fileRes.ok) {
-        throw new Error(`storage returned HTTP ${fileRes.status}`);
-      }
+  // Readout value persisted into the evidence bundle. Sourced from the
+  // ledger only — never from anything the client supplied.
+  const readoutExtractedValue = ledgerValue;
 
-      // Prefer the storage server's Content-Type (strip any "; charset=...");
-      // fall back to inferring from the URL extension when the header is
-      // missing or generic.
-      const headerType = (fileRes.headers.get('content-type') ?? '')
-        .split(';')[0]
-        .trim();
-      const mimeType =
-        headerType && headerType !== 'application/octet-stream'
-          ? headerType
-          : (inferMimeFromUrl(readoutUrl) ?? headerType);
-
-      const buffer     = await fileRes.arrayBuffer();
-      const fileBase64 = Buffer.from(buffer).toString('base64');
-
-      const extraction = await extractReadoutValue({
-        metricKey,
-        metricLabel: info.label,
-        unit:        info.unit,
-        fileBase64,
-        mimeType,
-      });
-      readoutExtractedValue = extraction.value;
-    } catch (err) {
-      console.error('[verify-metric] readout extraction skipped:', err);
-      // readoutExtractedValue stays null — capture-only, never alters decision.
-    }
-  }
+  // Trust tier for this attempt. Coach-submitted in this route.
+  const tier = computeVerificationTier({
+    submittedBy:        'coach',
+    deviceCorroborated,
+    hasVideo:           Boolean(videoUrl),
+  });
 
   // ── Evidence-bundle row in metric_sessions (every attempt, approve + flag) ──
   //
   // Fail-safe: if this insert errors or throws, log it and continue with
   // sessionId = null. Evidence capture must NEVER block or alter the
   // verification response.
-  const decisionReason = aiFailClosedReason
-    ? `fail-closed: ${aiFailClosedReason}`
-    : (aiStatus === 'approved'
-        ? `ai_confidence ${aiConfidence} >= 70`
-        : `ai_confidence ${aiConfidence} < 70`);
-
   const sessionDateValue = recordedAt ? new Date(recordedAt) : new Date();
 
   let sessionId: string | null = null;
@@ -286,7 +297,7 @@ export async function POST(req: NextRequest) {
         metric_key:              metricKey,
         claimed_value:           value,
         video_url:               videoUrl ?? null,
-        readout_file_url:        readoutUrl ?? null,
+        readout_file_url:        readoutUrl ?? ledgerReadoutUrl ?? null,
         readout_extracted_value: readoutExtractedValue,
         ai_confidence:           aiConfidence,
         ai_notes:                aiNotes || null,
@@ -295,6 +306,7 @@ export async function POST(req: NextRequest) {
         session_date:            sessionDateValue,
         verification_type:       'coach_verified',
         athlete_context:         athleteSnapshot ?? null,
+        verification_tier:       aiStatus === 'approved' ? tier : null,
       })
       .select('id')
       .single();
@@ -363,12 +375,43 @@ export async function POST(req: NextRequest) {
         video_url:         isPersonalBest ? (videoUrl ?? null) : null,
         recorded_at:       recordedAtValue,
         session_id:        sessionId,
+        verification_tier: tier,
       })
       .select('id')
       .single();
 
     if (insertError) {
       console.error('[verify-metric] athlete_metrics insert error:', insertError.message);
+    }
+
+    // ── Roll up athletes.verification_tier to the STRONGEST tier the athlete
+    //    now holds. Best-effort: read-modify-write against a NULL-or-≥1
+    //    column. Failure logged but never blocks the response. NULL is
+    //    treated as 7 (weakest) so any verified tier wins on first publish.
+    if (newRow) {
+      try {
+        const { data: athleteRow } = await db
+          .from('athletes')
+          .select('verification_tier')
+          .eq('clerk_user_id', athleteClerkId)
+          .maybeSingle();
+
+        const existingTier = (athleteRow?.verification_tier as number | null) ?? null;
+        const effectiveExisting = existingTier ?? 7;
+        const strongest = Math.min(effectiveExisting, tier);
+
+        if (strongest !== existingTier) {
+          const { error: rollupError } = await db
+            .from('athletes')
+            .update({ verification_tier: strongest })
+            .eq('clerk_user_id', athleteClerkId);
+          if (rollupError) {
+            console.error('[verify-metric] athletes verification_tier rollup error:', rollupError.message);
+          }
+        }
+      } catch (err) {
+        console.error('[verify-metric] athletes verification_tier rollup threw:', err);
+      }
     }
 
     if (isPersonalBest && existingBest && newRow) {
