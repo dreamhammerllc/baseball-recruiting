@@ -43,21 +43,25 @@ export default function ReviewQueueClient({ initialItems }: { initialItems: Revi
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [evidenceItem, setEvidenceItem] = useState<ReviewItem | null>(null);
+  const [rejectingId, setRejectingId] = useState<string | null>(null);
+  const [rejectNote, setRejectNote] = useState('');
 
-  async function resolve(sessionId: string, action: 'approve' | 'reject') {
+  async function resolve(sessionId: string, action: 'approve' | 'reject', note?: string) {
     setBusyId(sessionId);
     setError(null);
     try {
       const res = await fetch('/api/review/resolve', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sessionId, action }),
+        body: JSON.stringify({ sessionId, action, note: note ?? undefined }),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         throw new Error(data.error || `Request failed (${res.status})`);
       }
       setItems(prev => prev.filter(i => i.sessionId !== sessionId));
+      setRejectingId(null);
+      setRejectNote('');
     } catch (e: any) {
       setError(e.message || 'Something went wrong.');
     } finally {
@@ -133,16 +137,38 @@ export default function ReviewQueueClient({ initialItems }: { initialItems: Revi
                   )}
                 </div>
 
-                <div style={{ marginTop: 16, display: 'flex', gap: 10 }}>
-                  <button onClick={() => resolve(item.sessionId, 'approve')} disabled={busy}
-                    style={{ background: '#238636', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 18px', fontWeight: 600, cursor: busy ? 'default' : 'pointer', opacity: busy ? 0.6 : 1 }}>
-                    {busy ? '…' : 'Approve & publish'}
-                  </button>
-                  <button onClick={() => resolve(item.sessionId, 'reject')} disabled={busy}
-                    style={{ background: 'transparent', color: '#f85149', border: '1px solid #f85149', borderRadius: 8, padding: '8px 18px', fontWeight: 600, cursor: busy ? 'default' : 'pointer', opacity: busy ? 0.6 : 1 }}>
-                    {busy ? '…' : 'Reject'}
-                  </button>
-                </div>
+                {rejectingId === item.sessionId ? (
+                  <div style={{ marginTop: 16 }}>
+                    <textarea
+                      value={rejectNote}
+                      onChange={e => setRejectNote(e.target.value)}
+                      placeholder="Optional: tell the coach why you're rejecting (they'll see this note)."
+                      rows={2}
+                      style={{ width: '100%', background: '#0d1117', color: '#e6edf3', border: '1px solid #30363d', borderRadius: 8, padding: '8px 10px', fontSize: 13, fontFamily: 'inherit', resize: 'vertical', boxSizing: 'border-box' }}
+                    />
+                    <div style={{ marginTop: 10, display: 'flex', gap: 10 }}>
+                      <button onClick={() => resolve(item.sessionId, 'reject', rejectNote.trim() || undefined)} disabled={busy}
+                        style={{ background: '#da3633', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 18px', fontWeight: 600, cursor: busy ? 'default' : 'pointer', opacity: busy ? 0.6 : 1 }}>
+                        {busy ? '…' : 'Confirm rejection'}
+                      </button>
+                      <button onClick={() => { setRejectingId(null); setRejectNote(''); }} disabled={busy}
+                        style={{ background: 'transparent', color: '#8b949e', border: '1px solid #30363d', borderRadius: 8, padding: '8px 18px', fontWeight: 600, cursor: busy ? 'default' : 'pointer' }}>
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{ marginTop: 16, display: 'flex', gap: 10 }}>
+                    <button onClick={() => resolve(item.sessionId, 'approve')} disabled={busy}
+                      style={{ background: '#238636', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 18px', fontWeight: 600, cursor: busy ? 'default' : 'pointer', opacity: busy ? 0.6 : 1 }}>
+                      {busy ? '…' : 'Approve & publish'}
+                    </button>
+                    <button onClick={() => { setRejectingId(item.sessionId); setRejectNote(''); setError(null); }} disabled={busy}
+                      style={{ background: 'transparent', color: '#f85149', border: '1px solid #f85149', borderRadius: 8, padding: '8px 18px', fontWeight: 600, cursor: busy ? 'default' : 'pointer', opacity: busy ? 0.6 : 1 }}>
+                      Reject
+                    </button>
+                  </div>
+                )}
               </div>
             );
           })
