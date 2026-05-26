@@ -5,8 +5,9 @@ import AthleteSidebar from '@/components/layout/AthleteSidebar';
 import VerificationDocuments from './VerificationDocuments';
 import AthleteDashboardMetrics from '@/components/AthleteDashboardMetrics';
 import AthleteConnectCard from '@/components/AthleteConnectCard';
+import AthleteVerificationStatus, { type AthleteReviewItem } from '@/components/AthleteVerificationStatus';
 import TopPitchVelocityCard from './TopPitchVelocityCard';
-import { getHistoryForPitchType, PITCH_TYPE_TO_METRIC_KEY } from '@/lib/metrics';
+import { getHistoryForPitchType, PITCH_TYPE_TO_METRIC_KEY, METRIC_INFO } from '@/lib/metrics';
 import type { AthleteMetric, AthletePitch, MetricKey } from '@/lib/metrics';
 
 
@@ -78,6 +79,42 @@ export default async function AthleteDashboard({
   const topPitchHistory: AthleteMetric[] = topPitch
     ? getHistoryForPitchType(allMetrics, topPitch.pitch_type)
     : [];
+
+  // Coach-submitted metrics still under review or rejected (athlete-facing status)
+  const { data: reviewSessions } = await db
+    .from('metric_sessions')
+    .select('id, coach_clerk_id, metric_key, claimed_value, status, decision_reason, review_note, review_requested, created_at')
+    .eq('athlete_clerk_id', user.id)
+    .in('status', ['flagged', 'rejected'])
+    .order('created_at', { ascending: false });
+  const reviewRows = (reviewSessions ?? []) as any[];
+
+  const reviewCoachIds = Array.from(new Set(reviewRows.map(r => r.coach_clerk_id).filter(Boolean)));
+  const reviewCoachNames: Record<string, string> = {};
+  if (reviewCoachIds.length > 0) {
+    const { data: reviewCoaches } = await db
+      .from('coaches')
+      .select('clerk_user_id, full_name, organization')
+      .in('clerk_user_id', reviewCoachIds);
+    for (const c of reviewCoaches ?? []) {
+      reviewCoachNames[c.clerk_user_id] = c.organization ? `${c.full_name} (${c.organization})` : c.full_name;
+    }
+  }
+
+  const verificationItems: AthleteReviewItem[] = reviewRows.map(r => {
+    const info = METRIC_INFO[r.metric_key as MetricKey] ?? { label: r.metric_key, unit: '' };
+    return {
+      sessionId:       r.id,
+      metricLabel:     info.label,
+      unit:            info.unit,
+      value:           Number(r.claimed_value),
+      status:          r.status,
+      decisionReason:  r.decision_reason ?? null,
+      reviewNote:      r.review_note ?? null,
+      reviewRequested: Boolean(r.review_requested),
+      coachName:       reviewCoachNames[r.coach_clerk_id] ?? 'A coach',
+    };
+  });
 
   const tier      = athlete?.subscription_tier ?? 'free';
   const tierLabel =
@@ -233,6 +270,13 @@ export default async function AthleteDashboard({
         <div style={{ backgroundColor: '#111827', border: '1px solid #1e2530', borderRadius: '0.75rem', padding: '1.5rem', marginBottom: '1.25rem' }}>
           <AthleteDashboardMetrics initialMetrics={allMetrics} />
         </div>
+
+        {/* Verification status — coach-submitted metrics under review or rejected */}
+        {verificationItems.length > 0 && (
+          <div style={{ backgroundColor: '#111827', border: '1px solid #1e2530', borderRadius: '0.75rem', padding: '1.5rem', marginBottom: '1.25rem' }}>
+            <AthleteVerificationStatus initialItems={verificationItems} />
+          </div>
+        )}
 
         {/* Pitching — Top Pitch Velocity headline card. Parallel to My Metrics:
             athlete_pitches-driven, independent of athlete_metrics presence. */}
