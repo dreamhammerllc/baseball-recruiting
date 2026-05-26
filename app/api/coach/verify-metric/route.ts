@@ -35,6 +35,12 @@ interface VerifyBody {
   recordedAt?: string | null;
 }
 
+// A no-device claim more than this fraction above the athlete's established
+// (highest) verified value for the same metric is flagged for review.
+// Tunable — keep small enough to catch suspicious jumps while still allowing
+// real-world improvement (~10% over an existing best).
+const HISTORY_JUMP_THRESHOLD = 0.10;
+
 // ─── POST /api/coach/verify-metric ───────────────────────────────────────────
 
 export async function POST(req: NextRequest) {
@@ -134,7 +140,12 @@ export async function POST(req: NextRequest) {
   // aiStatus / aiConfidence / aiNotes are filled in by whichever branch runs
   // so the response shape and the metric_sessions bundle stay uniform.
   const info = METRIC_INFO[metricKey];
-  let aiConfidence = 0;
+  // Widened to allow null — the history-aware branches in the no-device
+  // fallback set aiConfidence = null (the call signature of the AI model is
+  // intentionally not re-used to ground a numeric confidence). Both the
+  // metric_sessions.ai_confidence and athlete_metrics.ai_confidence columns
+  // are nullable, and the response forwards the value as-is.
+  let aiConfidence: number | null = 0;
   let aiNotes = '';
   let aiStatus: 'approved' | 'flagged';
   // Used only in the AI-plausibility fallback to label decision_reason.
@@ -197,73 +208,117 @@ export async function POST(req: NextRequest) {
     } the entered ${value} ${info.unit}.`;
     decisionReason = deviceCorroborated ? 'device_corroborated' : 'device_divergence';
   } else {
-    // ── Fallback: Claude AI plausibility review (pre-2b-i behavior) ────────
+    // ── No device reading — smart jump-check against the athlete's history ──
     //
-    // Fail-closed policy:
-    //   - AI call throws / returns unparseable JSON  → flagged (every environment)
-    //   - AI key missing in production               → flagged
-    //   - AI key missing in development              → approved as a dev convenience,
-    //                                                  with notes marking it
-    //   - AI returns confidence                      → status = confidence >= 70
-    //
-    // Never auto-approve in production without a real review.
-    const apiKey = process.env.ANTHROPIC_API_KEY ?? process.env.APP_AI_KEY;
-    if (!apiKey) {
-      if (process.env.NODE_ENV === 'development') {
-        aiStatus = 'approved';
-        aiNotes  = 'DEV: AI review skipped (no key).';
-        aiFailClosedReason = 'AI review skipped (no key, dev environment).';
-      } else {
-        aiStatus = 'flagged';
-        aiNotes  = 'AI review unavailable.';
-        aiFailClosedReason = 'AI review unavailable.';
+    // Phase 2b-ii: replaces the flat 70-confidence threshold as the PRIMARY
+    // path for no-device submissions. Look up the athlete's established
+    // (highest) verified value for this metric. If a history exists, decide
+    // approve/flag by whether the coach's claim is in-line with it. The AI
+    // plausibility model is preserved as the FALLBACK only when the athlete
+    // has no verified history for this metric yet (first-ever measurement).
+    let established: number | null = null;
+    try {
+      const { data: bestRow } = await db
+        .from('athlete_metrics')
+        .select('value')
+        .eq('athlete_clerk_id', athleteClerkId)
+        .eq('metric_key', metricKey)
+        .order('value', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (bestRow && bestRow.value != null) {
+        established = Number(bestRow.value);
       }
-    } else {
-      try {
-        const client = new Anthropic({ apiKey });
-        const message = await client.messages.create({
-          model:      'claude-sonnet-4-6',
-          max_tokens: 200,
-          messages: [{
-            role:    'user',
-            content: `Evaluate whether this baseball performance metric is realistic for a competitive high school or college player.\n\nMetric: ${info.label} (${info.unit})\nValue: ${value}\nSubmitted by: ${coach.full_name}, ${coach.title} at ${coach.organization}\n\nRespond ONLY with valid JSON (no markdown, no extra text):\n{"plausible":true,"confidence":85,"notes":"brief reason"}`,
-          }],
-        });
-
-        const raw = message.content[0]?.type === 'text' ? message.content[0].text.trim() : '';
-        const jsonStart = raw.indexOf('{');
-        const jsonEnd   = raw.lastIndexOf('}');
-
-        if (jsonStart === -1 || jsonEnd === -1) {
-          throw new Error('No JSON object found in Claude response.');
-        }
-
-        const parsed = JSON.parse(raw.slice(jsonStart, jsonEnd + 1)) as {
-          plausible: boolean;
-          confidence: number;
-          notes: string;
-        };
-        aiNotes = parsed.notes ?? '';
-        aiConfidence = parsed.plausible
-          ? (parsed.confidence ?? 80)
-          : Math.min(parsed.confidence ?? 40, 50);
-        aiStatus = aiConfidence >= 70 ? 'approved' : 'flagged';
-      } catch (err) {
-        console.error('[verify-metric] Claude review failed — flagging:', err);
-        aiStatus     = 'flagged';
-        aiConfidence = 0;
-        aiNotes      = 'Automated review failed — not auto-approved.';
-        aiFailClosedReason = 'Automated review failed.';
-      }
+    } catch (err) {
+      console.error('[verify-metric] established-value lookup failed:', err);
+      // established stays null — flow falls through to the AI fallback.
     }
 
-    // Decision-reason derivation stays scoped to this branch so it doesn't
-    // overwrite the device branch's label.
-    decisionReason = aiFailClosedReason
-      ? `fail-closed: ${aiFailClosedReason}`
-      : (aiStatus === 'approved'
-          ? `ai_confidence ${aiConfidence} >= 70`
-          : `ai_confidence ${aiConfidence} < 70`);
+    if (established !== null) {
+      // ── History-aware branch — compare against the athlete's verified best ──
+      //
+      // Timing metrics (unit "s" — sixty_yard_dash, home_to_first, pop_time)
+      // are lower-is-better: a suspiciously FAST time is the jump to flag,
+      // not a slow one. Everything else is higher-is-better (mph velocities,
+      // rpm spin, ft distances, deg angles, etc.).
+      const lowerIsBetter = info.unit.trim().toLowerCase() === 's';
+      const isLargeJump = lowerIsBetter
+        ? value < established * (1 - HISTORY_JUMP_THRESHOLD)   // suspiciously fast time
+        : value > established * (1 + HISTORY_JUMP_THRESHOLD);  // suspiciously high value
+      aiStatus       = isLargeJump ? 'flagged' : 'approved';
+      aiConfidence   = null;
+      aiNotes        = isLargeJump
+        ? `Claimed ${value} ${info.unit} is a large jump from the athlete's established ${established} ${info.unit}.`
+        : `Claimed ${value} ${info.unit} is consistent with the athlete's established ${established} ${info.unit}.`;
+      decisionReason = isLargeJump ? 'history_jump' : 'history_consistent';
+    } else {
+      // ── Fallback: Claude AI plausibility review (first-ever measurement) ────
+      //
+      // Fail-closed policy:
+      //   - AI call throws / returns unparseable JSON  → flagged (every environment)
+      //   - AI key missing in production               → flagged
+      //   - AI key missing in development              → approved as a dev convenience,
+      //                                                  with notes marking it
+      //   - AI returns confidence                      → status = confidence >= 70
+      //
+      // Never auto-approve in production without a real review.
+      const apiKey = process.env.ANTHROPIC_API_KEY ?? process.env.APP_AI_KEY;
+      if (!apiKey) {
+        if (process.env.NODE_ENV === 'development') {
+          aiStatus = 'approved';
+          aiNotes  = 'DEV: AI review skipped (no key).';
+          aiFailClosedReason = 'AI review skipped (no key, dev environment).';
+        } else {
+          aiStatus = 'flagged';
+          aiNotes  = 'AI review unavailable.';
+          aiFailClosedReason = 'AI review unavailable.';
+        }
+      } else {
+        try {
+          const client = new Anthropic({ apiKey });
+          const message = await client.messages.create({
+            model:      'claude-sonnet-4-6',
+            max_tokens: 200,
+            messages: [{
+              role:    'user',
+              content: `Evaluate whether this baseball performance metric is realistic for a competitive high school or college player.\n\nMetric: ${info.label} (${info.unit})\nValue: ${value}\nSubmitted by: ${coach.full_name}, ${coach.title} at ${coach.organization}\n\nRespond ONLY with valid JSON (no markdown, no extra text):\n{"plausible":true,"confidence":85,"notes":"brief reason"}`,
+            }],
+          });
+
+          const raw = message.content[0]?.type === 'text' ? message.content[0].text.trim() : '';
+          const jsonStart = raw.indexOf('{');
+          const jsonEnd   = raw.lastIndexOf('}');
+
+          if (jsonStart === -1 || jsonEnd === -1) {
+            throw new Error('No JSON object found in Claude response.');
+          }
+
+          const parsed = JSON.parse(raw.slice(jsonStart, jsonEnd + 1)) as {
+            plausible: boolean;
+            confidence: number;
+            notes: string;
+          };
+          aiNotes = parsed.notes ?? '';
+          aiConfidence = parsed.plausible
+            ? (parsed.confidence ?? 80)
+            : Math.min(parsed.confidence ?? 40, 50);
+          aiStatus = aiConfidence >= 70 ? 'approved' : 'flagged';
+        } catch (err) {
+          console.error('[verify-metric] Claude review failed — flagging:', err);
+          aiStatus     = 'flagged';
+          aiConfidence = 0;
+          aiNotes      = 'Automated review failed — not auto-approved.';
+          aiFailClosedReason = 'Automated review failed.';
+        }
+      }
+
+      // Decision-reason derivation stays scoped to this branch.
+      decisionReason = aiFailClosedReason
+        ? `fail-closed: ${aiFailClosedReason}`
+        : (aiStatus === 'approved'
+            ? `ai_confidence ${aiConfidence} >= 70`
+            : `ai_confidence ${aiConfidence} < 70`);
+    }
   }
 
   const now = new Date().toISOString();
