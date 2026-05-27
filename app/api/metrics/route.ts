@@ -110,9 +110,9 @@ export async function GET(req: NextRequest) {
   const [metricsResult, positionResult] = await Promise.all([
     metricsQuery,
     db
-      .from('athlete_positions')
-      .select('*')
-      .eq('athlete_clerk_id', athleteId)
+      .from('athletes')
+      .select('position, secondary_position')
+      .eq('clerk_user_id', athleteId)
       .maybeSingle(),
   ]);
 
@@ -128,7 +128,14 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({
     metrics: (metricsResult.data ?? []) as AthleteMetric[],
-    position: (positionResult.data ?? null) as AthletePosition | null,
+    position: positionResult.data?.position
+      ? ({
+          athlete_clerk_id:   athleteId,
+          primary_position:   positionResult.data.position,
+          secondary_position: positionResult.data.secondary_position ?? null,
+          updated_at:         '',
+        } as AthletePosition)
+      : null,
   });
 }
 

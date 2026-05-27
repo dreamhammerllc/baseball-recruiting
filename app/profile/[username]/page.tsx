@@ -371,24 +371,6 @@ export default async function AthleteProfilePage({
     // table may not exist yet — ignore
   }
 
-  // 5. Fetch athlete positions (resilient)
-  // (used for display context — not currently shown but fetched for future use)
-  let athletePositions: { primary_position: string; secondary_position: string | null } | null =
-    null;
-  try {
-    const { data: posRow } = await db
-      .from('athlete_positions')
-      .select('primary_position, secondary_position')
-      .eq('athlete_clerk_id', athleteClerkId)
-      .maybeSingle();
-    if (posRow) {
-      athletePositions = posRow as { primary_position: string; secondary_position: string | null };
-    }
-  } catch {
-    // table may not exist yet — ignore
-  }
-  void athletePositions; // referenced above; suppress unused warning
-
   // ─── Derived values ──────────────────────────────────────────────────────────
 
   const fullName =

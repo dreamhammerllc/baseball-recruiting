@@ -12,7 +12,7 @@ import { redirect } from 'next/navigation';
 import { createAdminClient } from '@/lib/supabase';
 import AthleteSidebar from '@/components/layout/AthleteSidebar';
 import MetricsDashboardClient from './MetricsDashboardClient';
-import type { AthleteMetric, AthletePitch, AthletePosition, HighlightVideo } from '@/lib/metrics';
+import type { AthleteMetric, AthletePitch, AthletePosition, HighlightVideo, Position } from '@/lib/metrics';
 
 export const dynamic = 'force-dynamic';
 
@@ -22,12 +22,7 @@ export default async function MetricsPage() {
 
   const db = createAdminClient();
 
-  const [positionResult, metricsResult, highlightsResult, athleteResult, pitchesResult] = await Promise.all([
-    db
-      .from('athlete_positions')
-      .select('*')
-      .eq('athlete_clerk_id', userId)
-      .maybeSingle(),
+  const [metricsResult, highlightsResult, athleteResult, pitchesResult] = await Promise.all([
     db
       .from('athlete_metrics')
       .select('*')
@@ -40,7 +35,7 @@ export default async function MetricsPage() {
       .order('slot_number', { ascending: true }),
     db
       .from('athletes')
-      .select('subscription_tier')
+      .select('subscription_tier, position, secondary_position')
       .eq('clerk_user_id', userId)
       .maybeSingle(),
     db
@@ -50,7 +45,17 @@ export default async function MetricsPage() {
       .order('pitch_slot', { ascending: true }),
   ]);
 
-  const position = (positionResult.data ?? null) as AthletePosition | null;
+  // Build the AthletePosition-shaped prop from the canonical athletes columns.
+  // The athlete_positions table is retired — `position` + `secondary_position`
+  // on athletes are the source of truth (set via the profile PATCH endpoint).
+  const position: AthletePosition | null = athleteResult.data?.position
+    ? {
+        athlete_clerk_id:   userId!,
+        primary_position:   athleteResult.data.position as Position,
+        secondary_position: (athleteResult.data.secondary_position ?? null) as Position | null,
+        updated_at:         '',
+      }
+    : null;
   const metrics = (metricsResult.data ?? []) as AthleteMetric[];
   const highlights = (highlightsResult.data ?? []) as HighlightVideo[];
   const pitches = (pitchesResult.data ?? []) as AthletePitch[];

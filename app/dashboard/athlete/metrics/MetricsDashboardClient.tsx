@@ -48,13 +48,12 @@ function PositionSetup({
     setSaving(true);
     setError(null);
     try {
-      const res = await fetch('/api/athlete-positions', {
-        method: 'POST',
+      const res = await fetch('/api/athlete/profile', {
+        method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          athleteClerkId,
-          primaryPosition: primary,
-          secondaryPosition: secondary || null,
+          position:           primary,
+          secondary_position: secondary || null,
         }),
       });
       if (!res.ok) {
