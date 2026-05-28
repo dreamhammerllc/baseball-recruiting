@@ -218,7 +218,7 @@ export default async function AthleteDashboard({
           <div style={{ backgroundColor: '#111827', border: '1px solid rgba(232,160,32,0.3)', borderRadius: '0.75rem', padding: '1.25rem 1.5rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
             <div>
               <p style={{ color: '#e8a020', fontWeight: 700, fontSize: '0.9rem', margin: '0 0 0.2rem', fontFamily: 'monospace' }}>&#9670; Unlock Your Full Profile</p>
-              <p style={{ color: '#6b7280', fontSize: '0.8rem', margin: 0 }}>Get a verified badge, display your coach-verified metrics, and unlock School Matches.</p>
+              <p style={{ color: '#6b7280', fontSize: '0.8rem', margin: 0 }}>Unblur your public metrics, unlock School Matches, and get noticed by recruiters.</p>
             </div>
             <a href="/dashboard/athlete/upgrade" style={{ backgroundColor: '#e8a020', color: '#0d1117', padding: '0.6rem 1.25rem', borderRadius: '0.5rem', textDecoration: 'none', fontSize: '0.8rem', fontWeight: 700, fontFamily: 'monospace', letterSpacing: '0.04em', whiteSpace: 'nowrap' }}>
               View Plans &#8594;

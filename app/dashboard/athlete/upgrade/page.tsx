@@ -55,7 +55,7 @@ export default function UpgradePage() {
             Upgrade Your Profile
           </h1>
           <p style={{ color: colors.muted, fontSize: '0.9rem', margin: 0, maxWidth: '520px' }}>
-            Stand out to college coaches. Choose a plan and get your verified badge today.
+            Stand out to college coaches. Choose a plan and unlock your full profile.
           </p>
         </div>
 
@@ -78,7 +78,7 @@ export default function UpgradePage() {
                 </h2>
               </div>
               <p style={{ color: colors.muted, fontSize: '0.8rem', margin: 0 }}>
-                Get your verified badge and make your profile stand out to coaches.
+                Unblur your public metrics and stand out to recruiters.
               </p>
             </div>
 
@@ -91,7 +91,6 @@ export default function UpgradePage() {
 
             <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
               {[
-                'Verified badge on your public profile',
                 'Coach-verified metrics shown publicly',
                 'Verification proof videos',
                 `${TIER_FEATURES.verified.highlightSlots} highlight reel slots`,

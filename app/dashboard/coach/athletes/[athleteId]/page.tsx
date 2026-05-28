@@ -9,6 +9,7 @@ import PublicMetricsSection from '@/app/profile/[username]/PublicMetricsSection'
 import CoachActionBar from './CoachActionBar';
 import CoachAthleteEvaluation from './CoachAthleteEvaluation';
 import PitchArsenal from '@/components/PitchArsenal';
+import VerifiedBadge from '@/components/VerifiedBadge';
 import type { AthleteMetric, AthletePitch } from '@/lib/metrics';
 import type { SubscriptionTier } from '@/lib/subscription';
 
@@ -43,7 +44,6 @@ interface AthleteRow {
   bio:                      string | null;
   subscription_tier:        SubscriptionTier | null;
   verification_tier:        number | null;
-  is_verified:              boolean | null;
   gamechanger_url:          string | null;
   iscore_url:               string | null;
   perfectgame_url:          string | null;
@@ -127,7 +127,7 @@ export default async function CoachAthleteDetailPage({
   const { data: athleteData, error: athErr } = await db
     .from('athletes')
     .select(
-      'id, clerk_user_id, first_name, last_name, username, email, parent_email, phone, photo_url, position, secondary_position, grad_year, home_state, height_inches, weight_lbs, throws, bats, gpa_unweighted, gpa_weighted, sat_score, act_score, exit_velocity_mph, fastball_velocity_mph, sixty_yard_dash_seconds, highlight_video_url, bio, subscription_tier, verification_tier, is_verified, gamechanger_url, iscore_url, perfectgame_url',
+      'id, clerk_user_id, first_name, last_name, username, email, parent_email, phone, photo_url, position, secondary_position, grad_year, home_state, height_inches, weight_lbs, throws, bats, gpa_unweighted, gpa_weighted, sat_score, act_score, exit_velocity_mph, fastball_velocity_mph, sixty_yard_dash_seconds, highlight_video_url, bio, subscription_tier, verification_tier, gamechanger_url, iscore_url, perfectgame_url',
     )
     .eq('clerk_user_id', athleteId)
     .maybeSingle();
@@ -144,7 +144,6 @@ export default async function CoachAthleteDetailPage({
     athlete.position === 'TWP' ||
     athlete.secondary_position === 'P' ||
     athlete.secondary_position === 'TWP';
-  const isVerified = (athlete.verification_tier ?? 0) > 0;
 
   // 3. Personal-best metrics (separate query, two-query merge pattern)
   const { data: metricsRows } = await db
@@ -271,9 +270,7 @@ export default async function CoachAthleteDetailPage({
                 {athlete.secondary_position && <Pill muted>{athlete.secondary_position}</Pill>}
                 {athlete.grad_year && <Pill>{`Class of ${athlete.grad_year}`}</Pill>}
                 {athlete.home_state && <Pill>{athlete.home_state}</Pill>}
-                {isVerified && (
-                  <Pill gold>◆ Diamond Verified</Pill>
-                )}
+                <VerifiedBadge variant="full" verificationTier={athlete.verification_tier} />
               </div>
             </div>
           </header>

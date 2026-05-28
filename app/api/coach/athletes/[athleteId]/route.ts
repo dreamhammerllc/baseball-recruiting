@@ -80,7 +80,6 @@ export async function GET(
           'bio',
           'subscription_tier',
           'verification_tier',
-          'is_verified',
           'gamechanger_url',
           'iscore_url',
           'perfectgame_url',

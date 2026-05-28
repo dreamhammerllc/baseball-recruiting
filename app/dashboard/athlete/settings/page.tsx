@@ -9,8 +9,8 @@ export const dynamic = 'force-dynamic';
 
 const TIER_META: Record<string, { label: string; color: string; desc: string }> = {
   free:     { label: 'Scout',    color: '#6b7280', desc: 'Basic profile + public metrics page' },
-  verified: { label: 'Verified', color: '#e8a020', desc: 'Verified badge + unblurred public metrics' },
-  elite:    { label: 'Elite',    color: '#a855f7', desc: 'Verified badge, unblurred metrics + School Matches' },
+  verified: { label: 'Verified', color: '#e8a020', desc: 'Unblurred public metrics' },
+  elite:    { label: 'Elite',    color: '#a855f7', desc: 'Unblurred metrics + School Matches' },
   pro:      { label: 'Pro',      color: '#22d3ee', desc: 'Everything in Elite' },
 };
 

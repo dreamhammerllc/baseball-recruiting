@@ -7,6 +7,7 @@ import PublicMetricsSection from './PublicMetricsSection';
 import VideoPlayer from '@/components/profile/VideoPlayer';
 import HighlightReel from '@/components/profile/HighlightReel';
 import PitchArsenal from '@/components/PitchArsenal';
+import VerifiedBadge from '@/components/VerifiedBadge';
 import type { AthleteMetric, AthletePitch, HighlightVideo } from '@/lib/metrics';
 import type { SubscriptionTier } from '@/lib/subscription';
 import type { Metadata } from 'next';
@@ -36,6 +37,7 @@ interface AthleteRow {
   highlight_video_url: string | null;
   bio: string | null;
   subscription_tier: SubscriptionTier | null;
+  verification_tier: number | null;
   gamechanger_url: string | null;
   iscore_url: string | null;
   perfectgame_url: string | null;
@@ -197,7 +199,7 @@ export default async function AthleteProfilePage({
 
   // 1. Fetch athlete row — accept either username (primary) or clerk_user_id (fallback)
   const SELECT_COLS =
-    'id, clerk_user_id, photo_url, first_name, last_name, position, secondary_position, grad_year, home_state, height_inches, weight_lbs, throws, bats, gpa_unweighted, sat_score, act_score, exit_velocity_mph, fastball_velocity_mph, sixty_yard_dash_seconds, highlight_video_url, bio, subscription_tier, gamechanger_url, iscore_url, perfectgame_url';
+    'id, clerk_user_id, photo_url, first_name, last_name, position, secondary_position, grad_year, home_state, height_inches, weight_lbs, throws, bats, gpa_unweighted, sat_score, act_score, exit_velocity_mph, fastball_velocity_mph, sixty_yard_dash_seconds, highlight_video_url, bio, subscription_tier, verification_tier, gamechanger_url, iscore_url, perfectgame_url';
 
   let athlete: AthleteRow | null = null;
   let athleteError: unknown = null;
@@ -275,21 +277,6 @@ export default async function AthleteProfilePage({
 
   const athleteData = athlete as AthleteRow;
   const athleteClerkId = athleteData.clerk_user_id;
-
-  // 2. Fetch is_verified (isolated)
-  let isVerified = false;
-  try {
-    const { data: verRow } = await db
-      .from('athletes')
-      .select('is_verified')
-      .eq('clerk_user_id', athleteClerkId)
-      .maybeSingle();
-    if (verRow && typeof (verRow as Record<string, unknown>).is_verified === 'boolean') {
-      isVerified = (verRow as { is_verified: boolean }).is_verified;
-    }
-  } catch {
-    // column may not exist yet — ignore
-  }
 
   // 3. Fetch top 3 school matches
   let schoolMatches: SchoolMatch[] = [];
@@ -392,7 +379,9 @@ export default async function AthleteProfilePage({
     tier === 'verified' ? 'Verified' : 'Scout';
   const isPaidTier  = tier !== 'free';
   const isEliteTier = tier === 'elite' || tier === 'pro';
-  const showVerifiedBadge = isPaidTier;
+  // The "Diamond Verified" pill means: this athlete has at least one
+  // coach-verified metric. It is NOT tied to subscription tier.
+  const showVerifiedBadge = (athleteData.verification_tier ?? 0) > 0;
 
   const pdfProps: DownloadPDFButtonProps = {
     athleteName: fullName,
@@ -653,21 +642,7 @@ export default async function AthleteProfilePage({
               </span>
             )}
             {showVerifiedBadge && (
-              <span
-                style={{
-                  ...mono,
-                  background: 'rgba(232,160,32,0.12)',
-                  border: `1px solid ${colors.gold}`,
-                  borderRadius: '0.375rem',
-                  padding: '0.25rem 0.75rem',
-                  fontSize: '0.75rem',
-                  color: colors.gold,
-                  fontWeight: 700,
-                  letterSpacing: '0.05em',
-                }}
-              >
-                &#9670; Diamond Verified
-              </span>
+              <VerifiedBadge variant="full" verificationTier={athleteData.verification_tier} />
             )}
           </div>
           </div>

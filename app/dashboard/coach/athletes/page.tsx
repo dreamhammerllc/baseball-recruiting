@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import CoachSidebar from '@/components/layout/CoachSidebar';
 import AddAthleteModal from '@/components/AddAthleteModal';
 import Pill from '@/components/ui/Pill';
+import VerifiedBadge from '@/components/VerifiedBadge';
 import { selectStyle } from '@/lib/ui/selectStyle';
 
 interface ConnectedAthlete {
@@ -18,6 +19,7 @@ interface ConnectedAthlete {
   state:        string | null;
   updatedAt:    string | null;
   verified:     boolean;
+  verification_tier: number;
   username:     string | null;
 }
 
@@ -318,7 +320,7 @@ export default function MyAthletesPage() {
                           {a.position && <Pill>{a.position}</Pill>}
                           {a.graduationYear && <Pill>{`'${String(a.graduationYear).slice(-2)}`}</Pill>}
                           {a.state    && <Pill muted>{a.state}</Pill>}
-                          {a.verified && <Pill gold>◆ Verified</Pill>}
+                          <VerifiedBadge variant="short" verificationTier={a.verification_tier} />
                           {!hasMeta   && (
                             <span style={{ color: '#6b7280', fontSize: '0.72rem' }}>No profile data</span>
                           )}
@@ -417,6 +419,7 @@ export default function MyAthletesPage() {
               updatedAt: null,
               username: null,
               verified: false,
+              verification_tier: 0,
             });
           }}
         />

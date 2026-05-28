@@ -61,8 +61,9 @@ export async function GET(req: NextRequest) {
       graduationYear: p?.grad_year ?? null,
       state:         p?.home_state ?? null,
       updatedAt:     p?.updated_at ?? null,
-      verified:      (p?.verification_tier ?? 0) > 0,
-      username:      null,
+      verified:           (p?.verification_tier ?? 0) > 0,
+      verification_tier:  p?.verification_tier ?? 0,
+      username:           null,
     };
   });
 

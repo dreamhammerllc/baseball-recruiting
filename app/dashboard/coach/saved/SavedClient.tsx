@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
+import VerifiedBadge from '@/components/VerifiedBadge';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -176,7 +177,6 @@ function SavedCard({ result, onRemoved }: { result: Result; onRemoved: (id: stri
   const fullName = [result.first_name, result.last_name].filter(Boolean).join(' ') || 'Athlete';
   const initials = fullName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
   const isPitcher  = result.position?.toUpperCase() === 'P' || result.position?.toUpperCase() === 'TWP';
-  const isVerified = (result.verification_tier ?? 0) > 0;
   const profileHref = `/profile/${result.username ?? result.clerk_user_id}`;
 
   const savedDays = (() => {
@@ -231,7 +231,7 @@ function SavedCard({ result, onRemoved }: { result: Result; onRemoved: (id: stri
             {result.secondary_position && <Pill muted>{result.secondary_position}</Pill>}
             {result.graduationYear     && <Pill>{`'${String(result.graduationYear).slice(-2)}`}</Pill>}
             {result.state              && <Pill muted>{result.state}</Pill>}
-            {isVerified                && <Pill gold>◆</Pill>}
+            <VerifiedBadge variant="icon" verificationTier={result.verification_tier} />
           </div>
         </div>
       </div>
