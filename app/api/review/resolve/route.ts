@@ -4,6 +4,7 @@ import { METRIC_INFO } from '@/lib/metrics';
 import { computeVerificationTier } from '@/lib/verificationTier';
 import { isReviewer } from '@/lib/reviewer';
 import { getAuthenticatedUserId } from '@/lib/auth';
+import { writeThroughCoachVerified } from '@/lib/writeThroughCoachVerified';
 
 export const dynamic = 'force-dynamic';
 
@@ -166,6 +167,16 @@ export async function POST(req: NextRequest) {
     .update({ status: 'approved', approved_at: now })
     .eq('session_id', sessionId);
   if (cvErr) console.error('[review/resolve] approve coach_verifications update error:', cvErr.message);
+
+  // ── Write-through: propagate the coach-verified PB to denormalized stores
+  //    (athletes.*_mph/_seconds and athlete_pitches.velocity). No-op for
+  //    metric_keys that have no denormalized destination. Fail-safe: the
+  //    helper never throws.
+  try {
+    await writeThroughCoachVerified(db, athleteClerkId, metricKey);
+  } catch (err) {
+    console.error('[review/resolve] write-through failed:', err);
+  }
 
   return NextResponse.json({ ok: true, action: 'approved', tier });
 }

@@ -113,28 +113,53 @@ async function saveToSupabase(
     testScore: input.testScore,
   });
 
+  // 2c-iii: the three denormalized headline columns
+  // (fastball_velocity_mph / exit_velocity_mph / sixty_yard_dash_seconds) are
+  // owned by the coach-verified pipeline once an athlete_metrics row exists
+  // for the corresponding metric_key. The calculator must not clobber them.
+  // Look up which keys are locked and omit those fields from the upsert below
+  // (Supabase upsert only updates fields present in the payload, so omission
+  // preserves the existing column value).
+  const { data: verifiedRows } = await db
+    .from('athlete_metrics')
+    .select('metric_key')
+    .eq('athlete_clerk_id',  userId)
+    .eq('verification_type', 'coach_verified')
+    .in('metric_key', ['fastball_velocity', 'exit_velocity', 'sixty_yard_dash']);
+
+  const lockedKeys = new Set((verifiedRows ?? []).map(r => r.metric_key as string));
+
+  const upsertPayload: Record<string, unknown> = {
+    clerk_user_id: userId,
+    email,
+    first_name: firstName,
+    last_name: lastName,
+    grad_year: input.graduationYear,
+    position: positionLabel,
+    home_state: input.state || null,
+    gpa_weighted: input.gpa ? parseFloat(input.gpa) : null,
+    gpa_unweighted: input.gpa ? parseFloat(input.gpa) : null,
+    sat_score: input.testType === 'SAT' && input.testScore ? parseInt(input.testScore) : null,
+    act_score: input.testType === 'ACT' && input.testScore ? parseInt(input.testScore) : null,
+    intended_major: input.majorInterest || null,
+    division_pref: input.division || null,
+    school_size_pref: input.campusSize || null,
+  };
+
+  if (!lockedKeys.has('fastball_velocity')) {
+    upsertPayload.fastball_velocity_mph = input.velocity ? parseFloat(input.velocity) : null;
+  }
+  if (!lockedKeys.has('exit_velocity')) {
+    upsertPayload.exit_velocity_mph = input.exitVelocity ? parseFloat(input.exitVelocity)
+      : input.catcherExitVelo ? parseFloat(input.catcherExitVelo) : null;
+  }
+  if (!lockedKeys.has('sixty_yard_dash')) {
+    upsertPayload.sixty_yard_dash_seconds = input.dash60 ? parseFloat(input.dash60) : null;
+  }
+
   const { data: athlete, error: athleteError } = await db
     .from('athletes')
-    .upsert({
-      clerk_user_id: userId,
-      email,
-      first_name: firstName,
-      last_name: lastName,
-      grad_year: input.graduationYear,
-      position: positionLabel,
-      home_state: input.state || null,
-      fastball_velocity_mph: input.velocity ? parseFloat(input.velocity) : null,
-      exit_velocity_mph: input.exitVelocity ? parseFloat(input.exitVelocity)
-        : input.catcherExitVelo ? parseFloat(input.catcherExitVelo) : null,
-      sixty_yard_dash_seconds: input.dash60 ? parseFloat(input.dash60) : null,
-      gpa_weighted: input.gpa ? parseFloat(input.gpa) : null,
-      gpa_unweighted: input.gpa ? parseFloat(input.gpa) : null,
-      sat_score: input.testType === 'SAT' && input.testScore ? parseInt(input.testScore) : null,
-      act_score: input.testType === 'ACT' && input.testScore ? parseInt(input.testScore) : null,
-      intended_major: input.majorInterest || null,
-      division_pref: input.division || null,
-      school_size_pref: input.campusSize || null,
-    }, { onConflict: 'clerk_user_id' })
+    .upsert(upsertPayload, { onConflict: 'clerk_user_id' })
     .select('id')
     .single();
 

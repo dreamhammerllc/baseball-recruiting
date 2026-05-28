@@ -5,6 +5,7 @@ import { createAdminClient } from '@/lib/supabase';
 import { METRIC_KEYS, METRIC_INFO, type MetricKey } from '@/lib/metrics';
 import { computeVerificationTier } from '@/lib/verificationTier';
 import { isWithinCorroborationTolerance } from '@/lib/corroborationTolerance';
+import { writeThroughCoachVerified } from '@/lib/writeThroughCoachVerified';
 
 const clerk = createClerkClient({
   secretKey:      process.env.CLERK_SECRET_KEY,
@@ -480,6 +481,16 @@ export async function POST(req: NextRequest) {
       if (clearError) {
         console.error('[verify-metric] clear old PB error:', clearError.message);
       }
+    }
+
+    // ── Write-through: propagate the coach-verified PB to denormalized stores
+    //    (athletes.*_mph/_seconds and athlete_pitches.velocity). No-op for
+    //    metric_keys that have no denormalized destination. Fail-safe: the
+    //    helper never throws.
+    try {
+      await writeThroughCoachVerified(db, athleteClerkId, metricKey);
+    } catch (err) {
+      console.error('[verify-metric] write-through failed:', err);
     }
   }
 
