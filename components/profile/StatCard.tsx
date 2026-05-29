@@ -1,11 +1,25 @@
-export default function StatCard({ label, value }: { label: string; value: string }) {
+export default function StatCard({
+  label,
+  value,
+  children,
+}: {
+  label:    string;
+  value:    string;
+  children?: React.ReactNode;
+  /** Legacy prop accepted for compatibility with surfaces that pass a colors
+   *  object; intentionally not used inside the card. */
+  colors?:  unknown;
+}) {
   return (
     <div
       style={{
-        background:   '#111827',
-        border:       '1px solid #1e2530',
-        borderRadius: '0.75rem',
-        padding:      '0.875rem 1rem',
+        background:    '#111827',
+        border:        '1px solid #1e2530',
+        borderRadius:  '0.75rem',
+        padding:       '0.875rem 1rem',
+        display:       'flex',
+        flexDirection: 'column',
+        gap:           '0.35rem',
       }}
     >
       <p
@@ -15,7 +29,7 @@ export default function StatCard({ label, value }: { label: string; value: strin
           color:         '#6b7280',
           letterSpacing: '0.1em',
           textTransform: 'uppercase',
-          margin:        '0 0 0.35rem',
+          margin:        0,
         }}
       >
         {label}
@@ -32,6 +46,7 @@ export default function StatCard({ label, value }: { label: string; value: strin
       >
         {value}
       </p>
+      {children}
     </div>
   );
 }

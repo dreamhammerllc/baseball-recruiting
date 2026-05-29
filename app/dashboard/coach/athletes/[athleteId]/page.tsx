@@ -10,6 +10,7 @@ import CoachActionBar from './CoachActionBar';
 import CoachAthleteEvaluation from './CoachAthleteEvaluation';
 import PitchArsenal from '@/components/PitchArsenal';
 import VerifiedBadge from '@/components/VerifiedBadge';
+import VerifiedAttribution from '@/components/VerifiedAttribution';
 import type { AthleteMetric, AthletePitch } from '@/lib/metrics';
 import type { SubscriptionTier } from '@/lib/subscription';
 
@@ -152,6 +153,30 @@ export default async function CoachAthleteDetailPage({
     .eq('athlete_clerk_id', athleteId)
     .eq('is_personal_best', true);
   const personalBestMetrics: AthleteMetric[] = (metricsRows ?? []) as AthleteMetric[];
+
+  // 3a. Coach-verified rows for attribution (NOT gated on is_personal_best).
+  //     See public profile §4a for the why — same dataset semantics.
+  const { data: coachRows } = await db
+    .from('athlete_metrics')
+    .select('*')
+    .eq('athlete_clerk_id',  athleteId)
+    .eq('verification_type', 'coach_verified')
+    .order('recorded_at', { ascending: false });
+  const coachVerifiedMetrics: AthleteMetric[] = (coachRows ?? []) as AthleteMetric[];
+
+  // Phase 2c-iv: value-matched lookup against coachVerifiedMetrics. Same
+  // semantic as the pitch arsenal — attribution renders when the displayed
+  // value matches a coach-verified value within VALUE_MATCH_EPSILON.
+  const VALUE_MATCH_EPSILON = 0.05;
+  function findCoachMatch(metricKey: string, displayed: number | null): AthleteMetric | null {
+    if (displayed == null || !Number.isFinite(displayed)) return null;
+    return coachVerifiedMetrics.find(
+      m => m.metric_key === metricKey && Math.abs(Number(m.value) - displayed) < VALUE_MATCH_EPSILON,
+    ) ?? null;
+  }
+  const exitVelocityPb = findCoachMatch('exit_velocity',     athlete.exit_velocity_mph);
+  const sixtyYardPb    = findCoachMatch('sixty_yard_dash',   athlete.sixty_yard_dash_seconds);
+  const fastballPb     = findCoachMatch('fastball_velocity', athlete.fastball_velocity_mph);
 
   // 3b. Pitching arsenal (read-only for coach view, ordered by slot)
   const { data: pitchesData } = await db
@@ -306,10 +331,20 @@ export default async function CoachAthleteDetailPage({
               {athlete.gpa_unweighted != null && <StatCard label="GPA (UW)" value={athlete.gpa_unweighted.toFixed(2)} />}
               {athlete.sat_score != null && <StatCard label="SAT" value={String(athlete.sat_score)} />}
               {athlete.act_score != null && <StatCard label="ACT" value={String(athlete.act_score)} />}
-              {athlete.exit_velocity_mph != null && <StatCard label="Exit Velo" value={`${athlete.exit_velocity_mph} mph`} />}
-              {athlete.sixty_yard_dash_seconds != null && <StatCard label="60 Yd" value={`${athlete.sixty_yard_dash_seconds}s`} />}
+              {athlete.exit_velocity_mph != null && (
+                <StatCard label="Exit Velo" value={`${athlete.exit_velocity_mph} mph`}>
+                  <VerifiedAttribution pb={exitVelocityPb} />
+                </StatCard>
+              )}
+              {athlete.sixty_yard_dash_seconds != null && (
+                <StatCard label="60 Yd" value={`${athlete.sixty_yard_dash_seconds}s`}>
+                  <VerifiedAttribution pb={sixtyYardPb} />
+                </StatCard>
+              )}
               {isPitcher && athlete.fastball_velocity_mph != null && (
-                <StatCard label="FB Velo" value={`${athlete.fastball_velocity_mph} mph`} />
+                <StatCard label="FB Velo" value={`${athlete.fastball_velocity_mph} mph`}>
+                  <VerifiedAttribution pb={fastballPb} />
+                </StatCard>
               )}
             </div>
           </section>
@@ -318,7 +353,14 @@ export default async function CoachAthleteDetailPage({
           {isPitcher && (
             <section style={{ marginBottom: '2.5rem' }}>
               <SectionHeader>Pitching Arsenal</SectionHeader>
-              <PitchArsenal pitches={pitches} readOnly={true} athleteClerkId={athlete.clerk_user_id} pitchHistory={pitchMetricsHistory} showProof={true} />
+              <PitchArsenal
+                pitches={pitches}
+                readOnly={true}
+                athleteClerkId={athlete.clerk_user_id}
+                pitchHistory={pitchMetricsHistory}
+                coachVerifiedMetrics={coachVerifiedMetrics}
+                showProof={true}
+              />
             </section>
           )}
 

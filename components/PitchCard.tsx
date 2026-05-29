@@ -2,6 +2,7 @@
 
 import { PITCH_TYPE_LABELS, PITCH_TYPE_TO_METRIC_KEY, getHistoryForPitchType } from '@/lib/metrics';
 import type { AthleteMetric, AthletePitch, VerificationType } from '@/lib/metrics';
+import VerifiedAttribution from './VerifiedAttribution';
 
 interface PitchCardProps {
   pitch: AthletePitch;
@@ -14,6 +15,12 @@ interface PitchCardProps {
   canMoveUp?: boolean;
   canMoveDown?: boolean;
   onMove?: (pitch: AthletePitch, direction: 'up' | 'down') => void;
+  /** Phase 2c-iv: coach-verified PB row for this pitch's mapped metric_key,
+   *  resolved by the parent (PitchArsenal) only when the pitch's velocity
+   *  matches the PB value (faster-of-the-two rule for fastballs; trivial
+   *  match for slider/curveball/changeup). When non-null, the pitch card
+   *  renders an inline VerifiedAttribution block in its footer. */
+  coachPb?: AthleteMetric | null;
 }
 
 // Fallback label when source_label is null. Humanizes the verification_type.
@@ -45,7 +52,7 @@ type TelemetryField = {
   unit:  string;
 };
 
-export default function PitchCard({ pitch, readOnly, onEdit, onWatch, pitchHistory, onHistory, showProof = false, canMoveUp = false, canMoveDown = false, onMove }: PitchCardProps) {
+export default function PitchCard({ pitch, readOnly, onEdit, onWatch, pitchHistory, onHistory, showProof = false, canMoveUp = false, canMoveDown = false, onMove, coachPb = null }: PitchCardProps) {
   const pitchLabel = PITCH_TYPE_LABELS[pitch.pitch_type] ?? pitch.pitch_type;
 
   // History gate — only render the button when a mapped metric_key exists for this
@@ -169,8 +176,20 @@ export default function PitchCard({ pitch, readOnly, onEdit, onWatch, pitchHisto
         ))}
       </div>
 
-      {/* Footer — History / Watch / View Proof / Edit buttons */}
-      {(showHistoryButton || pitch.video_url || (showProof && pitch.proof_url) || !readOnly) && (
+      {/* Coach verification attribution (Phase 2c-iv). Renders only when the
+          parent resolved a coach-verified PB row matching this slot's value. */}
+      {coachPb && <VerifiedAttribution pb={coachPb} />}
+
+      {/* Footer — History / Watch / View Proof / Edit buttons.
+          When VerifiedAttribution rendered its own "Watch proof" button (i.e.
+          coachPb exists and carries a video), suppress the footer "Watch"
+          button so we don't double up on the same clip. */}
+      {(() => {
+        const showFooterWatch = !!pitch.video_url && !(coachPb && coachPb.video_url);
+        const showFooter =
+          showHistoryButton || showFooterWatch || (showProof && pitch.proof_url) || !readOnly;
+        if (!showFooter) return null;
+        return (
         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginTop: '0.25rem' }}>
           {!readOnly && onMove && (
             <div style={{ display: 'flex', gap: '0.35rem', marginRight: 'auto' }}>
@@ -263,7 +282,7 @@ export default function PitchCard({ pitch, readOnly, onEdit, onWatch, pitchHisto
             </button>
           )}
 
-          {pitch.video_url && (
+          {showFooterWatch && (
             <button
               type="button"
               onClick={() => { if (onWatch) onWatch(pitch); }}
@@ -361,7 +380,8 @@ export default function PitchCard({ pitch, readOnly, onEdit, onWatch, pitchHisto
             </button>
           )}
         </div>
-      )}
+        );
+      })()}
     </div>
   );
 }

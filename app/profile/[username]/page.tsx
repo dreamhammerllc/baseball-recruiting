@@ -8,6 +8,8 @@ import VideoPlayer from '@/components/profile/VideoPlayer';
 import HighlightReel from '@/components/profile/HighlightReel';
 import PitchArsenal from '@/components/PitchArsenal';
 import VerifiedBadge from '@/components/VerifiedBadge';
+import VerifiedAttribution from '@/components/VerifiedAttribution';
+import StatCard from '@/components/profile/StatCard';
 import type { AthleteMetric, AthletePitch, HighlightVideo } from '@/lib/metrics';
 import type { SubscriptionTier } from '@/lib/subscription';
 import type { Metadata } from 'next';
@@ -309,6 +311,28 @@ export default async function AthleteProfilePage({
     // table may not exist yet — ignore
   }
 
+  // 4a. Fetch every coach-verified athlete_metrics row (NOT gated on
+  //     is_personal_best). Phase 2c-iv: the PB filter is wrong for the
+  //     attribution surface — when a third-party row at the same value
+  //     happens to own the PB slot, the coach row carries is_personal_best=
+  //     false but is still the verification the visitor wants to see
+  //     attributed. Ordered newest-first so value-matched lookups prefer
+  //     the most recent verification on ties.
+  let coachVerifiedMetrics: AthleteMetric[] = [];
+  try {
+    const { data: coachRows } = await db
+      .from('athlete_metrics')
+      .select('*')
+      .eq('athlete_clerk_id',  athleteClerkId)
+      .eq('verification_type', 'coach_verified')
+      .order('recorded_at', { ascending: false });
+    if (coachRows) {
+      coachVerifiedMetrics = coachRows as AthleteMetric[];
+    }
+  } catch {
+    // table may not exist yet — ignore
+  }
+
   // 4b. Fetch pitching arsenal (ordered by slot, always read-only on public profile)
   let pitches: AthletePitch[] = [];
   try {
@@ -371,6 +395,26 @@ export default async function AthleteProfilePage({
     athleteData.position === 'TWP' ||
     athleteData.secondary_position === 'P' ||
     athleteData.secondary_position === 'TWP';
+
+  // Phase 2c-iv: resolve coach-verified rows for the three denormalized
+  // headline stats, using a value-matched lookup against the (wider)
+  // coachVerifiedMetrics dataset. Same semantic as the pitch arsenal: the
+  // attribution renders when the displayed value matches a coach-verified
+  // value (within VALUE_MATCH_EPSILON). When the displayed athletes.*_mph /
+  // _seconds value diverges from the latest coach reading (e.g., the
+  // calculator was run after a coach session and Phase 2c-iii's write-
+  // through hadn't fired yet), attribution silently doesn't render rather
+  // than mislabelling the source.
+  const VALUE_MATCH_EPSILON = 0.05;
+  function findCoachMatch(metricKey: string, displayed: number | null): AthleteMetric | null {
+    if (displayed == null || !Number.isFinite(displayed)) return null;
+    return coachVerifiedMetrics.find(
+      m => m.metric_key === metricKey && Math.abs(Number(m.value) - displayed) < VALUE_MATCH_EPSILON,
+    ) ?? null;
+  }
+  const exitVelocityPb = findCoachMatch('exit_velocity',     athleteData.exit_velocity_mph);
+  const sixtyYardPb    = findCoachMatch('sixty_yard_dash',   athleteData.sixty_yard_dash_seconds);
+  const fastballPb     = findCoachMatch('fastball_velocity', athleteData.fastball_velocity_mph);
 
   const tier = athleteData.subscription_tier ?? 'free';
   const tierLabel =
@@ -722,21 +766,27 @@ export default async function AthleteProfilePage({
                 label="Exit Velo"
                 value={`${athleteData.exit_velocity_mph} mph`}
                 colors={colors}
-              />
+              >
+                <VerifiedAttribution pb={exitVelocityPb} />
+              </StatCard>
             )}
             {athleteData.sixty_yard_dash_seconds != null && (
               <StatCard
                 label="60 Yd"
                 value={`${athleteData.sixty_yard_dash_seconds}s`}
                 colors={colors}
-              />
+              >
+                <VerifiedAttribution pb={sixtyYardPb} />
+              </StatCard>
             )}
             {isPitcher && athleteData.fastball_velocity_mph != null && (
               <StatCard
                 label="FB Velo"
                 value={`${athleteData.fastball_velocity_mph} mph`}
                 colors={colors}
-              />
+              >
+                <VerifiedAttribution pb={fastballPb} />
+              </StatCard>
             )}
           </div>
         </section>
@@ -759,7 +809,13 @@ export default async function AthleteProfilePage({
             >
               Pitching Arsenal
             </h2>
-            <PitchArsenal pitches={pitches} readOnly={true} athleteClerkId={athleteClerkId} pitchHistory={pitchMetricsHistory} />
+            <PitchArsenal
+              pitches={pitches}
+              readOnly={true}
+              athleteClerkId={athleteClerkId}
+              pitchHistory={pitchMetricsHistory}
+              coachVerifiedMetrics={coachVerifiedMetrics}
+            />
           </section>
         )}
 
@@ -1079,58 +1135,5 @@ export default async function AthleteProfilePage({
         </p>
       </footer>
     </main>
-  );
-}
-
-// ─── StatCard ─────────────────────────────────────────────────────────────────
-
-function StatCard({
-  label,
-  value,
-  colors,
-}: {
-  label: string;
-  value: string;
-  colors: {
-    surface: string;
-    border: string;
-    muted: string;
-    text: string;
-  };
-}) {
-  return (
-    <div
-      style={{
-        background: '#111827',
-        border: `1px solid ${colors.border}`,
-        borderRadius: '0.75rem',
-        padding: '0.875rem 1rem',
-      }}
-    >
-      <p
-        style={{
-          fontFamily: 'monospace',
-          fontSize: '0.65rem',
-          color: colors.muted,
-          letterSpacing: '0.1em',
-          textTransform: 'uppercase',
-          margin: '0 0 0.35rem',
-        }}
-      >
-        {label}
-      </p>
-      <p
-        style={{
-          fontFamily: 'monospace',
-          fontSize: '1.25rem',
-          fontWeight: 700,
-          color: colors.text,
-          margin: 0,
-          lineHeight: 1,
-        }}
-      >
-        {value}
-      </p>
-    </div>
   );
 }

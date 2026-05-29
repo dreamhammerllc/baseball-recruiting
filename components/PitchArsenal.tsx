@@ -21,9 +21,44 @@ interface PitchArsenalProps {
   athleteClerkId: string;
   pitchHistory?: AthleteMetric[];
   showProof?: boolean;
+  /** Phase 2c-iv: athlete's coach-verified athlete_metrics rows (every coach-
+   *  verified entry, NOT gated on is_personal_best). The PB filter is wrong
+   *  for this surface — when a third-party row at the same value happens to
+   *  hold the PB slot, the coach row gets is_personal_best=false but it's
+   *  still the verification the visitor wants to see attributed. Optional —
+   *  when absent, no attribution renders on any pitch card (graceful no-op). */
+  coachVerifiedMetrics?: AthleteMetric[];
 }
 
-export default function PitchArsenal({ pitches, readOnly, athleteClerkId, pitchHistory, showProof = false }: PitchArsenalProps) {
+// Match epsilon for value-matching pitch.velocity against an athlete_metrics
+// row's value. Tight enough to avoid attributing across different real
+// readings, loose enough to absorb FP / numeric-precision noise (e.g.,
+// 92.10 vs 92.1 or trailing-zero serialization differences).
+const VALUE_MATCH_EPSILON = 0.05;
+
+// Q4 rule: attribution renders on the pitch slot whose velocity matches a
+// coach-verified row's value (within VALUE_MATCH_EPSILON) for its mapped
+// metric_key. Handles fastball faster-of-the-two implicitly (only the higher
+// slot's velocity matches the coach-verified value the write-through wrote
+// in) and trivially for single-slot pitch types (slider/curveball/changeup).
+function resolveCoachPb(
+  pitch: AthletePitch,
+  coachVerifiedMetrics: AthleteMetric[] | undefined,
+): AthleteMetric | null {
+  if (!coachVerifiedMetrics || pitch.velocity == null) return null;
+  const mappedKey = PITCH_TYPE_TO_METRIC_KEY[pitch.pitch_type];
+  if (!mappedKey) return null;
+  const pitchVel = Number(pitch.velocity);
+  if (!Number.isFinite(pitchVel)) return null;
+  return coachVerifiedMetrics.find(
+    m =>
+      m.metric_key === mappedKey &&
+      m.verification_type === 'coach_verified' &&
+      Math.abs(Number(m.value) - pitchVel) < VALUE_MATCH_EPSILON,
+  ) ?? null;
+}
+
+export default function PitchArsenal({ pitches, readOnly, athleteClerkId, pitchHistory, showProof = false, coachVerifiedMetrics }: PitchArsenalProps) {
   const router = useRouter();
   const sorted = [...pitches].sort((a, b) => a.pitch_slot - b.pitch_slot);
 
@@ -189,6 +224,7 @@ export default function PitchArsenal({ pitches, readOnly, athleteClerkId, pitchH
             canMoveUp={idx > 0}
             canMoveDown={idx < sorted.length - 1}
             onMove={readOnly ? undefined : handleMove}
+            coachPb={resolveCoachPb(pitch, coachVerifiedMetrics)}
           />
         ))}
 
