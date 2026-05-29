@@ -134,7 +134,7 @@ export default function HighlightReel({ highlights, ownerTier }: HighlightReelPr
               }}
             >
               <iframe
-                src={h.video_url}
+                src={`${h.video_url}?autoplay=false&preload=true`}
                 loading="lazy"
                 allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture; fullscreen"
                 allowFullScreen
